@@ -15,6 +15,8 @@ class HDF5Storage(index.CustomStorage):
             self._pageid = len(self._grp)
         else:
             self._grp = self._parent.create_group(self._name)
+            self._grp.attrs["encoding-type"] = "rtree-index"
+            self._grp.attrs["encoding-version"] = "0.1.0"
             self._hasData = False
             self._pageid = 0
 
@@ -56,7 +58,7 @@ class HDF5Storage(index.CustomStorage):
                 returnError.value = self.InvalidPageError
                 return 0
             del self._grp[spage]
-        dset = self._grp.create_dataset(spage, (len(page),), dtype=np.uint8, chunks=(len(page),), compression="gzip", compression_opts=9)
+        dset = self._grp.create_dataset(spage, (len(data),), dtype=np.uint8, chunks=(len(data),), compression="gzip", compression_opts=9)
         dset[()] = data
         return page
 
@@ -134,9 +136,14 @@ class SerializableStorage(index.CustomStorage):
         grp.attrs["encoding-type"] = "rtree-index"
         grp.attrs["encoding-version"] = "0.1.0"
 
-    def from_hdf5(self, grp):
-        for page in grp.values():
-            self._pages.append(page[()].tobytes())
+    def from_hdf5(self, parent, name):
+        for pageidx, page in parent[name].items():
+            # HDF5 files written with HDF5Storage are not necessarily ordered
+            idx = int(pageidx)
+            if idx >= len(self.pages):
+                for _ in range(len(self.pages), idx + 1):
+                    self._pages.append(None)
+            self._pages[idx] = page[()].tobytes()
 
 
 storage = SerializableStorage()
@@ -144,7 +151,7 @@ p = index.Property(type=index.RT_RTree, variant=index.RT_Star, dimension=2)
 
 idx = index.Index(storage, interleaved=True, properties=p)
 
-coords = np.random.random(size=(10000, 2))
+coords = np.random.random(size=(100000, 2))
 from tqdm import tqdm
 for i, c in enumerate(tqdm(coords)):
     idx.insert(i, np.hstack((c,c)))
@@ -153,7 +160,9 @@ for i, c in enumerate(tqdm(coords)):
 f = h5py.File("../test.h5", "a", libver="latest")
 # storage = HDF5Storage(f, "index")
 idx.customstorage.to_hdf5(f, "index")
+idx.close()
 
-storage = SerializableStorage(f["index"])
+storage = HDF5Storage(f, "index")
 idx = index.Index(storage, interleaved=True, properties=p)
 print(list(idx.intersection((0.4, 0.4, 0.5, 0.5))))
+idx.close()

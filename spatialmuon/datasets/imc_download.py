@@ -141,7 +141,7 @@ if True:
     assert os.path.isfile(basel_metadata)
     assert os.path.isfile(zurich_metadata)
 
-    from metadata import get_metadata
+    from imc_metadata import get_metadata
 
     df = get_metadata(clean_verbose=True, basel_csv=basel_metadata, zurich_csv=zurich_metadata)
 

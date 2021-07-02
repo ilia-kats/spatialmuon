@@ -1,4 +1,4 @@
-# [RFC][v0.2.1] spatial muon HDF5 storage spec
+# [RFC][v0.2.2] spatial muon HDF5 storage spec
 ## file format
 use HDF5's user block feature to write a custom header of the form `SpatialMuData (format-version=0.1.0;creator=package_name;creator-version=package_version)`. This will make the file immediately identifiable as a SpatialMuon file with any file extension and without having HDF5 installed.
 
@@ -33,7 +33,7 @@ contains one sub-group per modality
     list of encodings can be extended in the future
 
 - **data sets**
-    - `rotation`: rotation matrix to align this FOV with the other FOVs. Can be 2D or 3D.
+    - `rotation`: rotation matrix to align this FOV with the other FOVs. Can be 2D or 3D. Optional, if missing assumed to be the identity matrix.
     - `translation`: 2 or 3 element translation vector to align this FOV with the other FOVs.
     - additional data sets depending on type (array/single-molecule), see below
 
@@ -60,11 +60,11 @@ Only supported for IMC data at the moment. Stored as 2D or 3D images (depending 
 contains one group per resolution. Each resolution group contains one group per image, containing:
 
 - **data sets**
-    - `scale`: float, scale factor of this image to align it with the measurement coordinates
-    - `px_width`: width of one pixel in the same units that the coordinates are in
-    - `px_height`: height of one pixel in the same units that the coordinates are in
-    - `rotation`: 2D/3D rotaion matrix to align measurement coordinates with the image.
-    - `translation`: 2 or 3-element translation vector to align measurement coordinates with the image.
+    - `scale`: float, scale factor of this image to align it with the measurement coordinates. Optional, if missing scale is assumed to be 1
+    - `px_width`: width of one pixel in the same units that the coordinates are in. Optional, if missing assumed to be one. Both `px_width` and `px_height` must either be missing or present.
+    - `px_height`: height of one pixel in the same units that the coordinates are in. Optional, if missing assumed to be 1.
+    - `rotation`: 2D/3D rotaion matrix to align measurement coordinates with the image. Optional, if missing assumed to be the identity matrix.
+    - `translation`: 2 or 3-element translation vector to align measurement coordinates with the image. Optional, if missing assumed to be 0.
     - `channel_names`: vector of strings identifying the channels. Optional for single-channel or 3-channel images. 3-channel images with missing channel names will be assumed to be RGB.
     - `image`: the actual image.
 

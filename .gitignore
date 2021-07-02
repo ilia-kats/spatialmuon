@@ -1,0 +1,5 @@
+__pycache__/
+*.py[cod]
+*.so
+*.kdev4
+.kdev4/

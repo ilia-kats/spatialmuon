@@ -1,5 +1,1 @@
-from _pl import *
-
-
-def test():
-    pass
+from .index import *

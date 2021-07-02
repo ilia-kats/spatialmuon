@@ -1,2 +1,1 @@
-import spatialmuon._core.plot as pl
-import spatialmuon._core.preproc as pp
+from ._core import *

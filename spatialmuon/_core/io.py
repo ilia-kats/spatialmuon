@@ -10,6 +10,7 @@ from .spatialmodality import SpatialModality
 from .fieldofview import FieldOfView, UnknownDatatypeException
 from ..utils import _read_hdf5_attribute, _get_hdf5_attribute
 
+
 def _read_modality(grp: h5py.Group):
     attrs = grp.attrs
     scale = _get_hdf5_attribute(attrs, "scale", None)
@@ -17,14 +18,21 @@ def _read_modality(grp: h5py.Group):
     fovs = {}
     for f, fov in grp.items():
         try:
-            fovs[f] = FieldOfView(grp=fov)
+            fovs[f] = FieldOfView(backing=fov)
         except UnknownDatatypeException as e:
             warnings.warn(f"Unknown field of view type {e.datatype}")
-    fovs = {f: FieldOfView(grp=fov) for f, fov in grp.items()}
+    fovs = {f: FieldOfView(backing=fov) for f, fov in grp.items()}
     return SpatialModality(fovs, scale, unit)
 
-def read_h5smu(filename: PathLike, backed: Union[str, bool, None]=True):
-    assert backed in [None, True, False, "r", "r+"], "Argument `backed` should be boolean, r, r+, or None"
+
+def read_h5smu(filename: PathLike, backed: Union[str, bool, None] = True):
+    assert backed in [
+        None,
+        True,
+        False,
+        "r",
+        "r+",
+    ], "Argument `backed` should be boolean, r, r+, or None"
 
     from anndata._io.utils import read_attribute
 
@@ -32,11 +40,12 @@ def read_h5smu(filename: PathLike, backed: Union[str, bool, None]=True):
         if f.read(13) != b"SpatialMuData":
             raise RuntimeError(f"{filename} is not a SpatialMuData file")
 
-    with h5py.File(filename, "r") as f:
-        mods = {}
-        for m, mod in f["mod"].items():
-            mods[m] = _read_modality(mod)
-        return SpatialMuData(mods)
+    f = h5py.File(filename, "r")
+    smudata = SpatialMuData(backing=f)
+    if not backed:
+        f.close()
+    return smudata
+
 
 def write_h5smu(filename: PathLike, smudata: SpatialMuData):
     from anndata._io.utils import write_attribute
@@ -52,5 +61,13 @@ def write_h5smu(filename: PathLike, smudata: SpatialMuData):
         for m, mod in smudata:
             write_spatialmodality(mods, m, mod)
 
-def write_spatialmodality(parent: h5py.Group, key:str, mod: SpatialModality):
+    with open(filename, "br+") as outfile:
+        outfile.write(
+            f"SpatialMuData (format-version={__spatialmudataversion__};creator=spatialmuon;creator-version={__version__})".encode(
+                "utf-8"
+            )
+        )
+
+
+def write_spatialmodality(parent: h5py.Group, key: str, mod: SpatialModality):
     pass

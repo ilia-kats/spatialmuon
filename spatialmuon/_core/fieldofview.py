@@ -5,13 +5,14 @@ from typing import Optional
 import numpy as np
 import h5py
 
+from .backing import BackableObject
 from ..utils import _read_hdf5_attribute
 
 class UnknownDatatypeException(RuntimeError):
-    def __init__(fovtype:str):
+    def __init__(self, fovtype:str):
         self.datatype = fovtype
 
-class FieldOfView(ABC):
+class FieldOfView(BackableObject):
     _datatypes = {}
 
     @classmethod
@@ -20,11 +21,11 @@ class FieldOfView(ABC):
             datatypes = entry_points()["spatialmuon.datatypes"]
             for ep in datatypes:
                 klass = ep.load()
-                cls._datatypes[klass.datatype()] = klass
+                cls._datatypes[klass._encoding()] = klass
 
-    def __new__(cls, *, grp:Optional[h5py.Group]=None, **kwargs):
-        if grp is not None:
-            fovtype = _read_hdf5_attribute(grp.attrs, "encoding")
+    def __new__(cls, *, backing:Optional[h5py.Group]=None, **kwargs):
+        if backing is not None:
+            fovtype = _read_hdf5_attribute(backing.attrs, "encoding")
             cls._load_datatypes()
             if fovtype in cls._datatypes:
                 klass = cls._datatypes[fovtype]
@@ -43,9 +44,9 @@ class FieldOfView(ABC):
         feature_masks: Optional[dict] = None,
         image_masks: Optional[dict] = None,
         uns: Optional[dict] = None,
-        grp: Optional[h5py.Group] = None,
+        backing: Optional[h5py.Group] = None,
     ):
-        self._grp = grp
+        super().__init__(backing)
         self._index = None
         self.rotation = rotation
         self.translation = translation
@@ -54,7 +55,5 @@ class FieldOfView(ABC):
         self.image_masks = image_masks if image_masks is not None else {}
         self.uns = uns if uns is not None else {}
 
-    @staticmethod
-    @abstractmethod
-    def datatype() -> str:
-        pass
+    def _set_backing(self, value):
+        pass # TODO

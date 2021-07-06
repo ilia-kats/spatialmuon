@@ -46,13 +46,15 @@ def unzip(file, outdir):
     zfile.extractall(outdir)
     zfile.close()
 
-with tempfile.TemporaryDirectory() as tmpdir, h5py.File(outfname, "w", userblock_size=512) as outfile:
+with tempfile.TemporaryDirectory() as tmpdir, h5py.File(outfname, "w", userblock_size=512, libver="latest") as outfile:
     outfile.attrs["encoder"] = "seqfishplus-downloader"
     outfile.attrs["encoder-version"] = "0.1.0"
     outfile.attrs["encoding"] = "SpatialMuData"
     outfile.attrs["encoding-version"] = "0.1.0"
     modality = outfile.create_group("/mod/SeqFISH+")
-    modality["coordinate_unit"] = "px"
+    modality.attrs["encoding"] = "spatialmodality"
+    modality.attrs["encoding-version"] = "0.1.0"
+    modality.attrs["coordinate_unit"] = "px"
 
     locationsfile = os.path.join(tmpdir, "point_locations.zip")
     download("https://zenodo.org/record/2669683/files/seqFISH%2B_NIH3T3_point_locations.zip?download=1", locationsfile, desc="point locations")
@@ -108,10 +110,9 @@ with tempfile.TemporaryDirectory() as tmpdir, h5py.File(outfname, "w", userblock
                 feature_name.extend([gene_names[gene]] * cnspots)
 
             coords = np.concatenate(coords, axis=0)
-            cellids = pd.DataFrame({"cell": cellids})
+            cellids = pd.DataFrame({"cell": cellids}, index=feature_name)
             fovgrp.create_dataset("coordinates", data=coords, compression="gzip", compression_opts=9)
-            fovgrp.create_dataset("feature_name", data=feature_name, compression="gzip", compression_opts=9)
-            ad._io.h5ad.write_attribute(fovgrp, "metadata", cellids)
+            ad._io.h5ad.write_attribute(fovgrp, "metadata", cellids, dataset_kwargs={"compression": "gzip", "compression_opts":9})
 
             for i, c in enumerate(tqdm(coords, desc=f"creating spatial index for run {run} FOV {fov}")):
                 idx.insert(i, np.hstack((c, c)))

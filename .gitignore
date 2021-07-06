@@ -3,3 +3,5 @@ __pycache__/
 *.so
 *.kdev4
 .kdev4/
+*.h5smu
+

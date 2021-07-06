@@ -1,4 +1,4 @@
-# [RFC][v0.2.2] spatial muon HDF5 storage spec
+# [RFC][v0.2.3] spatial muon HDF5 storage spec
 ## file format
 use HDF5's user block feature to write a custom header of the form `SpatialMuData (format-version=0.1.0;creator=package_name;creator-version=package_version)`. This will make the file immediately identifiable as a SpatialMuon file with any file extension and without having HDF5 installed.
 
@@ -13,11 +13,13 @@ use HDF5's user block feature to write a custom header of the form `SpatialMuDat
 contains one sub-group per modality
 
 ## `mod/`modality subgroup
-- **data sets**
+- **attributes**
+    - `encoding`: `spatialmodality`
+    - `encoding-version`: 0.1.0
     - `scale`: Optional. Float, scale factor of this modality. If missing, different modalities cannot be aligned.
     - `coordinate_unit`: Optional. String, unit of the coordinates for this modality (e.g. `µm`).
 
-        the assumption is that all FOVs in a modality have the same scale factor
+    the assumption is that all FOVs in a modality have the same scale factor
 - **groups**
 
     one subgroup per field of view
@@ -88,10 +90,9 @@ coordinates will be stored sorted by feature name, which will allow efficient su
 
 - **additional data sets**
     - `coordinates`: n_obs x n_dim array of molecule coordinates
-    - `feature_name`: string array with n_obs elements. Would typically be used for gene names
 
 - **additional groups**
-    - `metadata`: data frame (encoded using AnnData's format) with per-molecule metadata
+    - `metadata`: data frame (encoded using AnnData's format) with per-molecule metadata. Data frame index is the gene name.
     - `feature_range`: group, contains one data set per unique feature name. The data set is a 2-element array containing the first and last indices (0-indexed, exclusive) of coordinates corresponding to the respective feature. This allows for fast subsetting by feature name: For in-memory storage, the entire group can be read into a dict. For backed storage, HDF5 stores groups as a B-tree, so lookup should happen in logarithmic time.
 
 Do we need something like the `.obs` dataframe for single-molecule data?

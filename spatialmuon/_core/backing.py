@@ -22,7 +22,7 @@ class BackableObject(ABC):
         obj.attrs["encoding"] = self._encoding()
         obj.attrs["encoding-version"] = self._encodingversion()
 
-        self._write_attributes_impl(self, obj)
+        self._write_attributes_impl(obj)
 
     @abstractmethod
     def _write_attributes_impl(self, obj: Union[h5py.Dataset, h5py.Group]):

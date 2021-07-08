@@ -52,14 +52,7 @@ def write_h5smu(filename: PathLike, smudata: SpatialMuData):
     from .. import __version__, __spatialmudataversion__
 
     with h5py.File(filename, "w", userblock_size=512, libver="latest") as f:
-        f.attrs["encoder"] = "spatialmuon"
-        f.attrs["encoder-version"] = __version__
-        f.attrs["encoding"] = "SpatialMuData"
-        f.attrs["encoding-version"] = __spatialmudataversion__
-
-        mods = f.create_group("mod")
-        for m, mod in smudata:
-            write_spatialmodality(mods, m, mod)
+        smudata.write(f)
 
     with open(filename, "br+") as outfile:
         outfile.write(
@@ -67,7 +60,3 @@ def write_h5smu(filename: PathLike, smudata: SpatialMuData):
                 "utf-8"
             )
         )
-
-
-def write_spatialmodality(parent: h5py.Group, key: str, mod: SpatialModality):
-    pass

@@ -1,28 +1,47 @@
+from typing import Optional
+
 from rtree import index
 import h5py
 import numpy as np
 
+from .backing import BackableObject
+from ..utils import _read_hdf5_attribute
+
 class HDF5Storage(index.CustomStorage):
-    def __init__(self, parentobj: h5py.Group, name: str):
+    def __init__(self, grp: Optional[h5py.Group]=None):
         super().__init__()
 
-        self._parent = parentobj
-        self._name = name
+        self.backing = grp
+        self._pageid = len(self._grp) if self.isbacked else 0
 
-        if self._name in self._parent:
-            self._grp = self._parent[self._name]
-            self._hasData = len(self._grp) > 0
-            self._pageid = len(self._grp)
+        self._pages = []
+        self._emptypages = []
+
+    @property
+    def isbacked(self):
+        return self._grp is not None
+
+    @property
+    def backing(self) -> Optional[h5py.Group]:
+        return self._grp
+
+    @backing.setter
+    def backing(self, grp: Optional[h5py.Group]):
+        self._grp = grp
+        if self._grp is not None:
+            self.clear = self.__clear_backed
+            self.loadByteArray = self.__loadByteArray_backed
+            self.storeByteArray = self.__storeByteArray_backed
+            self.deleteByteArray = self.__deleteByteArray_backed
         else:
-            self._grp = self._parent.create_group(self._name)
-            self._grp.attrs["encoding-type"] = "rtree-index"
-            self._grp.attrs["encoding-version"] = "0.1.0"
-            self._hasData = False
-            self._pageid = 0
+            self.clear = self.__clear
+            self.loadByteArray = self.__loadByteArray
+            self.storeByteArray = self.__storeByteArray
+            self.deleteByteArray = self.__deleteByteArray
 
     @property
     def hasData(self):
-        return self._hasData
+        return len(self._grp) > 0 if self.isbacked else len(self._pages) > 0
 
     def create(self, returnError):
         """ Called when the storage is created on the C side """
@@ -32,19 +51,29 @@ class HDF5Storage(index.CustomStorage):
         """ Called when the storage is destroyed on the C side """
         pass
 
-    def clear(self):
+    def __clear_backed(self):
         """ Clear all our data """
         del self._parent[self._name]
         self._grp = self._parent.create_group(self._name)
 
-    def loadByteArray(self, page, returnError):
+    def __clear(self):
+        self._pages = []
+        self._emptypages = []
+
+    def __loadByteArray_backed(self, page, returnError):
         """ Returns the data for page or returns an error """
         try:
             return self._grp[str(page)][()].tobytes()
         except KeyError:
             returnError.contents.value = self.InvalidPageError
 
-    def storeByteArray(self, page, data, returnError):
+    def __loadByteArray(self, page, returnError):
+        try:
+            return self._pages[page]
+        except IndexError:
+            returnError.contents.value = self.InvalidPageError
+
+    def __storeByteArray_backed(self, page, data, returnError):
         """ Stores the data for page """
         data = np.frombuffer(data, dtype=np.uint8)
         if page == self.NewPage:
@@ -62,45 +91,7 @@ class HDF5Storage(index.CustomStorage):
         dset[()] = data
         return page
 
-    def deleteByteArray(self, page, returnError):
-        """ Deletes a page """
-        try:
-            del self._grp[str(page)]
-        except KeyError:
-            returnError.contents.value = self.InvalidPageError
-
-    def flush(self, returnError):
-        pass
-
-class SerializableStorage(index.CustomStorage):
-    def __init__(self, grp=None):
-        self._pages = []
-        self._emptypages = []
-
-        if grp is not None:
-            self.from_hdf5(grp)
-
-    @property
-    def hasData(self):
-        return len(self._pages) > 0
-
-    def create(self, returnError):
-        pass
-
-    def destroy(self, returnError):
-        pass
-
-    def clear(self):
-        self._pages = []
-        self._emptypages = []
-
-    def loadByteArray(self, page, returnError):
-        try:
-            return self._pages[page]
-        except IndexError:
-            returnError.contents.value = self.InvalidPageError
-
-    def storeByteArray(self, page, data, returnError):
+    def __storeByteArray(self, page, data, returnError):
         if page == self.NewPage:
             if len(self._emptypages) > 0:
                 page = self._emptypages[-1]
@@ -115,7 +106,14 @@ class SerializableStorage(index.CustomStorage):
            returnError.contents.value = self.InvalidPageError
            return 0
 
-    def deleteByteArray(self, page, returnError):
+    def __deleteByteArray_backed(self, page, returnError):
+        """ Deletes a page """
+        try:
+            del self._grp[str(page)]
+        except KeyError:
+            returnError.contents.value = self.InvalidPageError
+
+    def __deleteByteArray(self, page, returnError):
         try:
             self._pages[page] = None
             self._emptypages.append(page)
@@ -125,19 +123,14 @@ class SerializableStorage(index.CustomStorage):
     def flush(self, returnError):
         pass
 
-    def to_hdf5(self, parent, name):
-        if name in parent:
-            del parent[name]
-        grp = parent.create_group(name, track_order=True)
+    def to_hdf5(self, grp):
         for i, page in enumerate(self._pages):
             if page is not None:
                 dset = grp.create_dataset(str(i), (len(page),), dtype=np.uint8, chunks=(len(page),), compression="gzip", compression_opts=9)
                 dset[()] = np.frombuffer(page, dtype=np.uint8)
-        grp.attrs["encoding-type"] = "rtree-index"
-        grp.attrs["encoding-version"] = "0.1.0"
 
-    def from_hdf5(self, parent, name):
-        for pageidx, page in parent[name].items():
+    def from_hdf5(self, grp):
+        for pageidx, page in grp.items():
             # HDF5 files written with HDF5Storage are not necessarily ordered
             idx = int(pageidx)
             if idx >= len(self.pages):
@@ -145,3 +138,55 @@ class SerializableStorage(index.CustomStorage):
                     self._pages.append(None)
             self._pages[idx] = page[()].tobytes()
 
+
+class SpatialIndex(BackableObject):
+    def __init__(self, backing: Optional[h5py.Group]=None, coordinates: Optional[np.ndarray]=None, dimension:Optional[int]=2, **kwargs):
+        super().__init__(backing)
+
+        if dimension is None and coordinates is None:
+            raise RuntimeError("must provide either coordinates or dimension")
+        elif coordinates is not None:
+            dimension = coordinates.shape[1]
+        self._prop = index.Property(type=index.RT_RTree, variante=index.RT_Star, dimension=dimension)
+        self._storage = HDF5Storage(self.backing)
+        self._index = index.Index(self._storage, interleaved=True, properties=self._prop)
+
+        if coordinates is not None:
+            self.set_coordinates(coordinates, **kwargs)
+
+    @staticmethod
+    def _encoding() -> str:
+        return "rtree-index"
+
+    @staticmethod
+    def _encodingversion() -> str:
+        return "0.1.0"
+
+    def _writeable_object(self, parent, key):
+        if key is None:
+            return parent
+        else:
+            if key in parent:
+                del parent[key]
+            return parent.create_group(key, track_order=True)
+
+    def _write_attributes_impl(self, obj):
+        pass
+
+    def _set_backing(self, value):
+        super()._set_backing(value)
+        if value is not None:
+            self.write(value, None)
+        self._storage.backing = value
+
+    def _write(self, grp):
+        self._storage.to_hdf5(grp)
+
+    def set_coordinates(self, coordinates:np.ndarray, progressbar:bool=False, **kwargs):
+        if coordinates.shape[1] != self._prop.dimension:
+            raise RuntimeError("coordinate dimension is different from index dimension")
+        if progressbar:
+            from tqdm.auto import tqdm
+            coordinates = tqdm(coordinates, **kwargs)
+        for i, c in enumerate(coordinates):
+            self._index.insert(i, np.hstack((c, c)))

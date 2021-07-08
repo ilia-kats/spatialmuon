@@ -1,4 +1,4 @@
-from .index import *
+from .index import SpatialIndex
 from .spatialmudata import SpatialMuData
 from .spatialmodality import SpatialModality
 from .fieldofview import FieldOfView

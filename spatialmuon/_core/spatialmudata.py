@@ -38,10 +38,9 @@ class SpatialMuData(BackableObject, dict):
         obj.attrs["encoder-version"] = __version__
 
 
-    def write(self, parent:h5py.Group, key:Optional[str]=None):
-        self._write_attributes(parent)
+    def _write(self, grp):
         for m, mod in self.items():
-            mod.write(parent.require_group("mod"), m)
+            mod.write(grp.require_group("mod"), m)
 
     def __setitem__(self, key: str, mod:SpatialModality):
         super().__setitem__(key, mod)

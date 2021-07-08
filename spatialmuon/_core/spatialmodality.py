@@ -57,9 +57,7 @@ class SpatialModality(BackableObject, dict):
         if self.coordinate_unit is not None:
             grp.attrs["coordinate_unit"] = self.coordinate_unit
 
-    def write(self, parent:h5py.Group, key:str):
-        grp = parent.require_group(key)
-        self._write_attributes(grp)
+    def _write(self, grp):
         for f, fov in self.items():
             fov.write(grp, f)
 

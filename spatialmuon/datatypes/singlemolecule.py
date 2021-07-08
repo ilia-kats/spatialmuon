@@ -35,20 +35,18 @@ class SingleMolecule(FieldOfView):
         return "0.1.0"
 
     def _write_attributes_impl(self, obj):
-        pass
+        super()._write_attributes_impl(self, obj)
 
     def _set_backing(self, value):
-        self.write(value.parent, None)
+        super()._set_backing(value)
+        if value is not None:
+            self.write(value, None)
+            self._data = None
+        else:
+            self._data = self.data
 
-    def write(self, parent, key):
-        grp = parent.require_group(key) if key is not None else parent
-        self._write_attributes(grp)
-        if self.isbacked:
-            if self.backing.file != grp.file or self.backing.name != grp.name:
-                grp.copy(self.backing["coordinates"], "coordinates")
-                grp.copy(self.backing["metadata"], "metadata")
-                grp.copy(self.backing["feature_range"], "feature_range")
-        elif self._data is not None:
+    def _write(self, grp):
+        if self._data is not None:
             data = self._data.sort_index()
             grp.create_dataset(
                 "coordinates", data=np.vstack(data.geometry), compression="gzip", compression_opts=9

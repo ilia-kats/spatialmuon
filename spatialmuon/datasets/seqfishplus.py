@@ -18,7 +18,7 @@ from tqdm import tqdm
 import h5py
 import anndata as ad
 
-from spatialmuon import SerializableStorage
+from spatialmuon import SpatialIndex
 from rtree import index
 
 if len(sys.argv) > 1:
@@ -89,10 +89,6 @@ with tempfile.TemporaryDirectory() as tmpdir, h5py.File(outfname, "w", userblock
 
             feature_range = fovgrp.create_group("feature_range")
 
-            storage = SerializableStorage()
-            p = index.Property(type=index.RT_RTree, variant=index.RT_Star, dimension=2)
-            idx = index.Index(storage, interleaved=True, properties=p)
-
             cellids = []
             coords = []
             nspots = 0
@@ -114,9 +110,8 @@ with tempfile.TemporaryDirectory() as tmpdir, h5py.File(outfname, "w", userblock
             fovgrp.create_dataset("coordinates", data=coords, compression="gzip", compression_opts=9)
             ad._io.h5ad.write_attribute(fovgrp, "metadata", cellids, dataset_kwargs={"compression": "gzip", "compression_opts":9})
 
-            for i, c in enumerate(tqdm(coords, desc=f"creating spatial index for run {run} FOV {fov}")):
-                idx.insert(i, np.hstack((c, c)))
-            storage.to_hdf5(fovgrp, "index")
+            idx = SpatialIndex(coordinates=coords, progressbar=True, desc=f"creating spatial index for run {run} FOV {fov}")
+            idx.write(fovgrp, "index")
 
             img = Image.open(os.path.join(imgdir, f"MMStack_Pos{fov}.ome.tif"))
             img.seek(7)
@@ -124,7 +119,7 @@ with tempfile.TemporaryDirectory() as tmpdir, h5py.File(outfname, "w", userblock
             img.close()
             img_grp = fovgrp.create_group(f"images/{dapi_img.shape[1]}x{dapi_img.shape[0]}")
             img_grp.create_dataset("image", data=dapi_img, compression="gzip", compression_opts=9)
-            fovgrp["translation"] = [fov * dapi_img.shape[0] + np.floor(0.05 * dapi_img.shape[0]).astype(np.int16), 0]
+            fovgrp["translation"] = [fov * (dapi_img.shape[0] + np.floor(0.05 * dapi_img.shape[0]).astype(np.int16)), run * (dapi_img.shape[1] + np.floor(0.05 * dapi_img.shape[0].astype(np.int16)))]
 
             maskgrp = fovgrp.create_group("feature_masks/ROIs")
             maskgrp.attrs["encoding"] = "polygon"

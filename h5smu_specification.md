@@ -1,4 +1,4 @@
-# [RFC][v0.2.4] spatial muon HDF5 storage spec
+# [RFC][v0.2.5] spatial muon HDF5 storage spec
 ## file format
 use HDF5's user block feature to write a custom header of the form `SpatialMuData (format-version=0.1.0;creator=package_name;creator-version=package_version)`. This will make the file immediately identifiable as a SpatialMuon file with any file extension and without having HDF5 installed.
 
@@ -58,18 +58,21 @@ This is the only supported format for single-molecule and Visium data. Each mask
 Only supported for IMC data at the moment. Stored as 2D or 3D images (depending on how many dimensions the data has) with integer values. `0` encodes background (no selection), different values represent different objects.
 
 ## `mod/modality/FOV/images` subgroup
-contains one group per resolution. Each resolution group contains one group per image, containing:
+Contains one group per image. Each image group contains:
 
-- **data sets**
+- **attributes**
+    - `base_resolution`: 2-element integer vector containing width and hieght of the original image resolution to which `scale`, `px_dimensions`, and `translation` apply. The corresponding quantities for other resolutions can be calculated on-the-fly. Mandatory if more than two resolutions are present.
+    - `channel_names`: vector of strings identifying the channels. The attribute is optional for single-channel or 3-channel images. 3-channel images with missing channel names will be assumed to be RGB.
     - `scale`: float, scale factor of this image to align it with the measurement coordinates. Optional, if missing scale is assumed to be 1
-    - `px_width`: width of one pixel in the same units that the coordinates are in. Optional, if missing assumed to be one. Both `px_width` and `px_height` must either be missing or present.
-    - `px_height`: height of one pixel in the same units that the coordinates are in. Optional, if missing assumed to be 1.
+    - `px_dimensions`: 2-element vector, width and height of one pixel in the same units that the coordinates are in. Optional, if missing both width and heigt are assumed to be one.
     - `rotation`: 2D/3D rotaion matrix to align measurement coordinates with the image. Optional, if missing assumed to be the identity matrix.
     - `translation`: 2 or 3-element translation vector to align measurement coordinates with the image. Optional, if missing assumed to be 0.
-    - `channel_names`: vector of strings identifying the channels. Optional for single-channel or 3-channel images. 3-channel images with missing channel names will be assumed to be RGB.
-    - `image`: the actual image.
 
-For example, `mod/visium/slice1/images/50000x50000/HnE/` would be a group
+- **data sets**
+
+    one data set for each resolution
+
+For example, `mod/visium/slice1/images/HnE/50000x50000` would be a data set
 
 ## `mod/modality/FOV` array data
 - **additional data sets**

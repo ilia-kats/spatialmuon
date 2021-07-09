@@ -37,6 +37,7 @@ class FieldOfView(BackableObject):
 
     def __init__(
         self,
+        backing: Optional[h5py.Group] = None,
         *,
         rotation: Optional[np.ndarray] = None,
         translation: Optional[np.ndarray] = None,
@@ -44,12 +45,14 @@ class FieldOfView(BackableObject):
         feature_masks: Optional[dict] = None,
         image_masks: Optional[dict] = None,
         uns: Optional[dict] = None,
-        backing: Optional[h5py.Group] = None,
     ):
         super().__init__(backing)
-        self._index = None
-        self.rotation = rotation
-        self.translation = translation
+        self._rotation = rotation
+        self._translation = translation
+        if rotation is None and self.isbacked and "rotation" in self.backing:
+            self._rotation = self.backing["rotation"]
+        if translation is None and self.isbacked and "translation" in self.backing:
+            self._translation = self.backing["translation"]
         self.images = images if images is not None else {}
         self.feature_masks = feature_masks if feature_masks is not None else {}
         self.image_masks = image_masks if image_masks is not None else {}
@@ -58,3 +61,33 @@ class FieldOfView(BackableObject):
     def _set_backing(self, value):
         super()._set_backing(value)
         pass # TODO
+
+    @property
+    @abstractmethod
+    def ndim(self) -> int:
+        pass
+
+    @property
+    def rotation(self) -> np.ndarray:
+        if self._rotation is not None:
+            return self._rotation
+        elif self.ndim is not None:
+            return np.eye(self.ndim)
+        else:
+            return np.eye(3)
+
+    @property
+    def translation(self) -> np.ndarray:
+        if self._translation is not None:
+            return self._translation
+        elif self.ndim is not None:
+            return np.zeros(self.ndim)
+        else:
+            return np.zeros(3)
+
+    def _write(self, grp):
+        super()._write(grp)
+        if self._rotation is not None:
+            grp["rotation"] = self._rotation
+        if self._translation is not None:
+            grp["translation"] = self._translation

@@ -12,13 +12,24 @@ from .. import SpatialIndex
 
 
 class SingleMolecule(FieldOfView):
-    def __init__(self, *, data: Optional[gpd.GeoDataFrame] = None, index_kwargs={}, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(
+        self,
+        backing: Optional[h5py.Group] = None,
+        *,
+        data: Optional[gpd.GeoDataFrame] = None,
+        index_kwargs={},
+        **kwargs,
+    ):
+        super().__init__(backing, **kwargs)
         self._data = data
         if self._data is not None:
             self._index = SpatialIndex(coordinates=np.vstack(data.geometry), **index_kwargs)
         elif self.isbacked:
-            self._index = SpatialIndex(backing=self.backing["index"], dimension=self.backing["coordinates"].shape[1], **index_kwargs)
+            self._index = SpatialIndex(
+                backing=self.backing["index"],
+                dimension=self.backing["coordinates"].shape[1],
+                **index_kwargs,
+            )
         else:
             self._index = None
 
@@ -32,6 +43,15 @@ class SingleMolecule(FieldOfView):
             return df
         else:
             return self._data
+
+    @property
+    def ndim(self):
+        if self._data is not None:
+            return self._data.shape[1]
+        elif self.isbacked:
+            return self.backing["coordinates"].shape[1]
+        else:
+            return None
 
     @staticmethod
     def _encoding() -> str:
@@ -55,6 +75,7 @@ class SingleMolecule(FieldOfView):
             self._index.set_backing(None)
 
     def _write(self, grp):
+        super()._write(grp)
         self._write_data(grp)
         if self._index is not None:
             self._index.write(grp, "index")

@@ -1,3 +1,5 @@
+from codecs import decode
+
 import h5py
 
 def _read_hdf5_attribute(attrs: h5py.AttributeManager, name: str):

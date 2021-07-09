@@ -27,17 +27,21 @@ class HDF5Storage(index.CustomStorage):
 
     @backing.setter
     def backing(self, grp: Optional[h5py.Group]):
-        self._grp = grp
-        if self._grp is not None:
+        if grp is not None:
+            self.to_hdf5(grp)
+            self._pages = []
+            self._emptypages = []
             self.clear = self.__clear_backed
             self.loadByteArray = self.__loadByteArray_backed
             self.storeByteArray = self.__storeByteArray_backed
             self.deleteByteArray = self.__deleteByteArray_backed
         else:
+            self.from_hdf5(self._grp)
             self.clear = self.__clear
             self.loadByteArray = self.__loadByteArray
             self.storeByteArray = self.__storeByteArray
             self.deleteByteArray = self.__deleteByteArray
+        self._grp = grp
 
     @property
     def hasData(self):

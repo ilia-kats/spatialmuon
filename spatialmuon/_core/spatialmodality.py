@@ -48,9 +48,9 @@ class SpatialModality(BackableObject, dict):
             self._write_attributes(grp)
             for f, fov in self.items():
                 fov.set_backing(grp, f)
-            else:
-                for fov in self.values():
-                    fov.set_backing(None)
+        else:
+            for fov in self.values():
+                fov.set_backing(None)
 
     def _write_attributes_impl(self, grp: h5py.Group):
         if self._scale is not None:

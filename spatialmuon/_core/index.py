@@ -154,8 +154,8 @@ class HDF5Storage(index.CustomStorage):
         for pageidx, page in grp.items():
             # HDF5 files written with HDF5Storage are not necessarily ordered
             idx = int(pageidx)
-            if idx >= len(self.pages):
-                for _ in range(len(self.pages), idx + 1):
+            if idx >= len(self._pages):
+                for _ in range(len(self._pages), idx + 1):
                     self._pages.append(None)
             self._pages[idx] = page[()].tobytes()
 

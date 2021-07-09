@@ -14,7 +14,7 @@ class SpatialMuData(BackableObject, dict):
         elif modalities is not None:
             self.update(modalities)
 
-    def _set_backing(self, grp:Union[None, h5py.Group], key):
+    def _set_backing(self, grp:Union[None, h5py.Group]):
         super()._set_backing(grp)
         if grp is not None:
             self._write_attributes(grp)

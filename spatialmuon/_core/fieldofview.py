@@ -56,5 +56,5 @@ class FieldOfView(BackableObject):
         self.uns = uns if uns is not None else {}
 
     def _set_backing(self, value):
-        super()._set_backing(grp)
+        super()._set_backing(value)
         pass # TODO

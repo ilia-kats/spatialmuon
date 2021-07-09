@@ -111,7 +111,7 @@ with tempfile.TemporaryDirectory() as tmpdir, h5py.File(outfname, "w", userblock
             dapi_img = np.asarray(img)
             img.close()
             img_grp = fovgrp.create_group(f"images/{dapi_img.shape[1]}x{dapi_img.shape[0]}")
-            img_grp.create_dataset("image", data=dapi_img, compression="gzip", compression_opts=9)
+            img_grp.create_dataset("DAPI", data=dapi_img, compression="gzip", compression_opts=9)
             fovgrp["translation"] = [fov * (dapi_img.shape[0] + np.floor(0.05 * dapi_img.shape[0])), run * (dapi_img.shape[1] + np.floor(0.05 * dapi_img.shape[0]))]
 
             maskgrp = fovgrp.create_group("feature_masks/ROIs")

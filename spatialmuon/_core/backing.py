@@ -41,6 +41,8 @@ class BackableObject(ABC):
         else:
             obj = None
         self._set_backing(obj)
+        if obj is None and self._backing.name == "/":
+            self._backing.close()
         self._backing = obj
 
     @abstractmethod

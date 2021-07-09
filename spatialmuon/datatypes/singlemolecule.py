@@ -8,12 +8,19 @@ import h5py
 from anndata._io.utils import read_attribute, write_attribute
 
 from .. import FieldOfView
+from .. import SpatialIndex
 
 
 class SingleMolecule(FieldOfView):
-    def __init__(self, *, data: Optional[gpd.GeoDataFrame] = None, **kwargs):
+    def __init__(self, *, data: Optional[gpd.GeoDataFrame] = None, index_kwargs={}, **kwargs):
         super().__init__(**kwargs)
         self._data = data
+        if self._data is not None:
+            self._index = SpatialIndex(coordinates=np.vstack(data.geometry), **index_kwargs)
+        elif self.isbacked:
+            self._index = SpatialIndex(backing=self.backing["index"], dimension=self.backing["coordinates"].shape[1], **index_kwargs)
+        else:
+            self._index = None
 
     @property
     def data(self):
@@ -35,17 +42,24 @@ class SingleMolecule(FieldOfView):
         return "0.1.0"
 
     def _write_attributes_impl(self, obj):
-        super()._write_attributes_impl(self, obj)
+        super()._write_attributes_impl(obj)
 
     def _set_backing(self, value):
         super()._set_backing(value)
         if value is not None:
-            self.write(value, None)
+            self._write_data(value)
+            self._index.set_backing(value, "index")
             self._data = None
         else:
             self._data = self.data
+            self._index.set_backing(None)
 
     def _write(self, grp):
+        self._write_data(grp)
+        if self._index is not None:
+            self._index.write(grp, "index")
+
+    def _write_data(self, grp):
         if self._data is not None:
             data = self._data.sort_index()
             grp.create_dataset(

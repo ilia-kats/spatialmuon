@@ -14,14 +14,16 @@ class SpatialMuData(BackableObject, dict):
         elif modalities is not None:
             self.update(modalities)
 
-    def _set_backing(self, grp:Union[None, h5py.Group]):
+    def _set_backing(self, grp:Union[None, h5py.Group], key):
+        super()._set_backing(grp)
         if grp is not None:
             self._write_attributes(grp)
+            parent = grp.require_group("mod")
             for m, mod in self.items():
-                mod.backing = grp.require_group(f"mod/{m}")
+                mod.set_backing(parent, m)
         else:
             for mod in self.values():
-                mod.backing = None
+                mod.set_backing(None)
 
     @staticmethod
     def _encoding():

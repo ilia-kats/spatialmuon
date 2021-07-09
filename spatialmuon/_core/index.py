@@ -7,15 +7,16 @@ import numpy as np
 from .backing import BackableObject
 from ..utils import _read_hdf5_attribute
 
-class HDF5Storage(index.CustomStorage):
-    def __init__(self, grp: Optional[h5py.Group]=None):
-        super().__init__()
 
-        self.backing = grp
-        self._pageid = len(self._grp) if self.isbacked else 0
+class HDF5Storage(index.CustomStorage):
+    def __init__(self, grp: Optional[h5py.Group] = None):
+        super().__init__()
 
         self._pages = []
         self._emptypages = []
+        self._grp = None
+        self.backing = grp
+        self._pageid = len(self._grp) if self.isbacked else 0
 
     @property
     def isbacked(self):
@@ -28,7 +29,8 @@ class HDF5Storage(index.CustomStorage):
     @backing.setter
     def backing(self, grp: Optional[h5py.Group]):
         if grp is not None:
-            self.to_hdf5(grp)
+            if self.hasData:
+                self.to_hdf5(grp)
             self._pages = []
             self._emptypages = []
             self.clear = self.__clear_backed
@@ -36,7 +38,8 @@ class HDF5Storage(index.CustomStorage):
             self.storeByteArray = self.__storeByteArray_backed
             self.deleteByteArray = self.__deleteByteArray_backed
         else:
-            self.from_hdf5(self._grp)
+            if self.isbacked:
+                self.from_hdf5(self._grp)
             self.clear = self.__clear
             self.loadByteArray = self.__loadByteArray
             self.storeByteArray = self.__storeByteArray
@@ -48,15 +51,15 @@ class HDF5Storage(index.CustomStorage):
         return len(self._grp) > 0 if self.isbacked else len(self._pages) > 0
 
     def create(self, returnError):
-        """ Called when the storage is created on the C side """
+        """Called when the storage is created on the C side"""
         pass
 
     def destroy(self, returnError):
-        """ Called when the storage is destroyed on the C side """
+        """Called when the storage is destroyed on the C side"""
         pass
 
     def __clear_backed(self):
-        """ Clear all our data """
+        """Clear all our data"""
         del self._parent[self._name]
         self._grp = self._parent.create_group(self._name)
 
@@ -65,7 +68,7 @@ class HDF5Storage(index.CustomStorage):
         self._emptypages = []
 
     def __loadByteArray_backed(self, page, returnError):
-        """ Returns the data for page or returns an error """
+        """Returns the data for page or returns an error"""
         try:
             return self._grp[str(page)][()].tobytes()
         except KeyError:
@@ -78,7 +81,7 @@ class HDF5Storage(index.CustomStorage):
             returnError.contents.value = self.InvalidPageError
 
     def __storeByteArray_backed(self, page, data, returnError):
-        """ Stores the data for page """
+        """Stores the data for page"""
         data = np.frombuffer(data, dtype=np.uint8)
         if page == self.NewPage:
             self._pageid += 1
@@ -91,7 +94,14 @@ class HDF5Storage(index.CustomStorage):
                 returnError.value = self.InvalidPageError
                 return 0
             del self._grp[spage]
-        dset = self._grp.create_dataset(spage, (len(data),), dtype=np.uint8, chunks=(len(data),), compression="gzip", compression_opts=9)
+        dset = self._grp.create_dataset(
+            spage,
+            (len(data),),
+            dtype=np.uint8,
+            chunks=(len(data),),
+            compression="gzip",
+            compression_opts=9,
+        )
         dset[()] = data
         return page
 
@@ -107,11 +117,11 @@ class HDF5Storage(index.CustomStorage):
             self._pages[page] = data
             return page
         except IndexError:
-           returnError.contents.value = self.InvalidPageError
-           return 0
+            returnError.contents.value = self.InvalidPageError
+            return 0
 
     def __deleteByteArray_backed(self, page, returnError):
-        """ Deletes a page """
+        """Deletes a page"""
         try:
             del self._grp[str(page)]
         except KeyError:
@@ -130,7 +140,14 @@ class HDF5Storage(index.CustomStorage):
     def to_hdf5(self, grp):
         for i, page in enumerate(self._pages):
             if page is not None:
-                dset = grp.create_dataset(str(i), (len(page),), dtype=np.uint8, chunks=(len(page),), compression="gzip", compression_opts=9)
+                dset = grp.create_dataset(
+                    str(i),
+                    (len(page),),
+                    dtype=np.uint8,
+                    chunks=(len(page),),
+                    compression="gzip",
+                    compression_opts=9,
+                )
                 dset[()] = np.frombuffer(page, dtype=np.uint8)
 
     def from_hdf5(self, grp):
@@ -144,14 +161,22 @@ class HDF5Storage(index.CustomStorage):
 
 
 class SpatialIndex(BackableObject):
-    def __init__(self, backing: Optional[h5py.Group]=None, coordinates: Optional[np.ndarray]=None, dimension:Optional[int]=2, **kwargs):
+    def __init__(
+        self,
+        backing: Optional[h5py.Group] = None,
+        coordinates: Optional[np.ndarray] = None,
+        dimension: Optional[int] = 2,
+        **kwargs,
+    ):
         super().__init__(backing)
 
         if dimension is None and coordinates is None:
             raise RuntimeError("must provide either coordinates or dimension")
         elif coordinates is not None:
             dimension = coordinates.shape[1]
-        self._prop = index.Property(type=index.RT_RTree, variante=index.RT_Star, dimension=dimension)
+        self._prop = index.Property(
+            type=index.RT_RTree, variante=index.RT_Star, dimension=dimension
+        )
         self._storage = HDF5Storage(self.backing)
         self._index = index.Index(self._storage, interleaved=True, properties=self._prop)
 
@@ -186,11 +211,12 @@ class SpatialIndex(BackableObject):
     def _write(self, grp):
         self._storage.to_hdf5(grp)
 
-    def set_coordinates(self, coordinates:np.ndarray, progressbar:bool=False, **kwargs):
+    def set_coordinates(self, coordinates: np.ndarray, progressbar: bool = False, **kwargs):
         if coordinates.shape[1] != self._prop.dimension:
             raise RuntimeError("coordinate dimension is different from index dimension")
         if progressbar:
             from tqdm.auto import tqdm
+
             coordinates = tqdm(coordinates, **kwargs)
         for i, c in enumerate(coordinates):
             self._index.insert(i, np.hstack((c, c)))

@@ -10,6 +10,8 @@ import sys
 
 import numpy as np
 import pandas as pd
+import geopandas as gpd
+from shapely.geometry import Point
 from scipy.io import loadmat
 from PIL import Image
 import roifile
@@ -18,7 +20,7 @@ from tqdm import tqdm
 import h5py
 import anndata as ad
 
-from spatialmuon import SpatialIndex
+from spatialmuon.datatypes.singlemolecule import SingleMolecule
 from rtree import index
 
 if len(sys.argv) > 1:
@@ -83,12 +85,6 @@ with tempfile.TemporaryDirectory() as tmpdir, h5py.File(outfname, "w", userblock
         positions = loadmat(os.path.join(locationsdir, f"RNA_locations_run_{run}.mat"))["tot"]
         nfov, ncell, ngene = positions.shape
         for fov in range(nfov):
-            fovgrp = modality.create_group(f"run{run}_fov{fov}")
-            fovgrp.attrs["encoding"] = "single-molecule"
-            fovgrp.attrs["encoding-version"] = "0.1.0"
-
-            feature_range = fovgrp.create_group("feature_range")
-
             cellids = []
             coords = []
             nspots = 0
@@ -101,25 +97,22 @@ with tempfile.TemporaryDirectory() as tmpdir, h5py.File(outfname, "w", userblock
                         cellids.extend([cell] * ccoords.shape[0])
                         coords.append(ccoords[:, :2])
                         cnspots += ccoords.shape[0]
-                feature_range[gene_names[gene]] = [nspots, nspots + cnspots]
                 nspots += cnspots
                 feature_name.extend([gene_names[gene]] * cnspots)
 
             coords = np.concatenate(coords, axis=0)
-            cellids = pd.DataFrame({"cell": cellids}, index=feature_name)
-            fovgrp.create_dataset("coordinates", data=coords, compression="gzip", compression_opts=9)
-            ad._io.h5ad.write_attribute(fovgrp, "metadata", cellids, dataset_kwargs={"compression": "gzip", "compression_opts":9})
+            coords = gpd.GeoDataFrame({"cell": cellids}, index=feature_name, geometry=[Point(*c) for c in coords])
+            cfov = SingleMolecule(data=coords, index_kwargs={"progressbar":True, "desc": f"creating spatial index for run {run} FOV {fov}"})
+            cfov.write(modality, f"run{run}_fov{fov}")
 
-            idx = SpatialIndex(coordinates=coords, progressbar=True, desc=f"creating spatial index for run {run} FOV {fov}")
-            idx.write(fovgrp, "index")
-
+            fovgrp = modality[f"run{run}_fov{fov}"]
             img = Image.open(os.path.join(imgdir, f"MMStack_Pos{fov}.ome.tif"))
             img.seek(7)
             dapi_img = np.asarray(img)
             img.close()
             img_grp = fovgrp.create_group(f"images/{dapi_img.shape[1]}x{dapi_img.shape[0]}")
             img_grp.create_dataset("image", data=dapi_img, compression="gzip", compression_opts=9)
-            fovgrp["translation"] = [fov * (dapi_img.shape[0] + np.floor(0.05 * dapi_img.shape[0]).astype(np.int16)), run * (dapi_img.shape[1] + np.floor(0.05 * dapi_img.shape[0].astype(np.int16)))]
+            fovgrp["translation"] = [fov * (dapi_img.shape[0] + np.floor(0.05 * dapi_img.shape[0])), run * (dapi_img.shape[1] + np.floor(0.05 * dapi_img.shape[0]))]
 
             maskgrp = fovgrp.create_group("feature_masks/ROIs")
             maskgrp.attrs["encoding"] = "polygon"

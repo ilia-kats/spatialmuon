@@ -34,12 +34,14 @@ class BackableObject(ABC):
     def backing(self) -> Union[h5py.Group, None, h5py.Dataset]:
         return self._backing
 
-    @backing.setter
-    def backing(self, value: Optional[Union[h5py.Group, h5py.Dataset]] = None):
-        if value is not None:
-            self._write_attributes(value)
-        self._set_backing(value)
-        self._backing = value
+    def set_backing(self, parent: Optional[Union[h5py.Group, h5py.Dataset]] = None, key:Optional[str]=None):
+        if parent is not None:
+            obj = self._writeable_object(parent, key) if key is not None else parent
+            self._write_attributes(obj)
+        else:
+            obj = None
+        self._set_backing(obj)
+        self._backing = obj
 
     @abstractmethod
     def _set_backing(self, value: Optional[Union[h5py.Group, h5py.Dataset]] = None):

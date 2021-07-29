@@ -1,19 +1,19 @@
 from typing import Optional
 import warnings
 
-from .backing import BackableObject
+from .backing import BackableObject, BackedDictProxy
 from .fieldofview import FieldOfView, UnknownDatatypeException
 from ..utils import _read_hdf5_attribute, _get_hdf5_attribute
 
 import h5py
 
-class SpatialModality(BackableObject, dict):
+class SpatialModality(BackableObject, BackedDictProxy):
     def __init__(self, fovs:Optional[dict] = None, scale: Optional[float]=None, coordinate_unit: Optional[str]=None, backing: h5py.Group=None):
         super().__init__(backing)
         if self.isbacked:
             for f, fov in self.backing.items():
                 try:
-                    super().__setitem__(f, FieldOfView(backing=fov))
+                    self[f] = FieldOfView(backing=fov)
                 except UnknownDatatypeException as e:
                     warnings.warn(f"Unknown field of view type {e.datatype}")
             self.scale = _get_hdf5_attribute(self.backing.attrs, "scale", None)
@@ -61,8 +61,3 @@ class SpatialModality(BackableObject, dict):
     def _write(self, grp):
         for f, fov in self.items():
             fov.write(grp, f)
-
-    def __setitem__(self, key: str, fov: FieldOfView):
-        super().__setitem__(key, fov)
-        if self.isbacked:
-            fov.set_backing(self.backing, key)

@@ -2,15 +2,15 @@ from typing import Optional, Dict, Union
 
 import h5py
 
-from .backing import BackableObject
+from .backing import BackableObject, BackedDictProxy
 from .spatialmodality import SpatialModality
 
-class SpatialMuData(BackableObject, dict):
+class SpatialMuData(BackableObject, BackedDictProxy):
     def __init__(self, modalities:Optional[Dict[str, SpatialModality]]=None, backing: h5py.Group = None):
-        super().__init__(backing)
+        super().__init__(backing, key="mod", items=modalities)
         if self.isbacked:
             for m, mod in self.backing["mod"].items():
-                super().__setitem__(m, SpatialModality(backing=mod))
+                self[m] = SpatialModality(backing=mod)
         elif modalities is not None:
             self.update(modalities)
 
@@ -43,8 +43,3 @@ class SpatialMuData(BackableObject, dict):
     def _write(self, grp):
         for m, mod in self.items():
             mod.write(grp.require_group("mod"), m)
-
-    def __setitem__(self, key: str, mod:SpatialModality):
-        super().__setitem__(key, mod)
-        if self.isbacked:
-            mod.backing = self.backing.require_group(f"mod/{key}")

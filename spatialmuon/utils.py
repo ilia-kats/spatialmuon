@@ -29,3 +29,7 @@ def _get_hdf5_attribute(attrs: h5py.AttributeManager, name:str, default=None):
         return _read_hdf5_attribute(attrs, name)
     else:
         return default
+
+class UnknownEncodingException(RuntimeError):
+    def __init__(self, encoding: str):
+        self.encoding = encoding

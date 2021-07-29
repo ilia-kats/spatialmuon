@@ -7,7 +7,7 @@ import h5py
 
 from .spatialmudata import SpatialMuData
 from .spatialmodality import SpatialModality
-from .fieldofview import FieldOfView, UnknownDatatypeException
+from .fieldofview import FieldOfView, UnknownEncodingException
 from ..utils import _read_hdf5_attribute, _get_hdf5_attribute
 
 
@@ -19,7 +19,7 @@ def _read_modality(grp: h5py.Group):
     for f, fov in grp.items():
         try:
             fovs[f] = FieldOfView(backing=fov)
-        except UnknownDatatypeException as e:
+        except UnknownEncodingException as e:
             warnings.warn(f"Unknown field of view type {e.datatype}")
     fovs = {f: FieldOfView(backing=fov) for f, fov in grp.items()}
     return SpatialModality(fovs, scale, unit)

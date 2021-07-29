@@ -115,13 +115,12 @@ with tempfile.TemporaryDirectory() as tmpdir, h5py.File(outfname, "w", userblock
             img = spatialmuon.Image(image=dapi_img, translation=translation)
             cfov.images["DAPI"] = img
 
-            maskgrp = fovgrp.create_group("feature_masks/ROIs")
-            maskgrp.attrs["encoding"] = "polygon"
-            maskgrp.attrs["encoding-version"] = "0.1.0"
+            mask = spatialmuon.PolygonMask()
+            cfov.feature_masks["ROIs"] = mask
             with os.scandir(os.path.join(roidir, os.listdir(roidir)[0], f"RoiSet_Pos{fov}")) as rdir:
                 for rfile in rdir:
                     roi = roifile.roiread(rfile.path)
-                    maskgrp.create_dataset(roi.name, data=roi.coordinates(), compression="gzip", compression_opts=9)
+                    mask[roi.name] = roi.coordinates()
 
 
 with open(outfname, "rb+") as outfile:

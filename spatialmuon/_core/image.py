@@ -48,12 +48,12 @@ class Image(BackableObject):
             self._translation = _get_hdf5_attribute(attrs, "translation")
 
         if image is not None:
-            if self._available_resolutions is not None and len(self._available_resolutions) > 0 and img is not None:
+            if self._available_resolutions is not None and len(self._available_resolutions) > 0 and image is not None:
                 raise ValueError("trying to set image on a non-empty backing store")
-            if img.ndim == 3 and img.shape[2] != 1 and img.shape[2] != 3 and channel_names is None:
+            if image.ndim == 3 and image.shape[2] != 1 and image.shape[2] != 3 and channel_names is None:
                 raise ValueError("channel names are mandatory for images with 2 or > 3 channels")
             if channel_names is not None and (
-                img.ndim == 3 and len(channel_names) != img.shape[3] or len(channel_names) != 1
+                image.ndim == 3 and len(channel_names) != image.shape[3] or len(channel_names) != 1
             ):
                 raise ValueError(
                     "the number of channel names must equal the number of channels in the image"
@@ -67,7 +67,7 @@ class Image(BackableObject):
             if translation is not None:
                 translation = np.asarray(translation).squeeze()
 
-            self._base_resolution = np.asarray([img.shape[1], img.shape[0]])
+            self._base_resolution = np.asarray([image.shape[1], image.shape[0]])
             self._available_resolutions = self._base_resolution[np.newaxis, :]
             self._channel_names = channel_names
             self._scale = scale
@@ -78,7 +78,7 @@ class Image(BackableObject):
                 self._write(self.backing)
                 self._write_attributes(self.backing)
             else:
-                self._images[(img.shape[1], img.shape[0])] = img
+                self._images[(image.shape[1], image.shape[0])] = image
 
     @property
     def resolutions(self) -> Union[np.ndarray, None]:

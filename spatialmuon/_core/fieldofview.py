@@ -7,12 +7,8 @@ import h5py
 
 from .backing import BackableObject, BackedDictProxy
 from .image import Image
-from ..utils import _read_hdf5_attribute
-
-
-class UnknownDatatypeException(RuntimeError):
-    def __init__(self, fovtype: str):
-        self.datatype = fovtype
+from .mask import Mask
+from ..utils import _read_hdf5_attribute, UnknownEncodingException
 
 
 class FieldOfView(BackableObject):
@@ -34,7 +30,7 @@ class FieldOfView(BackableObject):
                 klass = cls._datatypes[fovtype]
                 return super(cls, klass).__new__(klass)
             else:
-                raise UnknownDatatypeException(fovtype)
+                raise UnknownEncodingException(fovtype)
         else:
             return super().__new__(cls)
 
@@ -65,10 +61,14 @@ class FieldOfView(BackableObject):
         if translation is None and self.isbacked and "translation" in self.backing:
             self._translation = self.backing["translation"]
         self.images = BackedDictProxy(self, key="images", items=images)
-        if self.isbacked:
+        if self.isbacked and "images" in self.backing:
             for key, img in self.backing["images"].items():
                 self.images[key] = Image(img)
-        self.feature_masks = feature_masks if feature_masks is not None else {}
+
+        self.feature_masks = BackedDictProxy(self, key="feature_masks", items=feature_masks)
+        if self.isbacked and "feature_masks" in self.backing:
+            for key, mask in self.backing["feature_masks"].items():
+                self.feature_masks[key] = Mask(backing=mask)
         self.image_masks = image_masks if image_masks is not None else {}
         self.uns = uns if uns is not None else {}
 

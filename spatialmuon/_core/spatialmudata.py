@@ -6,7 +6,7 @@ from .backing import BackableObject, BackedDictProxy
 from .spatialmodality import SpatialModality
 
 class SpatialMuData(BackableObject, BackedDictProxy):
-    def __init__(self, modalities:Optional[Dict[str, SpatialModality]]=None, backing: h5py.Group = None):
+    def __init__(self, backing: h5py.Group = None, modalities:Optional[Dict[str, SpatialModality]]=None):
         super().__init__(backing, key="mod", items=modalities)
         if self.isbacked:
             for m, mod in self.backing["mod"].items():

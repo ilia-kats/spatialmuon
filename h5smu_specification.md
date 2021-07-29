@@ -1,4 +1,4 @@
-# [RFC][v0.2.5] spatial muon HDF5 storage spec
+# [RFC][v0.2.6] spatial muon HDF5 storage spec
 ## file format
 use HDF5's user block feature to write a custom header of the form `SpatialMuData (format-version=0.1.0;creator=package_name;creator-version=package_version)`. This will make the file immediately identifiable as a SpatialMuon file with any file extension and without having HDF5 installed.
 
@@ -48,7 +48,7 @@ contains one sub-group per modality
 ## `mod/modality/FOV/feature_masks` subgroup
 Each member of this group has the following attributes:
 
-- `encoding` one of `polygon`, `raster`
+- `encoding` one of `mask-polygon`, `mask-raster`
 - `encoding-version`: version of the format
 
 ### polygon masks

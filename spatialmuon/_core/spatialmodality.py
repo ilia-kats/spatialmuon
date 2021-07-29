@@ -2,20 +2,20 @@ from typing import Optional
 import warnings
 
 from .backing import BackableObject, BackedDictProxy
-from .fieldofview import FieldOfView, UnknownDatatypeException
+from .fieldofview import FieldOfView, UnknownEncodingException
 from ..utils import _read_hdf5_attribute, _get_hdf5_attribute
 
 import h5py
 
 class SpatialModality(BackableObject, BackedDictProxy):
-    def __init__(self, fovs:Optional[dict] = None, scale: Optional[float]=None, coordinate_unit: Optional[str]=None, backing: h5py.Group=None):
+    def __init__(self, backing: Optional[h5py.Group]=None, fovs:Optional[dict] = None, scale: Optional[float]=None, coordinate_unit: Optional[str]=None):
         super().__init__(backing)
         if self.isbacked:
             for f, fov in self.backing.items():
                 try:
                     self[f] = FieldOfView(backing=fov)
-                except UnknownDatatypeException as e:
-                    warnings.warn(f"Unknown field of view type {e.datatype}")
+                except UnknownEncodingException as e:
+                    warnings.warn(f"Unknown field of view type {e.encoding}")
             self.scale = _get_hdf5_attribute(self.backing.attrs, "scale", None)
             self.coordinate_unit = _get_hdf5_attribute(self.backing.attrs, "coordinate_unit", None)
         else:

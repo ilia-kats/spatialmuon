@@ -15,6 +15,7 @@ class HDF5Storage(index.CustomStorage):
         self._pages = []
         self._emptypages = []
         self._grp = None
+        self._readonly = False
         self.backing = grp
         self._pageid = len(self._grp) if self.isbacked else 0
 
@@ -37,6 +38,7 @@ class HDF5Storage(index.CustomStorage):
             self.loadByteArray = self.__loadByteArray_backed
             self.storeByteArray = self.__storeByteArray_backed
             self.deleteByteArray = self.__deleteByteArray_backed
+            self._readonly = grp.file.mode == "r"
         else:
             if self.isbacked:
                 self.from_hdf5(self._grp)
@@ -44,6 +46,7 @@ class HDF5Storage(index.CustomStorage):
             self.loadByteArray = self.__loadByteArray
             self.storeByteArray = self.__storeByteArray
             self.deleteByteArray = self.__deleteByteArray
+            self._readonly = False
         self._grp = grp
 
     @property
@@ -82,6 +85,10 @@ class HDF5Storage(index.CustomStorage):
 
     def __storeByteArray_backed(self, page, data, returnError):
         """Stores the data for page"""
+        # this is called when deleting the index object due to a flush() in libspatialindex:~Buffer()
+        # when having a read-only file, a bunch of stack traces are printed. Avoid that
+        if self._readonly:
+            return page
         data = np.frombuffer(data, dtype=np.uint8)
         if page == self.NewPage:
             self._pageid += 1
@@ -122,10 +129,11 @@ class HDF5Storage(index.CustomStorage):
 
     def __deleteByteArray_backed(self, page, returnError):
         """Deletes a page"""
-        try:
-            del self._grp[str(page)]
-        except KeyError:
-            returnError.contents.value = self.InvalidPageError
+        if not self._readonly:
+            try:
+                del self._grp[str(page)]
+            except KeyError:
+                returnError.contents.value = self.InvalidPageError
 
     def __deleteByteArray(self, page, returnError):
         try:
@@ -205,7 +213,7 @@ class SpatialIndex(BackableObject):
     def _set_backing(self, value):
         super()._set_backing(value)
         if value is not None:
-            self.write(value, None)
+            self._write_attributes(value)
         self._storage.backing = value
 
     def _write(self, grp):

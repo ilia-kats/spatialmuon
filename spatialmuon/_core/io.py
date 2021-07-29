@@ -43,6 +43,7 @@ def read_h5smu(filename: PathLike, backed: Union[str, bool, None] = True):
     f = h5py.File(filename, "r")
     smudata = SpatialMuData(backing=f)
     if not backed:
+        smudata.set_backing()
         f.close()
     return smudata
 

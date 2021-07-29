@@ -24,7 +24,7 @@ def _read_hdf5_attribute(attrs: h5py.AttributeManager, name: str):
         else:  # NumPy array
             return [decode(s, "utf-8") for s in attr]
 
-def _get_hdf5_attribute(attrs: h5py.AttributeManager, name:str, default:None):
+def _get_hdf5_attribute(attrs: h5py.AttributeManager, name:str, default=None):
     if name in attrs:
         return _read_hdf5_attribute(attrs, name)
     else:

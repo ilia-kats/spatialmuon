@@ -20,6 +20,7 @@ from tqdm import tqdm
 import h5py
 import anndata as ad
 
+import spatialmuon
 from spatialmuon.datatypes.singlemolecule import SingleMolecule
 from rtree import index
 
@@ -103,15 +104,16 @@ with tempfile.TemporaryDirectory() as tmpdir, h5py.File(outfname, "w", userblock
             coords = np.concatenate(coords, axis=0)
             coords = gpd.GeoDataFrame({"cell": cellids}, index=feature_name, geometry=[Point(*c) for c in coords])
             cfov = SingleMolecule(data=coords, index_kwargs={"progressbar":True, "desc": f"creating spatial index for run {run} FOV {fov}"})
-            cfov.write(modality, f"run{run}_fov{fov}")
+            cfov.set_backing(modality, f"run{run}_fov{fov}")
 
             fovgrp = modality[f"run{run}_fov{fov}"]
             img = Image.open(os.path.join(imgdir, f"MMStack_Pos{fov}.ome.tif"))
             img.seek(7)
             dapi_img = np.asarray(img)
             img.close()
-            fovgrp.create_dataset(f"images/DAPI/{dapi_img.shape[1]}x{dapi_img.shape[0]}", data=dapi_img, compression="gzip", compression_opts=9)
-            fovgrp["translation"] = [fov * (dapi_img.shape[0] + np.floor(0.05 * dapi_img.shape[0])), run * (dapi_img.shape[1] + np.floor(0.05 * dapi_img.shape[0]))]
+            translation = [fov * (dapi_img.shape[0] + np.floor(0.05 * dapi_img.shape[0])), run * (dapi_img.shape[1] + np.floor(0.05 * dapi_img.shape[0]))]
+            img = spatialmuon.Image(image=dapi_img, translation=translation)
+            cfov.images["DAPI"] = img
 
             maskgrp = fovgrp.create_group("feature_masks/ROIs")
             maskgrp.attrs["encoding"] = "polygon"

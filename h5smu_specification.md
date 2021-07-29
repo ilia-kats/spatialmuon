@@ -61,6 +61,8 @@ Only supported for IMC data at the moment. Stored as 2D or 3D images (depending 
 Contains one group per image. Each image group contains:
 
 - **attributes**
+    - `encoding`: `image`
+    - `encoding-version`: version of the format
     - `base_resolution`: 2-element integer vector containing width and hieght of the original image resolution to which `scale`, `px_dimensions`, and `translation` apply. The corresponding quantities for other resolutions can be calculated on-the-fly. Mandatory if more than two resolutions are present.
     - `channel_names`: vector of strings identifying the channels. The attribute is optional for single-channel or 3-channel images. 3-channel images with missing channel names will be assumed to be RGB.
     - `scale`: float, scale factor of this image to align it with the measurement coordinates. Optional, if missing scale is assumed to be 1

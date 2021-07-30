@@ -4,6 +4,7 @@ from typing import Optional
 
 import numpy as np
 import h5py
+from anndata._io.utils import read_attribute, write_attribute
 
 from .backing import BackableObject, BackedDictProxy
 from .image import Image
@@ -81,7 +82,11 @@ class FieldOfView(BackableObject):
         if self.isbacked and "image_masks" in self.backing:
             for key, mask in self.backing["image_masks"].items():
                 self.image_masks[key] = Mask(backing=mask)
-        self.uns = uns if uns is not None else {}
+
+        if self.isbacked and "uns" in self.backing:
+            self.uns = read_attribute(self.backing["uns"])
+        elif not self.isbacked and uns is not None:
+            self.uns = uns
 
         # we don't want to validate stuff coming from HDF5, this may break I/O
         # but mostly we can't validate for a half-initalized object
@@ -104,6 +109,10 @@ class FieldOfView(BackableObject):
         super()._set_backing(obj)
         for img in self.images:
             img.set_backing(obj)
+        for mask in self.feature_masks:
+            mask.set_backing(obj)
+        for mask in self.image_masks:
+            mask.set_backing(obj)
 
     @property
     @abstractmethod
@@ -138,3 +147,9 @@ class FieldOfView(BackableObject):
     def _write(self, obj: h5py.Group):
         for imname, img in self.images.items():
             img.write(obj, f"images/{imname}")
+        for maskname, mask in self.feature_masks.items():
+            mask.write(obj, f"feature_masks/{maskname}")
+        for maskname, mask in self.image_masks.items():
+            mask.write(obj, f"image_masks/{maskname}")
+
+        write_attribute(obj, "uns", self.uns, dataset_kwargs={"compression": "gzip", "compression_opts": 9})

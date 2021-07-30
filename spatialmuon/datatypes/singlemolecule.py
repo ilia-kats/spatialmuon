@@ -20,18 +20,18 @@ class SingleMolecule(FieldOfView):
         index_kwargs={},
         **kwargs,
     ):
-        super().__init__(backing, **kwargs)
         self._data = data
         if self._data is not None:
             self._index = SpatialIndex(coordinates=np.vstack(data.geometry), **index_kwargs)
-        elif self.isbacked:
+        elif backing is not None:
             self._index = SpatialIndex(
-                backing=self.backing["index"],
-                dimension=self.backing["coordinates"].shape[1],
+                backing=backing["index"],
+                dimension=backing["coordinates"].shape[1],
                 **index_kwargs,
             )
         else:
             self._index = None
+        super().__init__(backing, **kwargs)
 
     @property
     def data(self):

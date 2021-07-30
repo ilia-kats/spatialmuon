@@ -67,17 +67,17 @@ class FieldOfView(BackableObject):
             self._rotation = self.backing["rotation"]
         if translation is None and self.isbacked and "translation" in self.backing:
             self._translation = self.backing["translation"]
-        self.images = BackedDictProxy(self, key="images", items=images)
+        self.images = BackedDictProxy(self, key="images")
         if self.isbacked and "images" in self.backing:
             for key, img in self.backing["images"].items():
                 self.images[key] = Image(img)
 
-        self.feature_masks = BackedDictProxy(self, key="feature_masks", items=feature_masks)
+        self.feature_masks = BackedDictProxy(self, key="feature_masks")
         if self.isbacked and "feature_masks" in self.backing:
             for key, mask in self.backing["feature_masks"].items():
                 self.feature_masks[key] = Mask(backing=mask)
 
-        self.image_masks = BackedDictProxy(self, key="image_masks", items=image_masks)
+        self.image_masks = BackedDictProxy(self, key="image_masks")
         if self.isbacked and "image_masks" in self.backing:
             for key, mask in self.backing["image_masks"].items():
                 self.image_masks[key] = Mask(backing=mask)
@@ -87,6 +87,18 @@ class FieldOfView(BackableObject):
         # but mostly we can't validate for a half-initalized object
         self.images.validatefun = self.__validate_image
         self.feature_masks.validatefun = self.__validate_mask
+        self.image_masks.validatefun = self.__validate_mask
+
+        # init with validation
+        # this requires that subclasses call this constructor at the end of their init method
+        # because validation requires information from subclasses, e.g. ndim
+        if not self.isbacked:
+            if images is not None:
+                self.images.update(images)
+            if feature_masks is not None:
+                self.feature_masks.update(feature_masks)
+            if image_masks is not None:
+                self.image_masks.update(image_masks)
 
     def _set_backing(self, obj):
         super()._set_backing(obj)

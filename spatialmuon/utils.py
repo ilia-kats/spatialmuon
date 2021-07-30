@@ -1,4 +1,5 @@
 from codecs import decode
+from os import PathLike
 
 import h5py
 
@@ -33,3 +34,10 @@ def _get_hdf5_attribute(attrs: h5py.AttributeManager, name:str, default=None):
 class UnknownEncodingException(RuntimeError):
     def __init__(self, encoding: str):
         self.encoding = encoding
+
+
+def is_h5smu(filename):
+    with open(filename, "rb") as f:
+        if f.read(13) != b"SpatialMuData":
+            return False
+    return h5py.is_hdf5(filename)

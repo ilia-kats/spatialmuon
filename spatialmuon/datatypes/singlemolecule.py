@@ -97,4 +97,4 @@ class SingleMolecule(FieldOfView):
             genes, idx = np.unique(data.index.to_numpy(), return_counts=True)
             idx = np.hstack(([0], idx.cumsum()))
             for gene, start, end in zip(genes, idx[:-1], idx[1:]):
-                ranges.create_dataset(gene, data=[start, end])
+                ranges.create_dataset(str(gene), data=[start, end])

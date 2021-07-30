@@ -54,8 +54,8 @@ class BackableObject(ABC):
     def isbacked(self) -> bool:
         return self.backing is not None
 
-    def write(self, parent: h5py.Group, key: str):
-        obj = self._writeable_object(parent, key)
+    def write(self, parent: h5py.Group, key: Optional[str]=None):
+        obj = self._writeable_object(parent, key) if key is not None else parent
         if self.isbacked:
             if self.backing.file != obj.file or self.backing.name != obj.name:
                 obj.parent.copy(self.backing, os.path.basename(obj.name))

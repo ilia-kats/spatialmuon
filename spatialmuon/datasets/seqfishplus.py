@@ -49,15 +49,12 @@ def unzip(file, outdir):
     zfile.extractall(outdir)
     zfile.close()
 
-with tempfile.TemporaryDirectory() as tmpdir, h5py.File(outfname, "w", userblock_size=512, libver="latest") as outfile:
-    outfile.attrs["encoder"] = "seqfishplus-downloader"
-    outfile.attrs["encoder-version"] = "0.1.0"
-    outfile.attrs["encoding"] = "SpatialMuData"
-    outfile.attrs["encoding-version"] = "0.1.0"
-    modality = outfile.create_group("/mod/SeqFISH+")
-    modality.attrs["encoding"] = "spatialmodality"
-    modality.attrs["encoding-version"] = "0.1.0"
-    modality.attrs["coordinate_unit"] = "px"
+with tempfile.TemporaryDirectory() as tmpdir:
+    if os.path.isfile(outfname):
+        os.unlink(outfname)
+    smudata = spatialmuon.SpatialMuData(outfname)
+    modality = spatialmuon.SpatialModality(coordinate_unit="px")
+    smudata["SeqFISH+"] = modality
 
     locationsfile = os.path.join(tmpdir, "point_locations.zip")
     download("https://zenodo.org/record/2669683/files/seqFISH%2B_NIH3T3_point_locations.zip?download=1", locationsfile, desc="point locations")
@@ -104,9 +101,8 @@ with tempfile.TemporaryDirectory() as tmpdir, h5py.File(outfname, "w", userblock
             coords = np.concatenate(coords, axis=0)
             coords = gpd.GeoDataFrame({"cell": cellids}, index=feature_name, geometry=[Point(*c) for c in coords])
             cfov = SingleMolecule(data=coords, index_kwargs={"progressbar":True, "desc": f"creating spatial index for run {run} FOV {fov}"})
-            cfov.set_backing(modality, f"run{run}_fov{fov}")
+            modality[f"run{run}_fov{fov}"] = cfov
 
-            fovgrp = modality[f"run{run}_fov{fov}"]
             img = Image.open(os.path.join(imgdir, f"MMStack_Pos{fov}.ome.tif"))
             img.seek(7)
             dapi_img = np.asarray(img)
@@ -122,6 +118,3 @@ with tempfile.TemporaryDirectory() as tmpdir, h5py.File(outfname, "w", userblock
                     roi = roifile.roiread(rfile.path)
                     mask[roi.name] = roi.coordinates()
 
-
-with open(outfname, "rb+") as outfile:
-    outfile.write(b"SpatialMuData (format-version=0.1.0;creator=seqfishplus-downloader;creator-version=0.1.0)")

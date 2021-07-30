@@ -7,8 +7,15 @@ from ..utils import _read_hdf5_attribute, _get_hdf5_attribute
 
 import h5py
 
+
 class SpatialModality(BackableObject, BackedDictProxy):
-    def __init__(self, backing: Optional[h5py.Group]=None, fovs:Optional[dict] = None, scale: Optional[float]=None, coordinate_unit: Optional[str]=None):
+    def __init__(
+        self,
+        backing: Optional[h5py.Group] = None,
+        fovs: Optional[dict] = None,
+        scale: Optional[float] = None,
+        coordinate_unit: Optional[str] = None,
+    ):
         super().__init__(backing)
         if self.isbacked:
             for f, fov in self.backing.items():
@@ -29,7 +36,7 @@ class SpatialModality(BackableObject, BackedDictProxy):
         return self._scale if self._scale is not None and self._scale > 0 else 1
 
     @scale.setter
-    def scale(self, newscale:Optional[float]):
+    def scale(self, newscale: Optional[float]):
         if newscale is not None and newscale <= 0:
             newscale = None
         self._scale = newscale
@@ -42,7 +49,7 @@ class SpatialModality(BackableObject, BackedDictProxy):
     def _encodingversion():
         return "0.1.0"
 
-    def _set_backing(self, grp: Optional[h5py.Group]=None):
+    def _set_backing(self, grp: Optional[h5py.Group] = None):
         super()._set_backing(grp)
         if grp is not None:
             self._write_attributes(grp)

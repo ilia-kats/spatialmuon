@@ -1,5 +1,5 @@
 from os import PathLike
-from typing import Union
+from typing import Union, Literal
 from codecs import decode
 import warnings
 
@@ -8,7 +8,7 @@ import h5py
 from .spatialmudata import SpatialMuData
 from .spatialmodality import SpatialModality
 from .fieldofview import FieldOfView, UnknownEncodingException
-from ..utils import _read_hdf5_attribute, _get_hdf5_attribute
+from ..utils import _read_hdf5_attribute, _get_hdf5_attribute, is_h5smu
 
 
 def _read_modality(grp: h5py.Group):
@@ -25,7 +25,7 @@ def _read_modality(grp: h5py.Group):
     return SpatialModality(fovs, scale, unit)
 
 
-def read_h5smu(filename: PathLike, backed: Union[str, bool, None] = True):
+def read_h5smu(filename: PathLike, backed: Union[Literal["r", "r+"], bool, None] = True):
     assert backed in [
         None,
         True,
@@ -36,20 +36,24 @@ def read_h5smu(filename: PathLike, backed: Union[str, bool, None] = True):
 
     from anndata._io.utils import read_attribute
 
-    with open(filename, "rb") as f:
-        if f.read(13) != b"SpatialMuData":
-            raise RuntimeError(f"{filename} is not a SpatialMuData file")
+    if backed is True:
+        mode = "r+"
+    elif backed is not False and backed is not None:
+        mode = backed
+        backed = True
+    else:
+        mode = "r"
 
-    f = h5py.File(filename, "r")
-    smudata = SpatialMuData(backing=f)
+    if not is_h5smu(filename):
+        raise RuntimeError(f"{filename} is not a SpatialMuData file")
+
+    smudata = SpatialMuData(backing=filename, backingmode=mode)
     if not backed:
         smudata.set_backing()
-        f.close()
     return smudata
 
 
 def write_h5smu(filename: PathLike, smudata: SpatialMuData):
-    from anndata._io.utils import write_attribute
     from .. import __version__, __spatialmudataversion__
 
     with h5py.File(filename, "w", userblock_size=512, libver="latest") as f:

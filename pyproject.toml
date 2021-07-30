@@ -24,6 +24,7 @@ requires = [
     "numpy",
     "pandas",
     "geopandas",
+    "skimage",
     "h5py",
     "anndata",
     "tqdm",

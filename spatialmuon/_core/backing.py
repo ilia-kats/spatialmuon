@@ -26,7 +26,6 @@ class BackableObject(ABC):
 
         self._write_attributes_impl(obj)
 
-    @abstractmethod
     def _write_attributes_impl(self, obj: Union[h5py.Dataset, h5py.Group]):
         pass
 

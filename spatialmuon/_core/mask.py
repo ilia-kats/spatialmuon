@@ -5,9 +5,11 @@ from typing import Optional, Union
 import numpy as np
 import h5py
 from shapely.geometry import Polygon
+from skimage.measure import find_contours
 
 from ..utils import _read_hdf5_attribute, UnknownEncodingException
 from .backing import BackableObject
+
 
 class Mask(BackableObject):
     def __new__(cls, *, backing: Optional[h5py.Group] = None, **kwargs):
@@ -16,19 +18,40 @@ class Mask(BackableObject):
             if masktype == "mask-polygon":
                 return super(cls, PolygonMask).__new__(PolygonMask)
             elif masktype == "mask-raster":
-                pass # TODO
+                return super(cls, RasterMask).__new__(RasterMask)
             else:
                 raise UnknownEncodingException(masktype)
         else:
             return super().__new__(cls)
+
+    def __init__(self, backing: Optional[Union[h5py.Group, h5py.Dataset]]=None):
+        super().__init__(backing)
+        self._parentdataset = None
+
+    @property
+    def parentdataset(self):
+        return self._parentdataset
+
+    @parentdataset.setter
+    def parentdataset(self, dset: "FieldOfView"):
+        self._parentdataset = dset
 
     @property
     @abstractmethod
     def ndim(self):
         pass
 
+    @abstractmethod
+    def __getitem__(self, key):
+        pass
+
+
 class PolygonMask(Mask, MutableMapping):
-    def __init__(self, backing:Optional[h5py.Group]=None, masks: Optional[dict[Union[np.ndarray, Polygon]]]=None):
+    def __init__(
+        self,
+        backing: Optional[h5py.Group] = None,
+        masks: Optional[dict[Union[np.ndarray, Polygon]]] = None,
+    ):
         super().__init__(backing)
 
         self._data = {}
@@ -65,7 +88,9 @@ class PolygonMask(Mask, MutableMapping):
             else:
                 value = np.asarray(value)
             if self.ndim is not None and self.ndim != value.ndim:
-                raise ValueError(f"value must have dimensionality {self._ndim}, but has {value.ndim}")
+                raise ValueError(
+                    f"value must have dimensionality {self.ndim}, but has {value.ndim}"
+                )
             self.backing.create_dataset(key, data=value, compression="gzip", compression_opts=9)
         else:
             if not isinstance(value, Polygon):
@@ -74,7 +99,7 @@ class PolygonMask(Mask, MutableMapping):
             else:
                 ndim = 3 if value.has_z else 2
             if self.ndim is not None and self.ndim != ndim:
-                raise ValueError(f"value must have dimensionality {self._ndim}, but has {ndim}")
+                raise ValueError(f"value must have dimensionality {self.ndim}, but has {ndim}")
             self._data[key] = value
 
     def __delitem__(self, key: str):
@@ -115,16 +140,133 @@ class PolygonMask(Mask, MutableMapping):
     def _encodingversion():
         return "0.1.0"
 
-    def _set_backing(self, value):
+    def _set_backing(self, value: h5py.Group):
         if value is None and self.backed:
             for k, v in self.backing.items():
                 self._data[k] = Polygon(v[:])
         elif value is not None:
             self._write(value)
+            self._data.clear()
 
-    def _write(self, obj):
+    def _write(self, obj: h5py.Group):
         for k, v in self._data.items():
             obj.create_dataset(k, data=v.exterior.coords, compression="gzip", compression_opts=9)
 
-    def _write_attributes_impl(self, obj):
-        pass
+
+class RasterMask(Mask):
+    def __init__(
+        self,
+        backing: Optional[h5py.Dataset] = None,
+        mask: Optional[np.ndarray] = None,
+        shape: Optional[Union[tuple[int, int], tuple[int, int, int]]] = None,
+        dtype: Optional[type] = None,
+    ):
+        super().__init__(backing)
+        self._mask = None
+
+        if mask is not None:
+            if self.isbacked and self.backing.size > 0:
+                raise ValueError("attempting to set masks on a non-empty backing store")
+            if mask.ndim < 2 or mask.ndim > 3:
+                raise ValueError("mask must have 2 or 3 dimensions")
+            if not np.issubdtype(mask.dtype, np.unsignedinteger):
+                raise ValueError("mask must have an unsigned integer dtype")
+            self._mask = mask
+        elif not self.isbacked:
+            if shape is None or dtype is None:
+                raise ValueError("if mask is None shape and dtype must be given")
+            if len(shape) < 2 or len(shape) > 3:
+                raise ValueError("shape must have 2 or 3 dimensions")
+            if not np.issubdtype(dtype, np.unsignedinteger):
+                raise ValueError("dtype must be an unsigned integer type")
+            self._mask = np.zeros(shape=shape, dtype=dtype)
+
+    @property
+    def ndim(self):
+        if self.isbacked:
+            return self.backing.ndim
+        else:
+            return self._mask.ndim
+
+    @property
+    def shape(self):
+        if self.isbacked:
+            return self.backing.shape
+        else:
+            return self._mask.shape
+
+    @property
+    def dtype(self):
+        if self.isbacked:
+            return self.backing.dtype
+        else:
+            return self._mask.dtype
+
+    @property
+    def data(self) -> Union[np.ndarray, h5py.Dataset]:
+        if self.isbacked:
+            return self.backing
+        else:
+            return self._mask
+
+    def __getitem__(self, key):
+        if not np.issubdtype(key, np.integer):
+            raise TypeError("key must be an integer")
+        if key >= 0:
+            coords = np.where(self.data == key + 1)
+            if any(c.size == 0 for c in coords):
+                raise KeyError(key)
+            boundaries = tuple(slice(np.min(c), np.max(c)) for c in coords)
+            cmask = self.data[boundaries]
+            cmask[cmask != key + 1] = 0
+            if self.ndim == 2:
+                contour = find_contours(cmask, level=0, fully_connected="high").astype(np.uint16)
+                return Polygon(contour) # TODO: scale by px_size and px_distance from parentdataset
+            else:
+                contours = []
+                for i in range(cmask.shape[2]):
+                    ccon = find_contours(cmask[..., i], level=0, fully_connected="high").astype(
+                        np.uint16
+                    )
+                    ccon = np.vstack(ccon)
+                    ccon = np.hstack(ccon, np.full((ccon.shape[0], 1), i))
+                    contours.append(ccon)
+                    if i < cmask.shape[2] - 1:
+                        ccon = ccon.copy()
+                        ccon[:, -1] = i + 1
+                        contours.append(ccon)
+                return Polygon(np.vstack(contours)) #TODO: scale by px_size and px_distance from parentdataset
+
+    @staticmethod
+    def _encoding():
+        return "mask-raster"
+
+    @staticmethod
+    def _encodingversion():
+        return "0.1.0"
+
+    def _set_backing(self, value: h5py.Dataset):
+        if value is None and self.backed:
+            self._mask = self.backing[:]
+        elif value is not None:
+            self._write(value)
+            self._mask = None
+
+    def _write(self, obj: h5py.Dataset):
+        obj[()] = self._mask
+
+    def _writeable_object(self, parent: h5py.Group, key: str) -> h5py.Dataset:
+        if key in parent:
+            dset = parent[key]
+            if dset.dtype != self.dtype or dset.shape != self.shape:
+                del parent[key]
+            else:
+                return dset
+        return parent.create_dataset(
+            key,
+            shape=self.shape,
+            dtype=self.dtype,
+            maxshape=(None, None, 3),
+            compression="gzip",
+            compression_opts=9,
+        )

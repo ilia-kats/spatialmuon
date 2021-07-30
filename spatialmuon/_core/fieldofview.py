@@ -42,6 +42,13 @@ class FieldOfView(BackableObject):
             return f"translation vector must have shape ({fov.ndim},)"
         return None
 
+    @staticmethod
+    def __validate_mask(fov, key, mask):
+        if mask.ndim != None and mask.ndim != fov.ndim:
+            return f"mask with {mask.ndim} dimensions is being added to field of view with {fov.ndim} dimensions"
+        mask.parentdataset = fov
+        return None
+
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,
@@ -69,12 +76,17 @@ class FieldOfView(BackableObject):
         if self.isbacked and "feature_masks" in self.backing:
             for key, mask in self.backing["feature_masks"].items():
                 self.feature_masks[key] = Mask(backing=mask)
-        self.image_masks = image_masks if image_masks is not None else {}
+
+        self.image_masks = BackedDictProxy(self, key="image_masks", items=image_masks)
+        if self.isbacked and "image_masks" in self.backing:
+            for key, mask in self.backing["image_masks"].items():
+                self.image_masks[key] = Mask(backing=mask)
         self.uns = uns if uns is not None else {}
 
         # we don't want to validate stuff coming from HDF5, this may break I/O
         # but mostly we can't validate for a half-initalized object
         self.images.validatefun = self.__validate_image
+        self.feature_masks.validatefun = self.__validate_mask
 
     def _set_backing(self, obj):
         super()._set_backing(obj)

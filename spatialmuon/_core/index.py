@@ -1,3 +1,4 @@
+import atexit
 from typing import Optional
 
 from rtree import index
@@ -188,8 +189,21 @@ class SpatialIndex(BackableObject):
         self._storage = HDF5Storage(self.backing)
         self._index = index.Index(self._storage, interleaved=True, properties=self._prop)
 
+        # This is needed to prevent a bunch of exceptions occurring at program exit. The reason is that Index
+        # flushes its internal buffer when it's destroyed, leading to a bunch of calls to storage.storeByteArray.
+        # The backed implementation of storeByteArray performes a check if the page is already saved (with `page in grp`).
+        # The corresponding h5py code has an import inside the checking function, which raises the exception because
+        # the import machinery is already not functional at this point.
+        atexit.register(self._cleanup)
+
         if coordinates is not None:
             self.set_coordinates(coordinates, **kwargs)
+
+    def _cleanup(self):
+        del self._index
+
+    def __del__(self):
+        atexit.unregister(self._cleanup)
 
     @staticmethod
     def _encoding() -> str:

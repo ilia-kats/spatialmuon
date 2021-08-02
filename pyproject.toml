@@ -26,6 +26,8 @@ requires = [
     "pandas",
     "geopandas",
     "scikit-image",
+    "shapely",
+    "trimesh",
     "h5py",
     "anndata",
     "tqdm",

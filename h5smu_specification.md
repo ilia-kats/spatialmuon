@@ -1,4 +1,4 @@
-# [RFC][v0.2.7] spatial muon HDF5 storage spec
+# [RFC][v0.2.8] spatial muon HDF5 storage spec
 ## file format
 use HDF5's user block feature to write a custom header of the form `SpatialMuData (format-version=0.1.0;creator=package_name;creator-version=package_version)`. This will make the file immediately identifiable as a SpatialMuon file with any file extension and without having HDF5 installed.
 
@@ -48,11 +48,19 @@ contains one sub-group per modality
 ## `mod/modality/FOV/feature_masks` subgroup
 Each member of this group has the following attributes:
 
-- `encoding` one of `mask-polygon`, `mask-raster`
+- `encoding` one of `mask-polygon`, `mask-mesh`, `mask-raster`
 - `encoding-version`: version of the format
 
 ### polygon masks
-This is the only supported format for single-molecule and Visium data. Each mask is a group, allowing one to store sets of masks under the same name (e.g. all cells from a particular processing steps). Each mask is an n_vertices x n_dim array, open (i.e. the last vertex is distinct from the first vertex and the polygon will be connected automatically).
+Supported for 2D and 3D single-molecule and Visium data. Each mask is a group, allowing one to store sets of masks under the same name (e.g. all cells from a particular processing steps). Each mask is an n_vertices x n_dim array, open (i.e. the last vertex is distinct from the first vertex and the polygon will be connected automatically).
+
+Polygons are inherently 2-dimensional, even if embedded into a 3D space. Therefore, if the data set is 3D, subsetting by a polygon mask is defined by default as first projecting all coordinates onto their first 2 principal components, and then applying the mask. This behavour can be disabled by the user, in which case the 3 axis will simply be discarded when applying the mask.
+
+### mesh masks
+Dupported for 3D single-molecule (and potentially array) data. Each mask is a group, allowing one store sets of masks under the same name. Each mask is again a group with datasets:
+
+- `vertices`: n x 3 array with coordinates of each vertex
+- `faces`: m x 3 or m x 4 (for quad faces) array. Each entry is the index of the corresponding vertex in the vertices array
 
 ### raster masks
 Only supported for IMC data at the moment. Stored as 2D or 3D images (depending on how many dimensions the data has) with integer values. `0` encodes background (no selection), different values represent different objects.
@@ -66,7 +74,7 @@ Contains one group per image. Each image group contains:
     - `base_resolution`: 2-element integer vector containing width and hieght of the original image resolution to which `scale`, `px_dimensions`, and `translation` apply. The corresponding quantities for other resolutions can be calculated on-the-fly. Mandatory if more than two resolutions are present.
     - `channel_names`: vector of strings identifying the channels. The attribute is optional for single-channel or 3-channel images. 3-channel images with missing channel names will be assumed to be RGB.
     - `scale`: float, scale factor of this image to align it with the measurement coordinates. Optional, if missing scale is assumed to be 1
-    - `px_dimensions`: 2-element vector, width and height of one pixel in the same units that the coordinates are in. Optional, if missing both width and heigt are assumed to be one.
+    - `px_dimensions`: 2-element vector, width and height of one pixel in the same units that the coordinates are in. Optional, if missing both width and height are assumed to be one.
     - `rotation`: 2D/3D rotaion matrix to align measurement coordinates with the image. Optional, if missing assumed to be the identity matrix.
     - `translation`: 2 or 3-element translation vector to align measurement coordinates with the image. Optional, if missing assumed to be 0.
 

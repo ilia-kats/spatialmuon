@@ -1,5 +1,6 @@
 import os
 from abc import ABC, abstractmethod
+from collections import UserDict
 from typing import Optional, Union, Callable
 
 import h5py
@@ -71,7 +72,7 @@ class BackableObject(ABC):
         pass
 
 
-class BackedDictProxy(dict):
+class BackedDictProxy(UserDict):
     def __init__(
         self,
         parent: Optional[BackableObject] = None,

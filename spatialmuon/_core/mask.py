@@ -5,7 +5,8 @@ from typing import Optional, Union
 import numpy as np
 import h5py
 from shapely.geometry import Polygon
-from skimage.measure import find_contours
+from trimesh import Trimesh
+from skimage.measure import find_contours, marching_cubes
 
 from ..utils import _read_hdf5_attribute, UnknownEncodingException
 from .backing import BackableObject
@@ -19,12 +20,14 @@ class Mask(BackableObject):
                 return super(cls, PolygonMask).__new__(PolygonMask)
             elif masktype == "mask-raster":
                 return super(cls, RasterMask).__new__(RasterMask)
+            elif masktype == "mask-mesh":
+                return super(cls, MeshMask).__new__(MeshMask)
             else:
                 raise UnknownEncodingException(masktype)
         else:
             return super().__new__(cls)
 
-    def __init__(self, backing: Optional[Union[h5py.Group, h5py.Dataset]]=None):
+    def __init__(self, backing: Optional[Union[h5py.Group, h5py.Dataset]] = None):
         super().__init__(backing)
         self._parentdataset = None
 
@@ -50,7 +53,7 @@ class PolygonMask(Mask, MutableMapping):
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,
-        masks: Optional[dict[Union[np.ndarray, Polygon]]] = None,
+        masks: Optional[dict[str, Union[np.ndarray, Polygon]]] = None,
     ):
         super().__init__(backing)
 
@@ -75,7 +78,7 @@ class PolygonMask(Mask, MutableMapping):
     def ndim(self):
         return self._ndim
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> Polygon:
         if self.isbacked:
             return Polygon(self.backing[key][:])
         else:
@@ -153,6 +156,115 @@ class PolygonMask(Mask, MutableMapping):
             obj.create_dataset(k, data=v.exterior.coords, compression="gzip", compression_opts=9)
 
 
+class MeshMask(Mask, MutableMapping):
+    def __init__(
+        self,
+        backing: Optional[h5py.Group] = None,
+        masks: Optional[dict[str, Union[Trimesh, tuple[np.ndarray, np.ndarray]]]] = None,
+    ):
+        super.__init__(backing)
+        self._data = {}
+        if masks is not None:
+            if self.isbacked and len(self.backing) > 0:
+                raise ValueError("trying to set masks on a non-empty backing store")
+            self.update(masks)
+
+    @property
+    def ndim(self):
+        return 3
+
+    def __getitem__(self, key) -> Trimesh:
+        if self.isbacked:
+            return Trimesh(
+                vertices=self.backing[key]["vertices"][()], faces=self.backing[key]["faces"][()]
+            ).fix_normals()
+        else:
+            return self._data[key]
+
+    def __setitem__(self, key: str, value: Union[Trimesh, tuple[np.ndarray, np.ndarray]]):
+        if self.isbacked:
+            if isinstance(value, Trimesh):
+                vertices = value.vertices
+                faces = value.faces
+            else:
+                vertices, faces = value
+                if vertices.shape[1] != 3:
+                    raise ValueError(
+                        f"masks must be 3-dimensional, but mask {key} has dimensionality {vertices.shape[1]}"
+                    )
+                if faces.shape[1] != 3 and faces.shape[1] != 4:
+                    raise ValueError(
+                        f"faces must reference 3 or 4 vertices, but faces for mask {key} reference {faces.shape[1]} vertices"
+                    )
+                maxface = faces.max()
+                if maxface > vertices.shape[0] - 1:
+                    raise ValueError(
+                        f"mask {key} has {vertices.shape[0]} vertices, but faces reference up to {maxface} vertices"
+                    )
+
+            self.backing.create_dataset(
+                f"{key}/vertices", data=vertices, compression="gzip", compression_opts=9
+            )
+            self.backing.create_dataset(
+                f"{key}/faces", data=faces, compression="gzip", compression_opts=9
+            )
+
+    def __delitem__(self, key: str):
+        if self.isbacked:
+            del self.backing[key]
+        else:
+            del self._data[key]
+
+    def __len__(self):
+        if self.isbacked:
+            return len(self.backing)
+        else:
+            return len(self._data)
+
+    def __contains__(self, item):
+        if self.isbacked:
+            return item in self._backing
+        else:
+            return item in self._data
+
+    def __iter__(self):
+        if self.isbacked:
+            return iter(self.backing)
+        else:
+            return iter(self._data)
+
+    def items(self):
+        raise NotImplementedError()
+
+    def values(self):
+        raise NotImplementedError()
+
+    @staticmethod
+    def _encoding():
+        return "mask-mesh"
+
+    @staticmethod
+    def _encodingversion():
+        return "0.1.0"
+
+    def _set_backing(self, value: h5py.Group):
+        if value is None and self.backed:
+            for k in self.keys():
+                self._data[k] = self[k]
+        elif value is not None:
+            self._write(value)
+            self._data.clear()
+
+    def _write(self, obj: h5py.Group):
+        for k, v in self._data.items():
+            self.backing.create_dataset(
+                f"{k}/vertices", data=v.vertices, compression="gzip", compression_opts=9
+            )
+            self.backing.create_dataset(
+                f"{k}/faces", data=v.faces, compression="gzip", compression_opts=9
+            )
+
+
 class RasterMask(Mask):
     def __init__(
         self,
@@ -221,21 +333,11 @@ class RasterMask(Mask):
             cmask[cmask != key + 1] = 0
             if self.ndim == 2:
                 contour = find_contours(cmask, level=0, fully_connected="high").astype(np.uint16)
-                return Polygon(contour) # TODO: scale by px_size and px_distance from parentdataset
+                return Polygon(contour)  # TODO: scale by px_size and px_distance from parentdataset
             else:
-                contours = []
-                for i in range(cmask.shape[2]):
-                    ccon = find_contours(cmask[..., i], level=0, fully_connected="high").astype(
-                        np.uint16
-                    )
-                    ccon = np.vstack(ccon)
-                    ccon = np.hstack(ccon, np.full((ccon.shape[0], 1), i))
-                    contours.append(ccon)
-                    if i < cmask.shape[2] - 1:
-                        ccon = ccon.copy()
-                        ccon[:, -1] = i + 1
-                        contours.append(ccon)
-                return Polygon(np.vstack(contours)) #TODO: scale by px_size and px_distance from parentdataset
+                vertices, faces, normals, _ = marching_cubes(cmask, level=0, allow_degenerate=False)
+                return Trimesh(vertices=vertices, faces=faces, vertex_normals=normals)
+                # TODO: scale by px_size and px_distance from parentdataset
 
     @staticmethod
     def _encoding():

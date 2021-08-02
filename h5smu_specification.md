@@ -1,4 +1,4 @@
-# [RFC][v0.2.6] spatial muon HDF5 storage spec
+# [RFC][v0.2.7] spatial muon HDF5 storage spec
 ## file format
 use HDF5's user block feature to write a custom header of the form `SpatialMuData (format-version=0.1.0;creator=package_name;creator-version=package_version)`. This will make the file immediately identifiable as a SpatialMuon file with any file extension and without having HDF5 installed.
 
@@ -77,11 +77,13 @@ Contains one group per image. Each image group contains:
 For example, `mod/visium/slice1/images/HnE/50000x50000` would be a data set
 
 ## `mod/modality/FOV` array data
+- **additional attributes**
+    - `spot_shape`: string, one of `circle`, `rectangle`
+    - `spot_size`: size of a spot. If `spot_shape` is circle, scalar value giving the radius. If `spot_shape` is rectangle, 1d array of length 2 or 3, size of a spot in each dimension
+
 - **additional data sets**
     - `coordinates`: n_obs x n_dim array of spot coordinates
     - `X`: dense or sparse n_obs x n_genes matrix
-    - `spot_shape`: string, one of `circle`, `square`
-    - `spot_size`: size of a spot. If `spot_shape` is circle, scalar value giving the radius. If `spot_shape` is square, 1d array of length 2 or 3, size of a spot in each dimension
 
 - ** additional groups**
     - `index` spatial index for fast subsetting of points by masks or neighbors
@@ -91,7 +93,7 @@ For example, `mod/visium/slice1/images/HnE/50000x50000` would be a data set
 Do we need `obsm`/`varm`?
 
 ## `mod/modality/FOV` single-molecule data
-coordinates will be stored sorted by feature name, which will allow efficient subsetting by feature name using the `feature_ranmge` group.
+coordinates will be stored sorted by feature name, which will allow efficient subsetting by feature name using the `feature_range` group.
 
 - **additional data sets**
     - `coordinates`: n_obs x n_dim array of molecule coordinates

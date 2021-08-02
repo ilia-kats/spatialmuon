@@ -4,6 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [tool.flit.entrypoints."spatialmuon.datatypes"]
 singlemolecule = "spatialmuon.datatypes.singlemolecule:SingleMolecule"
+array = "spatialmuon.datatypes.array:Array"
 
 [tool.flit.metadata]
 module = "spatialmuon"
@@ -24,7 +25,7 @@ requires = [
     "numpy",
     "pandas",
     "geopandas",
-    "skimage",
+    "scikit-image",
     "h5py",
     "anndata",
     "tqdm",

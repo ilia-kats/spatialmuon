@@ -1,5 +1,4 @@
-from typing import Optional, List
-import os
+from typing import Optional
 
 import numpy as np
 import geopandas as gpd
@@ -7,8 +6,7 @@ from shapely.geometry import Point
 import h5py
 from anndata._io.utils import read_attribute, write_attribute
 
-from .. import FieldOfView
-from .. import SpatialIndex
+from .. import FieldOfView, SpatialIndex
 
 
 class SingleMolecule(FieldOfView):
@@ -17,20 +15,20 @@ class SingleMolecule(FieldOfView):
         backing: Optional[h5py.Group] = None,
         *,
         data: Optional[gpd.GeoDataFrame] = None,
-        index_kwargs={},
+        index_kwargs:dict={},
         **kwargs,
     ):
-        self._data = data
-        if self._data is not None:
-            self._index = SpatialIndex(coordinates=np.vstack(data.geometry), **index_kwargs)
-        elif backing is not None:
+        if backing is not None:
             self._index = SpatialIndex(
                 backing=backing["index"],
                 dimension=backing["coordinates"].shape[1],
                 **index_kwargs,
             )
+        elif data is not None:
+            self._data = data
+            self._index = SpatialIndex(coordinates=np.vstack(data.geometry), **index_kwargs)
         else:
-            self._index = None
+            raise ValueError("no coordinates and no backing store given")
         super().__init__(backing, **kwargs)
 
     @property
@@ -46,12 +44,10 @@ class SingleMolecule(FieldOfView):
 
     @property
     def ndim(self):
-        if self._data is not None:
-            return self._data.shape[1]
-        elif self.isbacked:
+        if self.isbacked:
             return self.backing["coordinates"].shape[1]
         else:
-            return None
+            return self._data.shape[1]
 
     @staticmethod
     def _encoding() -> str:
@@ -60,9 +56,6 @@ class SingleMolecule(FieldOfView):
     @staticmethod
     def _encodingversion():
         return "0.1.0"
-
-    def _write_attributes_impl(self, obj):
-        super()._write_attributes_impl(obj)
 
     def _set_backing(self, value):
         super()._set_backing(value)
@@ -77,8 +70,7 @@ class SingleMolecule(FieldOfView):
     def _write(self, grp):
         super()._write(grp)
         self._write_data(grp)
-        if self._index is not None:
-            self._index.write(grp, "index")
+        self._index.write(grp, "index")
 
     def _write_data(self, grp):
         if self._data is not None:

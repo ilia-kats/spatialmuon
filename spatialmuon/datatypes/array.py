@@ -6,7 +6,7 @@ import numpy as np
 from scipy.sparse import spmatrix
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point
 import h5py
 from anndata._io.utils import read_attribute, write_attribute
 from anndata._core.sparse_dataset import SparseDataset
@@ -21,6 +21,7 @@ class SpotShape(Enum):
 
     def __str__(self):
         return str(self.name)
+
 
 class Array(FieldOfView):
     def __init__(
@@ -42,6 +43,7 @@ class Array(FieldOfView):
             )
             self._var = read_attribute(backing["var"])
             self._obs = read_attribute(backing["obs"])
+            self._coordinates = read_attribute(backing["coordinates"])
             attrs = backing.attrs
             shape = _read_hdf5_attribute(attrs, "spot_shape")
             if shape == "circle":
@@ -88,6 +90,8 @@ class Array(FieldOfView):
             else:
                 self._obs = pd.DataFrame(index=range(X.shape[0]))
 
+            self._index = SpatialIndex(coordinates=self._coordinates, **index_kwargs)
+
         if self._spot_shape == SpotShape.circle and not np.isscalar(self._spot_size):
             raise ValueError("spot shape is circle, but spot size is not scalar")
         elif self._spot_shape == SpotShape.rectangle and (
@@ -100,6 +104,8 @@ class Array(FieldOfView):
             )
 
         super().__init__(backing, **kwargs)
+
+        self._obs = gpd.GeoDataFrame(self._obs, geometry=[Point(x) for x in self._coordinates])
 
     @property
     def X(self) -> Union[np.ndarray, spmatrix, h5py.Dataset, SparseDataset]:
@@ -138,12 +144,9 @@ class Array(FieldOfView):
         if obj is not None:
             self._write_data(obj)
             self._index.set_backing(obj, "index")
-            self._X = self._obs = self._var = self._coordinates = None
+            self._X = None
         else:
             self._X = read_attribute(obj, "X")
-            self._obs = read_attribute(obj, "obs")
-            self._var = read_attribute(obj, "var")
-            self._coordinates = read_attribute(obj, "coordinates")
             self._index.set_backing(None)
 
     def _write(self, grp):
@@ -152,10 +155,24 @@ class Array(FieldOfView):
         self._index.write(grp, "index")
 
     def _write_data(self, grp):
-        write_attribute(grp, "X", self._X)
-        write_attribute(grp, "obs", self._obs)
-        write_attribute(grp, "var", self._var)
-        write_attribute(grp, "coordinates", self._coordinates)
+        write_attribute(
+            grp, "X", self._X, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
+        )
+        write_attribute(
+            grp,
+            "obs",
+            self._obs.drop(self._obs.geometry.name, axis=1),
+            dataset_kwargs={"compression": "gzip", "compression_opts": 9},
+        )
+        write_attribute(
+            grp, "var", self._var, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
+        )
+        write_attribute(
+            grp,
+            "coordinates",
+            self._coordinates,
+            dataset_kwargs={"compression": "gzip", "compression_opts": 9},
+        )
 
     def _write_attributes_impl(self, obj):
         attrs = obj.attrs

@@ -12,7 +12,7 @@ from anndata._io.utils import read_attribute, write_attribute
 from anndata._core.sparse_dataset import SparseDataset
 
 from .. import FieldOfView, SpatialIndex
-from spatialmuon.utils import _read_hdf5_attribute
+from ..utils import _read_hdf5_attribute
 
 
 class SpotShape(Enum):
@@ -133,7 +133,7 @@ class Array(FieldOfView):
 
     @staticmethod
     def _encoding() -> str:
-        return "array"
+        return "fov-array"
 
     @staticmethod
     def _encodingversion() -> str:

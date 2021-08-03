@@ -9,7 +9,7 @@ from anndata._io.utils import read_attribute, write_attribute
 from .backing import BackableObject, BackedDictProxy
 from .image import Image
 from .mask import Mask
-from ..utils import _read_hdf5_attribute, UnknownEncodingException
+from ..utils import _read_hdf5_attribute, _get_hdf5_attribute, UnknownEncodingException
 
 
 class FieldOfView(BackableObject):
@@ -64,10 +64,10 @@ class FieldOfView(BackableObject):
         super().__init__(backing)
         self._rotation = rotation
         self._translation = translation
-        if rotation is None and self.isbacked and "rotation" in self.backing:
-            self._rotation = self.backing["rotation"]
-        if translation is None and self.isbacked and "translation" in self.backing:
-            self._translation = self.backing["translation"]
+        if rotation is None and self.isbacked:
+            self._rotation = _get_hdf5_attribute(self.backing.attrs, "rotation")
+        if translation is None and self.isbacked:
+            self._translation = _get_hdf5_attribute(self.backing.attrs, "translation")
         self.images = BackedDictProxy(self, key="images")
         if self.isbacked and "images" in self.backing:
             for key, img in self.backing["images"].items():
@@ -140,9 +140,9 @@ class FieldOfView(BackableObject):
     def _write_attributes_impl(self, obj: h5py.Group):
         super()._write_attributes_impl(obj)
         if self._rotation is not None:
-            obj["rotation"] = self._rotation
+            obj.attrs["rotation"] = self._rotation
         if self._translation is not None:
-            obj["translation"] = self._translation
+            obj.attrs["translation"] = self._translation
 
     def _write(self, obj: h5py.Group):
         for imname, img in self.images.items():

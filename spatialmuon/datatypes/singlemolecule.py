@@ -51,7 +51,7 @@ class SingleMolecule(FieldOfView):
 
     @staticmethod
     def _encoding() -> str:
-        return "single-molecule"
+        return "fov-single-molecule"
 
     @staticmethod
     def _encodingversion():

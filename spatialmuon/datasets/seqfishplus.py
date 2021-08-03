@@ -18,11 +18,9 @@ import roifile
 
 from tqdm import tqdm
 import h5py
-import anndata as ad
 
 import spatialmuon
 from spatialmuon.datatypes.singlemolecule import SingleMolecule
-from rtree import index
 
 if len(sys.argv) > 1:
     outfname = sys.argv[1]
@@ -100,16 +98,16 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
             coords = np.concatenate(coords, axis=0)
             coords = gpd.GeoDataFrame({"cell": cellids}, index=feature_name, geometry=[Point(*c) for c in coords])
-            cfov = SingleMolecule(data=coords, index_kwargs={"progressbar":True, "desc": f"creating spatial index for run {run} FOV {fov}"})
-            modality[f"run{run}_fov{fov}"] = cfov
 
             img = Image.open(os.path.join(imgdir, f"MMStack_Pos{fov}.ome.tif"))
             img.seek(7)
             dapi_img = np.asarray(img)
             img.close()
             translation = [fov * (dapi_img.shape[0] + np.floor(0.05 * dapi_img.shape[0])), run * (dapi_img.shape[1] + np.floor(0.05 * dapi_img.shape[0]))]
-            img = spatialmuon.Image(image=dapi_img, translation=translation)
-            cfov.images["DAPI"] = img
+
+            cfov = SingleMolecule(data=coords, index_kwargs={"progressbar":True, "desc": f"creating spatial index for run {run} FOV {fov}"}, translation=translation)
+            modality[f"run{run}_fov{fov}"] = cfov
+            cfov.images["DAPI"] = spatialmuon.Image(image=dapi_img)
 
             mask = spatialmuon.PolygonMask()
             cfov.feature_masks["ROIs"] = mask

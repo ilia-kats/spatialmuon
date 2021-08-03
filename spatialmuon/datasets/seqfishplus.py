@@ -3,8 +3,6 @@
 # SeqFISH+ data from Eng et al. (2019), doi:10.1038/s41586-019-1049-y
 
 import tempfile
-import urllib.request
-import zipfile
 import os
 import sys
 
@@ -20,32 +18,13 @@ from tqdm import tqdm
 import h5py
 
 import spatialmuon
-from spatialmuon.datatypes.singlemolecule import SingleMolecule
+from _utils import *
 
 if len(sys.argv) > 1:
     outfname = sys.argv[1]
 else:
     outfname = "seqfishplus.h5smu"
 
-class TqdmDownload(tqdm):
-    def __init__(self, *args, **kwargs):
-        kwargs = dict(kwargs)
-        kwargs.update({"unit": "B", "unit_scale": True, "unit_divisor": 1024})
-        super().__init__(*args, **kwargs)
-
-    def update_to(self, nblocks=1, blocksize=1, total=-1):
-        self.total = total
-        self.update(nblocks * blocksize - self.n)
-
-def download(url, outfile, desc):
-    with TqdmDownload(desc="downloading " + desc) as t:
-        urllib.request.urlretrieve(url, outfile, t.update_to)
-
-def unzip(file, outdir):
-    zfile = zipfile.ZipFile(file)
-    os.makedirs(outdir, exist_ok=True)
-    zfile.extractall(outdir)
-    zfile.close()
 
 with tempfile.TemporaryDirectory() as tmpdir:
     if os.path.isfile(outfname):
@@ -105,7 +84,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
             img.close()
             translation = [fov * (dapi_img.shape[0] + np.floor(0.05 * dapi_img.shape[0])), run * (dapi_img.shape[1] + np.floor(0.05 * dapi_img.shape[0]))]
 
-            cfov = SingleMolecule(data=coords, index_kwargs={"progressbar":True, "desc": f"creating spatial index for run {run} FOV {fov}"}, translation=translation)
+            cfov = spatialmuon.SingleMolecule(data=coords, index_kwargs={"progressbar":True, "desc": f"creating spatial index for run {run} FOV {fov}"}, translation=translation)
             modality[f"run{run}_fov{fov}"] = cfov
             cfov.images["DAPI"] = spatialmuon.Image(image=dapi_img)
 

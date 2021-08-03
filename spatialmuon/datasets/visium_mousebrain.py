@@ -3,8 +3,6 @@
 # Visium mouse brain data from Kleshchevnikov et al., 2020 (doi:10.1101/2020.11.15.378125)
 
 import tempfile
-import urllib.request
-import zipfile
 import json
 import os
 import sys
@@ -20,32 +18,13 @@ from tqdm import tqdm
 import h5py
 
 import spatialmuon
-from spatialmuon.datatypes.array import Array, SpotShape
+from _utils import *
 
 if len(sys.argv) > 1:
     outfname = sys.argv[1]
 else:
     outfname = "visium.h5smu"
 
-class TqdmDownload(tqdm):
-    def __init__(self, *args, **kwargs):
-        kwargs = dict(kwargs)
-        kwargs.update({"unit": "B", "unit_scale": True, "unit_divisor": 1024})
-        super().__init__(*args, **kwargs)
-
-    def update_to(self, nblocks=1, blocksize=1, total=-1):
-        self.total = total
-        self.update(nblocks * blocksize - self.n)
-
-def download(url, outfile, desc):
-    with TqdmDownload(desc="downloading " + desc) as t:
-        urllib.request.urlretrieve(url, outfile, t.update_to)
-
-def unzip(file, outdir):
-    zfile = zipfile.ZipFile(file)
-    os.makedirs(outdir, exist_ok=True)
-    zfile.extractall(outdir)
-    zfile.close()
 with tempfile.TemporaryDirectory() as tmpdir:
     if os.path.isfile(outfname):
         os.unlink(outfname)
@@ -101,7 +80,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
             # the samples are offset by 10 μm in the Z axis according to the paper, but I have no idea how much that is in pixels.
             # So just do 10 px
-            cfov = Array(coordinates=coords, X=X, var=var, obs=obs, spot_shape=SpotShape.circle, spot_size=radius, translation=[0,0,fovidx * 10])
+            cfov = spatialmuon.Array(coordinates=coords, X=X, var=var, obs=obs, spot_shape=spatialmuon.SpotShape.circle, spot_size=radius, translation=[0,0,fovidx * 10])
             modality[fovname] = cfov
 
             img = Image.open(os.path.join(cdir, "spatial", "tissue_hires_image.png"))

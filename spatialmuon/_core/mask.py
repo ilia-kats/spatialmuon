@@ -368,7 +368,7 @@ class RasterMask(Mask):
             key,
             shape=self.shape,
             dtype=self.dtype,
-            maxshape=(None, None, 3),
+            maxshape=(None, None) if self.ndim == 2 else (None, None, None),
             compression="gzip",
             compression_opts=9,
         )

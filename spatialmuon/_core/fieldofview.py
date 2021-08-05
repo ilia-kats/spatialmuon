@@ -87,6 +87,8 @@ class FieldOfView(BackableObject):
             self.uns = read_attribute(self.backing["uns"])
         elif not self.isbacked and uns is not None:
             self.uns = uns
+        else:
+            self.uns = {}
 
         # we don't want to validate stuff coming from HDF5, this may break I/O
         # but mostly we can't validate for a half-initalized object

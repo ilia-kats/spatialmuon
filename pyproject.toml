@@ -30,7 +30,7 @@ requires = [
     "scikit-image",
     "shapely",
     "trimesh",
-    "h5py",
+    "h5py >= 3",
     "anndata",
     "tqdm",
 ]

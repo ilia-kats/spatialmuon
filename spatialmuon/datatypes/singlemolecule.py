@@ -82,8 +82,8 @@ class SingleMolecule(FieldOfView):
                 raise TypeError("Only polygon masks can be applied to 2D FOVs")
             idx = sorted(self._index.intersection(mask.bounds))
             sub = self._data_subset(idx)
-            sub = sub.intersection(mask)
-            return sub[~sub.is_empty]
+            inters = sub.intersection(mask)
+            return sub[~inters.is_empty]
         else:
             if isinstance(mask, Polygon):
                 if polygon_method == "discard":

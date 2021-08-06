@@ -51,8 +51,12 @@ def read_dataframe_subset(grp: h5py.Group, yidx):
             ordered = _get_hdf5_attribute(cat_dset.attrs, "ordered", False)
             columns[c] = pd.Categorical.from_codes(col[yidx], categories, ordered=ordered)
         else:
-            columns[c] = col[yidx]
-    idx = grp[idx_key][yidx]
+            columns[c] = col[yidx] if not h5py.check_string_dtype(col.dtype) else col.asstr()[yidx]
+    idx = (
+        grp[idx_key][yidx]
+        if not h5py.check_string_dtype(grp[idx_key].dtype)
+        else grp[idx_key].asstr()[yidx]
+    )
     df = pd.DataFrame(columns, index=idx, columns=cols)
     if idx_key != "_index":
         df.index.name = idx_key

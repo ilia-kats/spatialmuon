@@ -53,7 +53,7 @@ class SpatialMuData(BackableObject, BackedDictProxy):
                 mod.set_backing(None)
 
     @staticmethod
-    def _encoding():
+    def _encodingtype():
         return "SpatialMuData"
 
     @staticmethod

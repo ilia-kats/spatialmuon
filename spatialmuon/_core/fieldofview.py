@@ -21,11 +21,11 @@ class FieldOfView(BackableObject):
             datatypes = entry_points()["spatialmuon.datatypes"]
             for ep in datatypes:
                 klass = ep.load()
-                cls._datatypes[klass._encoding()] = klass
+                cls._datatypes[klass._encodingtype()] = klass
 
     def __new__(cls, *, backing: Optional[h5py.Group] = None, **kwargs):
         if backing is not None:
-            fovtype = _read_hdf5_attribute(backing.attrs, "encoding")
+            fovtype = _read_hdf5_attribute(backing.attrs, "encoding-type")
             cls._load_datatypes()
             if fovtype in cls._datatypes:
                 klass = cls._datatypes[fovtype]

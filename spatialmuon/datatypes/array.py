@@ -132,7 +132,7 @@ class Array(FieldOfView):
             return self._coordinates.shape[1]
 
     @staticmethod
-    def _encoding() -> str:
+    def _encodingtype() -> str:
         return "fov-array"
 
     @staticmethod

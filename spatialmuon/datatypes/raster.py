@@ -83,7 +83,7 @@ class Raster(FieldOfView):
             return self._px_distance
 
     @staticmethod
-    def _encoding():
+    def _encodingtype():
         return "fov-raster"
 
     @staticmethod

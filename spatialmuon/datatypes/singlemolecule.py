@@ -121,7 +121,7 @@ class SingleMolecule(FieldOfView):
             return self._data.shape[1]
 
     @staticmethod
-    def _encoding() -> str:
+    def _encodingtype() -> str:
         return "fov-single-molecule"
 
     @staticmethod

@@ -206,7 +206,7 @@ class SpatialIndex(BackableObject):
         atexit.unregister(self._cleanup)
 
     @staticmethod
-    def _encoding() -> str:
+    def _encodingtype() -> str:
         return "rtree-index"
 
     @staticmethod

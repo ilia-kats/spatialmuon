@@ -136,7 +136,7 @@ class Image(BackableObject):
                 self._images[(img.shape[1], img.shape[0])] = img[:]
 
     @staticmethod
-    def _encoding():
+    def _encodingtype():
         return "image"
 
     @staticmethod

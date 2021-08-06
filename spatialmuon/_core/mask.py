@@ -15,7 +15,7 @@ from .backing import BackableObject
 class Mask(BackableObject):
     def __new__(cls, *, backing: Optional[h5py.Group] = None, **kwargs):
         if backing is not None:
-            masktype = _read_hdf5_attribute(backing.attrs, "encoding")
+            masktype = _read_hdf5_attribute(backing.attrs, "encoding-type")
             if masktype == "mask-polygon":
                 return super(cls, PolygonMask).__new__(PolygonMask)
             elif masktype == "mask-raster":
@@ -136,7 +136,7 @@ class PolygonMask(Mask, MutableMapping):
         raise NotImplementedError()
 
     @staticmethod
-    def _encoding():
+    def _encodingtype():
         return "mask-polygon"
 
     @staticmethod
@@ -240,7 +240,7 @@ class MeshMask(Mask, MutableMapping):
         raise NotImplementedError()
 
     @staticmethod
-    def _encoding():
+    def _encodingtype():
         return "mask-mesh"
 
     @staticmethod
@@ -354,7 +354,7 @@ class RasterMask(Mask):
                 # TODO: scale by px_size and px_distance from parentdataset
 
     @staticmethod
-    def _encoding():
+    def _encodingtype():
         return "mask-raster"
 
     @staticmethod

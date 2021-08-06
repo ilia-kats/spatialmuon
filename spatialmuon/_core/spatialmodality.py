@@ -42,7 +42,7 @@ class SpatialModality(BackableObject, BackedDictProxy):
         self._scale = newscale
 
     @staticmethod
-    def _encoding():
+    def _encodingtype():
         return "spatialmodality"
 
     @staticmethod

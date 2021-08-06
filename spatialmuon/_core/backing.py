@@ -13,7 +13,7 @@ class BackableObject(ABC):
 
     @staticmethod
     @abstractmethod
-    def _encoding() -> str:
+    def _encodingtype() -> str:
         pass
 
     @staticmethod
@@ -22,7 +22,7 @@ class BackableObject(ABC):
         pass
 
     def _write_attributes(self, obj: Union[h5py.Dataset, h5py.Group]):
-        obj.attrs["encoding"] = self._encoding()
+        obj.attrs["encoding-type"] = self._encodingtype()
         obj.attrs["encoding-version"] = self._encodingversion()
 
         self._write_attributes_impl(obj)

@@ -1,4 +1,4 @@
-# [RFC][v0.2.9] spatial muon HDF5 storage spec
+# [RFC][v0.2.10] spatial muon HDF5 storage spec
 ## file format
 use HDF5's user block feature to write a custom header of the form `SpatialMuData (format-version=0.1.0;creator=package_name;creator-version=package_version)`. This will make the file immediately identifiable as a SpatialMuon file with any file extension and without having HDF5 installed.
 
@@ -6,7 +6,7 @@ use HDF5's user block feature to write a custom header of the form `SpatialMuDat
 - **attributes**
     - `encoder`: String, writing library
     - `encoder-version`: String, version of the writing library
-    - `encoding`: `SpatialMuData`
+    - `encoding-type`: `SpatialMuData`
     - `encoding-version`: String, version of the format
 
 ## group `mod`
@@ -14,7 +14,7 @@ contains one sub-group per modality
 
 ## `mod/`modality subgroup
 - **attributes**
-    - `encoding`: `spatialmodality`
+    - `encoding-type`: `spatialmodality`
     - `encoding-version`: 0.1.0
     - `scale`: Optional. Float, scale factor of this modality. If missing, different modalities cannot be aligned.
     - `coordinate_unit`: Optional. String, unit of the coordinates for this modality (e.g. `µm`).
@@ -26,7 +26,7 @@ contains one sub-group per modality
 
 ## `mod/modality/`FOV subgroup
 - **attributes**
-    - `encoding`: One of
+    - `encoding-type`: One of
         - `fov-array` for array data, e.g. Visium/SlideSeq
         - `fov-single-molecule` for single-molecule data (e.g. SeqFISH)
         - `fov-raster` for IMC data, where expression data are on a regular grid and are stored as images
@@ -46,7 +46,7 @@ contains one sub-group per modality
 ## `mod/modality/FOV/feature_masks` subgroup
 Each member of this group has the following attributes:
 
-- `encoding` one of `mask-polygon`, `mask-mesh`, `mask-raster`
+- `encoding-type` one of `mask-polygon`, `mask-mesh`, `mask-raster`
 - `encoding-version`: version of the format
 
 ### polygon masks
@@ -67,7 +67,7 @@ Only supported for IMC data at the moment. Stored as 2D or 3D images (depending 
 Contains one group per image. Each image group contains:
 
 - **attributes**
-    - `encoding`: `image`
+    - `encoding-type`: `image`
     - `encoding-version`: version of the format
     - `base_resolution`: 2-element integer vector containing width and hieght of the original image resolution to which `scale`, `px_dimensions`, and `translation` apply. The corresponding quantities for other resolutions can be calculated on-the-fly. Mandatory if more than two resolutions are present.
     - `channel_names`: vector of strings identifying the channels. The attribute is optional for single-channel or 3-channel images. 3-channel images with missing channel names will be assumed to be RGB.

@@ -25,6 +25,7 @@ requires-python = ">= 3.8"
 requires = [
     "numpy",
     "pandas",
+    "Rtree",
     "geopandas",
     "scikit-image",
     "shapely",

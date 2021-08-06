@@ -18,8 +18,14 @@ def download(url, outfile, desc):
     with TqdmDownload(desc="downloading " + desc) as t:
         urllib.request.urlretrieve(url, outfile, t.update_to)
 
-def unzip(file, outdir):
+def unzip(file, outdir, files=None, rm=True):
     zfile = zipfile.ZipFile(file)
     os.makedirs(outdir, exist_ok=True)
-    zfile.extractall(outdir)
+    if files is not None:
+        for f in files:
+            zfile.extract(f, outdir)
+    else:
+        zfile.extractall(outdir)
     zfile.close()
+    if rm:
+        os.unlink(file)

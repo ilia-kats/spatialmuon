@@ -14,9 +14,6 @@ from scipy.io import loadmat
 from PIL import Image
 import roifile
 
-from tqdm import tqdm
-import h5py
-
 import spatialmuon
 from _utils import *
 

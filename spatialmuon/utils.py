@@ -1,7 +1,9 @@
 from codecs import decode
 from os import PathLike
 
+import pandas as pd
 import h5py
+
 
 def _read_hdf5_attribute(attrs: h5py.AttributeManager, name: str):
     """
@@ -25,11 +27,37 @@ def _read_hdf5_attribute(attrs: h5py.AttributeManager, name: str):
         else:  # NumPy array
             return [decode(s, "utf-8") for s in attr]
 
-def _get_hdf5_attribute(attrs: h5py.AttributeManager, name:str, default=None):
+
+def _get_hdf5_attribute(attrs: h5py.AttributeManager, name: str, default=None):
     if name in attrs:
         return _read_hdf5_attribute(attrs, name)
     else:
         return default
+
+
+def read_dataframe_subset(grp: h5py.Group, yidx):
+    enc = _read_hdf5_attribute(grp.attrs, "encoding-type")
+    if enc != "dataframe":
+        raise ValueError("not a data frame")
+    cols = list(_read_hdf5_attribute(grp.attrs, "column-order"))
+    idx_key = _read_hdf5_attribute(grp.attrs, "_index")
+    columns = {}
+    for c in cols:
+        col = grp[c]
+        categories = _get_hdf5_attribute(col.attrs, "categories")
+        if categories is not None:
+            cat_dset = grp[categories]
+            cats = cat_dset.asstr()[()]
+            ordered = _get_hdf5_attribute(cat_dset.attrs, "ordered", False)
+            columns[c] = pd.Categorical.from_codes(col[yidx], categories, ordered=ordered)
+        else:
+            columns[c] = col[yidx]
+    idx = grp[idx_key][yidx]
+    df = pd.DataFrame(columns, index=idx, columns=cols)
+    if idx_key != "_index":
+        df.index.name = idx_key
+    return df
+
 
 class UnknownEncodingException(RuntimeError):
     def __init__(self, encoding: str):

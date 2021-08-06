@@ -242,3 +242,6 @@ class SpatialIndex(BackableObject):
             coordinates = tqdm(coordinates, **kwargs)
         for i, c in enumerate(coordinates):
             self._index.insert(i, np.hstack((c, c)))
+
+    def intersection(self, coordinates: tuple[float], objects:bool=False):
+        return self._index.intersection(coordinates, objects)

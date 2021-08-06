@@ -52,7 +52,7 @@ Each member of this group has the following attributes:
 ### polygon masks
 Supported for 2D and 3D single-molecule and Visium data. Each mask is a group, allowing one to store sets of masks under the same name (e.g. all cells from a particular processing steps). Each mask is an n_vertices x n_dim array, open (i.e. the last vertex is distinct from the first vertex and the polygon will be connected automatically).
 
-Polygons are inherently 2-dimensional, even if embedded into a 3D space. Therefore, if the data set is 3D, subsetting by a polygon mask is defined by default as first projecting all coordinates onto their first 2 principal components, and then applying the mask. This behavour can be disabled by the user, in which case the 3 axis will simply be discarded when applying the mask.
+Polygons are inherently 2-dimensional, even if embedded into a 3D space. Therefore, if the data set is 3D, subsetting by a polygon mask is defined by default as first projecting all coordinates onto their first 2 principal components, and then applying the mask. This is equivalent to projecting the polygon into the data coordinate system, which is how it's implemented in order to take advantage of the spatial index. This behavour can be disabled by the user, in which case the 3rd axis will simply be discarded when applying the mask.
 
 ### mesh masks
 Supported for 3D single-molecule (and potentially array) data. Each mask is a group, allowing one store sets of masks under the same name. Each mask is again a group with datasets:

@@ -154,4 +154,6 @@ class FieldOfView(BackableObject):
         for maskname, mask in self.image_masks.items():
             mask.write(obj, f"image_masks/{maskname}")
 
-        write_attribute(obj, "uns", self.uns, dataset_kwargs={"compression": "gzip", "compression_opts": 9})
+        write_attribute(
+            obj, "uns", self.uns, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
+        )

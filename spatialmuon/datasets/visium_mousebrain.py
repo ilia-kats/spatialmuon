@@ -32,7 +32,11 @@ with tempfile.TemporaryDirectory() as tmpdir:
     smudata = spatialmuon.SpatialMuData(outfname)
     smudata["Visium"] = modality = spatialmuon.SpatialModality(coordinate_unit="px")
     brainfile = os.path.join(tmpdir, "mouse_brain.zip")
-    download("https://cell2location.cog.sanger.ac.uk/tutorial/mouse_brain_visium_wo_cloupe_data.zip", brainfile, desc="data")
+    download(
+        "https://cell2location.cog.sanger.ac.uk/tutorial/mouse_brain_visium_wo_cloupe_data.zip",
+        brainfile,
+        desc="data",
+    )
     unzip(brainfile, tmpdir)
 
     fovdir = os.path.join(tmpdir, "mouse_brain_visium_wo_cloupe_data", "rawdata")
@@ -43,7 +47,10 @@ with tempfile.TemporaryDirectory() as tmpdir:
             cdir = os.path.join(fovdir, fovname)
             with h5py.File(os.path.join(cdir, "filtered_feature_bc_matrix.h5")) as f:
                 matrix = f["matrix"]
-                X = csr_matrix((matrix["data"][()], matrix["indices"][()], matrix["indptr"][()]), shape=matrix["shape"][()][::-1])
+                X = csr_matrix(
+                    (matrix["data"][()], matrix["indices"][()], matrix["indptr"][()]),
+                    shape=matrix["shape"][()][::-1],
+                )
 
                 barcodes = matrix["barcodes"].asstr()[()]
 
@@ -56,20 +63,21 @@ with tempfile.TemporaryDirectory() as tmpdir:
                     var[fname] = feat[()]
 
             tissue_positions = (
-            pd.read_csv(
-                os.path.join(cdir, "spatial", "tissue_positions_list.csv"),
-                names=(
-                    "barcode",
-                    "in_tissue",
-                    "array_row",
-                    "array_col",
-                    "pxl_col_in_fullres",
-                    "pxl_row_in_fullres",
-                ),
+                pd.read_csv(
+                    os.path.join(cdir, "spatial", "tissue_positions_list.csv"),
+                    names=(
+                        "barcode",
+                        "in_tissue",
+                        "array_row",
+                        "array_col",
+                        "pxl_col_in_fullres",
+                        "pxl_row_in_fullres",
+                    ),
+                )
+                .set_index("barcode")
+                .loc[barcodes]
+                .drop("in_tissue", axis=1)
             )
-            .set_index("barcode")
-            .loc[barcodes]
-            .drop("in_tissue", axis=1))
             coords = tissue_positions[["pxl_row_in_fullres", "pxl_col_in_fullres"]].to_numpy()
             obs = tissue_positions.drop(["pxl_row_in_fullres", "pxl_col_in_fullres"], axis=1)
 
@@ -80,12 +88,20 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
             # the samples are offset by 10 μm in the Z axis according to the paper, but I have no idea how much that is in pixels.
             # So just do 10 px
-            cfov = spatialmuon.Array(coordinates=coords, X=X, var=var, obs=obs, spot_shape=spatialmuon.SpotShape.circle, spot_size=radius, translation=[0,0,fovidx * 10])
+            cfov = spatialmuon.Array(
+                coordinates=coords,
+                X=X,
+                var=var,
+                obs=obs,
+                spot_shape=spatialmuon.SpotShape.circle,
+                spot_size=radius,
+                translation=[0, 0, fovidx * 10],
+            )
             modality[fovname] = cfov
 
             img = Image.open(os.path.join(cdir, "spatial", "tissue_hires_image.png"))
             hires_img = np.asarray(img)
             img.close()
-            cfov.images["H&E"] = spatialmuon.Image(image = hires_img)
+            cfov.images["H&E"] = spatialmuon.Image(image=hires_img)
 
             pbar.update()

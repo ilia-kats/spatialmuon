@@ -183,9 +183,7 @@ class SpatialIndex(BackableObject):
             raise RuntimeError("must provide either coordinates or dimension")
         elif coordinates is not None:
             dimension = coordinates.shape[1]
-        self._prop = index.Property(
-            type=index.RT_RTree, variant=index.RT_Star, dimension=dimension
-        )
+        self._prop = index.Property(type=index.RT_RTree, variant=index.RT_Star, dimension=dimension)
         self._storage = HDF5Storage(self.backing)
         self._index = index.Index(self._storage, interleaved=True, properties=self._prop)
 
@@ -243,5 +241,5 @@ class SpatialIndex(BackableObject):
         for i, c in enumerate(coordinates):
             self._index.insert(i, np.hstack((c, c)))
 
-    def intersection(self, coordinates: tuple[float], objects:bool=False):
+    def intersection(self, coordinates: tuple[float], objects: bool = False):
         return self._index.intersection(coordinates, objects)

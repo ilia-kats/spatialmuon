@@ -4,6 +4,7 @@ import zipfile
 
 from tqdm import tqdm
 
+
 class TqdmDownload(tqdm):
     def __init__(self, *args, **kwargs):
         kwargs = dict(kwargs)
@@ -14,9 +15,11 @@ class TqdmDownload(tqdm):
         self.total = total
         self.update(nblocks * blocksize - self.n)
 
+
 def download(url, outfile, desc):
     with TqdmDownload(desc="downloading " + desc) as t:
         urllib.request.urlretrieve(url, outfile, t.update_to)
+
 
 def unzip(file, outdir, files=None, rm=True):
     zfile = zipfile.ZipFile(file)

@@ -1,2 +1,2 @@
 def spatial():
-    print('spatial plot')
+    print("spatial plot")

@@ -48,9 +48,18 @@ class Image(BackableObject):
             self._translation = _get_hdf5_attribute(attrs, "translation")
 
         if image is not None:
-            if self._available_resolutions is not None and len(self._available_resolutions) > 0 and image is not None:
+            if (
+                self._available_resolutions is not None
+                and len(self._available_resolutions) > 0
+                and image is not None
+            ):
                 raise ValueError("trying to set image on a non-empty backing store")
-            if image.ndim == 3 and image.shape[2] != 1 and image.shape[2] != 3 and channel_names is None:
+            if (
+                image.ndim == 3
+                and image.shape[2] != 1
+                and image.shape[2] != 3
+                and channel_names is None
+            ):
                 raise ValueError("channel names are mandatory for images with 2 or > 3 channels")
             if channel_names is not None and (
                 image.ndim == 3 and len(channel_names) != image.shape[3] or len(channel_names) != 1
@@ -146,10 +155,10 @@ class Image(BackableObject):
     def rotation(self, resolution: Optional[tuple[int, int]] = None):
         return self._rotation
 
-    def translation(self, resolution: Optional[tuple[int, int]]=None):
+    def translation(self, resolution: Optional[tuple[int, int]] = None):
         return self._translation
 
-    def pixel_dimensions(self, resolution: Optional[tuple[int, int]]=None):
+    def pixel_dimensions(self, resolution: Optional[tuple[int, int]] = None):
         return self._pxdim
 
     @property

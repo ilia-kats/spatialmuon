@@ -343,10 +343,14 @@ class RasterMask(Mask):
                 for c in contour:
                     for d in range(self.ndim):
                         c[:, d] += boundaries[d].start
-                return Polygon(contour[0][:, ::-1]) if len(contour) == 1 else [Polygon(c[:, ::-1]) for c in contour]
+                return (
+                    Polygon(contour[0][:, ::-1])
+                    if len(contour) == 1
+                    else [Polygon(c[:, ::-1]) for c in contour]
+                )
                 # TODO: scale by px_size and px_distance from parentdataset
             else:
-                vertices, faces, normals, _ = marching_cubes(cmask,  allow_degenerate=False)
+                vertices, faces, normals, _ = marching_cubes(cmask, allow_degenerate=False)
                 for d in range(self.ndim):
                     vertices[:, d] += boundaries[d].start
                     faces[:, d] += boundaries[d].start

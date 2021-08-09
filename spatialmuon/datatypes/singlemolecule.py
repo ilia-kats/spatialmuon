@@ -105,21 +105,12 @@ class SingleMolecule(FieldOfView):
                 data = data.loc[genes, :]
             return data
 
-    def __getitem__(self, index: tuple):
-        if not isinstance(index, tuple):
-            if isinstance(index, str) or isinstance(index, list):
-                genes = index
-                if isinstance(genes, str):
-                    genes = [genes]
-                mask = None
-            else:
-                mask = index
-                genes = None
-        else:
-            mask = index[0]
-            genes = index[1]
-            if len(index) > 2:
-                polygon_method = index[2]
+    def _getitem(
+        self,
+        mask: Optional[Union[Polygon, Trimesh]] = None,
+        genes: Optional[Union[str, list[str]]] = None,
+        polygon_method: Literal["discard", "project"] = "discard",
+    ):
         if mask is not None:
             if self.ndim == 2:
                 if not isinstance(mask, Polygon):

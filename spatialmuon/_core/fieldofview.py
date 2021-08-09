@@ -139,6 +139,27 @@ class FieldOfView(BackableObject):
         else:
             return np.zeros(3)
 
+    def __getitem__(self, index):
+        polygon_method = "discard"
+        if not isinstance(index, tuple):
+            if isinstance(index, str) or isinstance(index, list):
+                genes = index
+                mask = None
+            else:
+                mask = index
+                genes = None
+        else:
+            mask = index[0]
+            genes = index[1]
+            if len(index) > 2:
+                polygon_method = index[2]
+        if mask == slice(None):
+            mask = None
+        if genes == slice(None):
+            genes = None
+
+        return self._getitem(mask, genes, polygon_method)
+
     def _write_attributes_impl(self, obj: h5py.Group):
         super()._write_attributes_impl(obj)
         if self._rotation is not None:

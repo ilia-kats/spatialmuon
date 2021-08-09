@@ -126,39 +126,43 @@ class Array(FieldOfView):
     def var(self) -> pd.DataFrame:
         return self._var
 
-    def subset(
+    def _getitem(
         self,
-        mask: Union[Polygon, Trimesh],
+        mask: Optional[Union[Polygon, Trimesh]] = None,
+        genes: Optional[Union[str, list[str]]] = None,
         polygon_method: Literal["project", "discard"] = "discard",
     ) -> AnnData:
-        if self.ndim == 2:
-            if not isinstance(mask, Polygon):
-                raise TypeError("Only polygon masks can be applied to 2D FOVs")
-            idx = sorted(self._index.intersection(mask.bounds))
-            obs = self.obs.iloc[idx, :].intersection(mask)
-            X = self.X[idx, :][~obs.is_empty, :]
-            obs = self.obs[~obs.is_empty]
-            coords = np.vstack(obs.geometry)
-            obs.drop(obs.geometry.name, axis=1, inplace=True)
-            return AnnData(X=X, var=self.var, obs=obs, obsm={"spatial": coords})
-        else:
-            if isinstance(mask, Polygon):
-                bounds = preprocess_3d_polygon_mask(mask, self._coordinates, polygon_method)
-                idx = sorted(self._index.intersection(bounds))
-                sub = self._obs.iloc[idx, :].intersection(mask)
-                nemptyidx = ~sub.is_empty
-                return AnnData(
-                    X=self.X[idx, :][nemptyidx, :], var=self.var, obs=sub.iloc[nemptyidx, :]
-                )
-            elif isinstance(mask, Trimesh):
-                idx = sorted(self._index.intersection(mask.bounds.reshape(-1)))
-                sub = self._obs.iloc[idx, :]
-                nemptyidx = mask.contains(np.vstack(sub.geometry))
-                return AnnData(
-                    X=self.X[idx, :][nemptyidx, :], var=self.var, obs=sub.iloc[nemptyidx, :]
-                )
+        if mask is not None:
+            if self.ndim == 2:
+                if not isinstance(mask, Polygon):
+                    raise TypeError("Only polygon masks can be applied to 2D FOVs")
+                idx = sorted(self._index.intersection(mask.bounds))
+                obs = self.obs.iloc[idx, :].intersection(mask)
+                X = self.X[idx, :][~obs.is_empty, :]
+                obs = self.obs[~obs.is_empty]
+                coords = np.vstack(obs.geometry)
+                obs.drop(obs.geometry.name, axis=1, inplace=True)
             else:
-                raise TypeError("unknown mask type")
+                if isinstance(mask, Polygon):
+                    bounds = preprocess_3d_polygon_mask(mask, self._coordinates, polygon_method)
+                    idx = sorted(self._index.intersection(bounds))
+                    sub = self._obs.iloc[idx, :].intersection(mask)
+                    nemptyidx = ~sub.is_empty
+                elif isinstance(mask, Trimesh):
+                    idx = sorted(self._index.intersection(mask.bounds.reshape(-1)))
+                    sub = self._obs.iloc[idx, :]
+                    nemptyidx = mask.contains(np.vstack(sub.geometry))
+                else:
+                    raise TypeError("unknown mask type")
+                X = (self.X[idx, :][nemptyidx, :],)
+                obs = sub.iloc[nemptyidx, :]
+        else:
+            X = self.X[()]
+            obs = self.obs
+        ad = AnnData(X=X, obs=obs, var=self.var)
+        if genes is not None:
+            ad = ad[:, genes]
+        return ad
 
     @property
     def ndim(self):

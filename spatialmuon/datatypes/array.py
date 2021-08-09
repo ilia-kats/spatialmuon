@@ -130,13 +130,13 @@ class Array(FieldOfView):
         self,
         mask: Union[Polygon, Trimesh],
         polygon_method: Literal["project", "discard"] = "discard",
-    ):
+    ) -> AnnData:
         if self.ndim == 2:
             if not isinstance(mask, Polygon):
                 raise TypeError("Only polygon masks can be applied to 2D FOVs")
             idx = sorted(self._index.intersection(mask.bounds))
             obs = self.obs.iloc[idx, :].intersection(mask)
-            X = self.X[~obs.is_empty, :]
+            X = self.X[idx, :][~obs.is_empty, :]
             obs = self.obs[~obs.is_empty]
             coords = np.vstack(obs.geometry)
             obs.drop(obs.geometry.name, axis=1, inplace=True)
@@ -146,11 +146,17 @@ class Array(FieldOfView):
                 bounds = preprocess_3d_polygon_mask(mask, self._coordinates, polygon_method)
                 idx = sorted(self._index.intersection(bounds))
                 sub = self._obs.iloc[idx, :].intersection(mask)
-                return sub[~sub.is_empty]
+                nemptyidx = ~sub.is_empty
+                return AnnData(
+                    X=self.X[idx, :][nemptyidx, :], var=self.var, obs=sub.iloc[nemptyidx, :]
+                )
             elif isinstance(mask, Trimesh):
                 idx = sorted(self._index.intersection(mask.bounds.reshape(-1)))
                 sub = self._obs.iloc[idx, :]
-                return sub.iloc[mask.contains(np.vstack(sub.geometry)), :]
+                nemptyidx = mask.contains(np.vstack(sub.geometry))
+                return AnnData(
+                    X=self.X[idx, :][nemptyidx, :], var=self.var, obs=sub.iloc[nemptyidx, :]
+                )
             else:
                 raise TypeError("unknown mask type")
 

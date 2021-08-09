@@ -1,8 +1,12 @@
+from typing import Literal
 from codecs import decode
 from os import PathLike
+import warnings
 
+import numpy as np
 import pandas as pd
 import h5py
+from shapely.geometry import Polygon
 
 
 def _read_hdf5_attribute(attrs: h5py.AttributeManager, name: str):
@@ -33,6 +37,29 @@ def _get_hdf5_attribute(attrs: h5py.AttributeManager, name: str, default=None):
         return _read_hdf5_attribute(attrs, name)
     else:
         return default
+
+
+def preprocess_3d_polygon_mask(
+    mask: Polygon, coords: np.ndarray, method: Literal["project", "discard"] = "discard"
+):
+    if method == "discard":
+        bounds = list(mask.bounds)
+        if mask.has_z:
+            bounds[2] = float("-Inf")
+            bounds[-1] = float("Inf")  # GeoPandas ignores the 3rd dimension
+    elif method == "project":
+        if mask.has_z:
+            warnings.warn(
+                "Method is `project` but mask has 3 dimensions. Assuming that mask is in-plane with the data and skipping projection."
+            )
+        else:
+            mean = coords.mean(axis=0)
+            coords = coords - mean[:, np.newaxis]
+            cov = coords.T @ coords
+            projmat = np.linalg.eigh[cov][1][:, :2]
+            mask = Polygon(np.asarray(mask.exterior.coords) @ projmat.T)
+            bounds = mask.bounds
+    return bounds
 
 
 def read_dataframe_subset(grp: h5py.Group, yidx):

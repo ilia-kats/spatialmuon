@@ -10,7 +10,7 @@ import h5py
 from anndata._io.utils import read_attribute, write_attribute
 
 from .. import FieldOfView, SpatialIndex
-from ..utils import read_dataframe_subset
+from ..utils import read_dataframe_subset, preprocess_3d_polygon_mask
 
 
 def _get_gdf(backing, yidx=None):
@@ -86,25 +86,9 @@ class SingleMolecule(FieldOfView):
             return sub[~inters.is_empty]
         else:
             if isinstance(mask, Polygon):
-                if polygon_method == "discard":
-                    bounds = list(mask.bounds)
-                    bounds[2] = float("-Inf")
-                    bounds[-1] = float("Inf")  # GeoPandas ignores the 3rd dimension
-                elif polygon_method == "project":
-                    if mask.has_z:
-                        warnings.warn(
-                            "method is `project` but mask has 3 dimensions. Assuming that mask is in-plane with the data and skipping projection."
-                        )
-                    else:
-                        allcoords = np.vstack(self.data.coords)
-                        mean = allcoords.mean(axis=0)
-                        allcoords -= mean[:, np.newaxis]
-                        cov = allcoords.T @ allcoords
-                        projmat = np.linalg.eigh[cov][1][:, :2]
-                        mask = Polygon(
-                            np.asarray(mask.exterior.coords) @ projmat.T + mean[:, np.newaxis]
-                        )
-                        bounds = mask.bounds
+                bounds = preprocess_3d_polygon_mask(
+                    mask, np.vstack(self.data.geometry), polygon_method
+                )
                 idx = sorted(self._index.intersection(bounds))
                 sub = self._data_subset(idx).intersection(mask)
                 return sub[~sub.is_empty]
@@ -112,6 +96,8 @@ class SingleMolecule(FieldOfView):
                 idx = sorted(self._index.intersection(mask.bounds.reshape(-1)))
                 sub = self._data_subset(idx)
                 return sub.iloc[mask.contains(np.vstack(sub.geometry)), :]
+            else:
+                raise TypeError("unknown mask type")
 
     @property
     def ndim(self):

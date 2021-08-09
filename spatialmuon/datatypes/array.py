@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional, Union, Literal
 from enum import Enum, auto
 import warnings
 
@@ -6,13 +6,15 @@ import numpy as np
 from scipy.sparse import spmatrix
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
+from trimesh import Trimesh
 import h5py
+from anndata import AnnData
 from anndata._io.utils import read_attribute, write_attribute
 from anndata._core.sparse_dataset import SparseDataset
 
 from .. import FieldOfView, SpatialIndex
-from ..utils import _read_hdf5_attribute
+from ..utils import _read_hdf5_attribute, preprocess_3d_polygon_mask
 
 
 class SpotShape(Enum):
@@ -117,12 +119,38 @@ class Array(FieldOfView):
             return self._X
 
     @property
-    def obs(self) -> pd.DataFrame:
+    def obs(self) -> gpd.GeoDataFrame:
         return self._obs
 
     @property
     def var(self) -> pd.DataFrame:
         return self._var
+
+    def subset(
+        self,
+        mask: Union[Polygon, Trimesh],
+        polygon_method: Literal["project", "discard"] = "discard",
+    ):
+        if self.ndim == 2:
+            if not isinstance(mask, Polygon):
+                raise TypeError("Only polygon masks can be applied to 2D FOVs")
+            idx = sorted(self._index.intersection(mask.bounds))
+            obs = self.obs.iloc[idx, :].intersection(mask)
+            X = self.X[~obs.is_empty, :]
+            obs = self.obs[~obs.is_empty]
+            coords = np.vstack(obs.geometry)
+            obs.drop(obs.geometry.name, axis=1, inplace=True)
+            return AnnData(X=X, var=self.var, obs=obs, obsm={"spatial": coords})
+        else:
+            if isinstance(mask, Polygon):
+                bounds = preprocess_3d_polygon_mask(mask, self._coordinates, polygon_method)
+                idx = sorted(self._index.intersection(bounds))
+                sub = self._obs.iloc[idx, :].intersection(mask)
+                return sub[~sub.is_empty]
+            elif isinstance(mask, Trimesh):
+                idx = sorted(self._index.intersection(mask.bounds.reshape(-1)))
+                sub = self._obs.iloc[idx, :]
+                return sub.iloc[mask.contains(np.vstack(sub.geometry)), :]
 
     @property
     def ndim(self):

@@ -114,12 +114,11 @@ class Raster(FieldOfView):
             (np.floor(bounds[0]), np.floor(bounds[1]), np.ceil(bounds[2]), np.ceil(bounds[3]))
         ).astype(np.uint16)
         data = self.X[bounds[1] : bounds[3], bounds[0] : bounds[2], ...]
-        mp = MultiPoint(
-            np.stack(
-                np.meshgrid(range(bounds[0], bounds[2] + 1), range(bounds[1], bounds[3] + 1)),
-                axis=-1,
-            ).reshape((-1, 2))
-        )
+        coords = np.stack(
+            np.meshgrid(range(bounds[0], bounds[2] + 1), range(bounds[1], bounds[3] + 1)),
+            axis=-1,
+        ).reshape((-1, 2))
+        mp = MultiPoint(coords) if coords.shape[0] > 1 else Point(coords)
         inters = np.asarray(mask.intersection(mp)).astype(np.uint16)
         if inters.size == 0:
             return inters

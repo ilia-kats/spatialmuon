@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
+from ncls import NCLS
 from trimesh import Trimesh
 import h5py
 from anndata._io.utils import read_attribute, write_attribute
@@ -50,15 +51,45 @@ class SingleMolecule(FieldOfView):
     def data(self):
         return self._data_subset()
 
-    def _data_subset(self, yidx=None):
+    def _data_subset(self, yidx=None, genes=None):
         # only works with list[int] and 1D arrays at the moment
         if self.isbacked:
             if yidx is None:
-                coords = read_attribute(self.backing["coordinates"])
-                metadata = read_attribute(self.backing["metadata"])
+                if genes is not None:
+                    if isinstance(genes, str):
+                        genes = [genes]
+                    coords = []
+                    metadata = []
+                    for g in genes:
+                        rng = self.backing["feature_range"][g][()]
+                        coords.append(self.backing["coordinates"][rng[0] : rng[1]])
+                        metadata.append(
+                            read_dataframe_subset(self.backing["metadata"], slice(rng[0], rng[1]))
+                        )
+                    coords = np.vstack(coords)
+                    metadata = pd.concat(metadata, axis=0)
+                else:
+                    coords = read_attribute(self.backing["coordinates"])
+                    metadata = read_attribute(self.backing["metadata"])
             else:
-                # reading a continuous slice is much faster than reading many individual elements
                 yidx = np.asarray(yidx)
+                if genes is not None:
+                    if isinstance(genes, list) and len(genes) == 1:
+                        genes = genes[0]
+                    if isinstance(genes, str):
+                        rng = self.backing["feature_range"][genes][()]
+                        ncls = NCLS(rng[0, np.newaxis], rng[1, np.newaxis] - 1, rng[0, np.newaxis])
+                    else:
+                        intervals = []
+                        for g in genes:
+                            rng = self.backing["feature_range"][g][()]
+                            intervals.append(rng)
+                        intervals = np.vstack(intervals)
+                        ncls = NCLS(intervals[:, 0], intervals[:, 1] - 1, intervals[:, 0])
+                    idx = yidx if yidx.size > 1 else yidx[np.newaxis]
+                    yidx = yidx[ncls.has_overlaps(idx, idx, np.arange(yidx.size))]
+
+                # reading a continuous slice is much faster than reading many individual elements
                 min = yidx.min()
                 slc = slice(min, yidx.max() + 1)
                 yidx -= min
@@ -70,34 +101,49 @@ class SingleMolecule(FieldOfView):
             data = self._data
             if yidx is not None:
                 data = data.iloc[yidx, :]
+            if genes is not None:
+                data = data.loc[genes, :]
             return data
 
-    def subset(
-        self,
-        mask: Union[Polygon, Trimesh],
-        polygon_method: Literal["project", "discard"] = "discard",
-    ):
-        if self.ndim == 2:
-            if not isinstance(mask, Polygon):
-                raise TypeError("Only polygon masks can be applied to 2D FOVs")
-            idx = sorted(self._index.intersection(mask.bounds))
-            sub = self._data_subset(idx)
-            inters = sub.intersection(mask)
-            return sub[~inters.is_empty]
-        else:
-            if isinstance(mask, Polygon):
-                bounds = preprocess_3d_polygon_mask(
-                    mask, np.vstack(self.data.geometry), polygon_method
-                )
-                idx = sorted(self._index.intersection(bounds))
-                sub = self._data_subset(idx).intersection(mask)
-                return sub[~sub.is_empty]
-            elif isinstance(mask, Trimesh):
-                idx = sorted(self._index.intersection(mask.bounds.reshape(-1)))
-                sub = self._data_subset(idx)
-                return sub.iloc[mask.contains(np.vstack(sub.geometry)), :]
+    def __getitem__(self, index: tuple):
+        if not isinstance(index, tuple):
+            if isinstance(index, str) or isinstance(index, list):
+                genes = index
+                if isinstance(genes, str):
+                    genes = [genes]
+                mask = None
             else:
-                raise TypeError("unknown mask type")
+                mask = index
+                genes = None
+        else:
+            mask = index[0]
+            genes = index[1]
+            if len(index) > 2:
+                polygon_method = index[2]
+        if mask is not None:
+            if self.ndim == 2:
+                if not isinstance(mask, Polygon):
+                    raise TypeError("Only polygon masks can be applied to 2D FOVs")
+                idx = sorted(self._index.intersection(mask.bounds))
+                sub = self._data_subset(idx, genes)
+                inters = sub.intersection(mask)
+                return sub[~inters.is_empty]
+            else:
+                if isinstance(mask, Polygon):
+                    bounds = preprocess_3d_polygon_mask(
+                        mask, np.vstack(self.data.geometry), polygon_method
+                    )
+                    idx = sorted(self._index.intersection(bounds))
+                    sub = self._data_subset(idx, genes).intersection(mask)
+                    return sub[~sub.is_empty]
+                elif isinstance(mask, Trimesh):
+                    idx = sorted(self._index.intersection(mask.bounds.reshape(-1)))
+                    sub = self._data_subset(idx, genes)
+                    return sub.iloc[mask.contains(np.vstack(sub.geometry)), :]
+                else:
+                    raise TypeError("unknown mask type")
+        elif genes is not None:
+            return self._data_subset(genes=genes)
 
     @property
     def ndim(self):

@@ -1,7 +1,10 @@
-from typing import Optional
+from typing import Optional, Union, Literal
+import warnings
 
 import numpy as np
 import h5py
+from shapely.geometry import Polygon, Point, MultiPoint
+from trimesh import Trimesh
 
 from .. import FieldOfView
 from ..utils import _get_hdf5_attribute
@@ -58,9 +61,9 @@ class Raster(FieldOfView):
         return self._ndim
 
     @property
-    def X(self) -> np.ndarray:
+    def X(self) -> Union[np.ndarray, h5py.Dataset]:
         if self.isbacked:
-            return self.backing["X"][()]
+            return self.backing["X"]
         else:
             return self._X
 
@@ -81,6 +84,47 @@ class Raster(FieldOfView):
             return self.px_dimensions
         else:
             return self._px_distance
+
+    def subset(
+        self,
+        mask: Union[Polygon, Trimesh],
+        polygon_method: Literal["project", "discard"] = "discard",
+    ):
+        if self.ndim == 3:
+            if isinstance(mask, Polygon):
+                if polygon_method == "project":
+                    warnings.warn(
+                        "Method `project` not possible with raster FOVs. Using `discard`."
+                    )
+            elif isinstance(mask, Trimesh):
+                lb, ub = np.floor(mask.bounds[0, :]), np.ceil(mask.bounds[1, :])
+                data = self.X[lb[0] : ub[0], lb[1] : ub[1], lb[2] : ub[2], ...]
+                coords = np.stack(
+                    np.meshgrid(
+                        range(ub[0] - lb[0] + 2), range(ub[1] - lb[1] + 2), range(ub[2] - lb[2] + 2)
+                    ),
+                    axis=1,
+                )
+                coords = coords[mask.contains(coords), :]
+                return data[coords[:, 1], coords[:, 0], coords[:, 2], ...]
+        if not isinstance(mask, Polygon):
+            raise TypeError("Only polygon masks can be applied to 2D FOVs")
+        bounds = mask.bounds
+        bounds = np.asarray(
+            (np.floor(bounds[0]), np.floor(bounds[1]), np.ceil(bounds[2]), np.ceil(bounds[3]))
+        ).astype(np.uint16)
+        data = self.X[bounds[1] : bounds[3], bounds[0] : bounds[2], ...]
+        mp = MultiPoint(
+            np.stack(
+                np.meshgrid(range(bounds[0], bounds[2] + 1), range(bounds[1], bounds[3] + 1)),
+                axis=-1,
+            ).reshape((-1, 2))
+        )
+        inters = np.asarray(mask.intersection(mp)).astype(np.uint16)
+        if inters.size == 0:
+            return inters
+        else:
+            return data[inters[:, 1] - bounds[1], inters[:, 0] - bounds[0], ...]
 
     @staticmethod
     def _encodingtype():

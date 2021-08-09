@@ -151,6 +151,8 @@ class Array(FieldOfView):
                 idx = sorted(self._index.intersection(mask.bounds.reshape(-1)))
                 sub = self._obs.iloc[idx, :]
                 return sub.iloc[mask.contains(np.vstack(sub.geometry)), :]
+            else:
+                raise TypeError("unknown mask type")
 
     @property
     def ndim(self):

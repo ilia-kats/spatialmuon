@@ -85,45 +85,67 @@ class Raster(FieldOfView):
         else:
             return self._px_distance
 
-    def subset(
+    def _getitem(
         self,
-        mask: Union[Polygon, Trimesh],
+        mask: Optional[Union[Polygon, Trimesh]] = None,
+        genes: Optional[Union[str, list[str]]] = None,
         polygon_method: Literal["project", "discard"] = "discard",
     ):
-        if self.ndim == 3:
-            if isinstance(mask, Polygon):
-                if polygon_method == "project":
-                    warnings.warn(
-                        "Method `project` not possible with raster FOVs. Using `discard`."
+        if mask is not None:
+            if self.ndim == 3:
+                if isinstance(mask, Polygon):
+                    if polygon_method == "project":
+                        warnings.warn(
+                            "Method `project` not possible with raster FOVs. Using `discard`."
+                        )
+                elif isinstance(mask, Trimesh):
+                    lb, ub = np.floor(mask.bounds[0, :]), np.ceil(mask.bounds[1, :])
+                    data = self.X[lb[0] : ub[0], lb[1] : ub[1], lb[2] : ub[2], ...]
+                    coords = np.stack(
+                        np.meshgrid(
+                            range(ub[0] - lb[0] + 2),
+                            range(ub[1] - lb[1] + 2),
+                            range(ub[2] - lb[2] + 2),
+                        ),
+                        axis=1,
                     )
-            elif isinstance(mask, Trimesh):
-                lb, ub = np.floor(mask.bounds[0, :]), np.ceil(mask.bounds[1, :])
-                data = self.X[lb[0] : ub[0], lb[1] : ub[1], lb[2] : ub[2], ...]
-                coords = np.stack(
-                    np.meshgrid(
-                        range(ub[0] - lb[0] + 2), range(ub[1] - lb[1] + 2), range(ub[2] - lb[2] + 2)
-                    ),
-                    axis=1,
-                )
-                coords = coords[mask.contains(coords), :]
-                return data[coords[:, 1], coords[:, 0], coords[:, 2], ...]
-        if not isinstance(mask, Polygon):
-            raise TypeError("Only polygon masks can be applied to 2D FOVs")
-        bounds = mask.bounds
-        bounds = np.asarray(
-            (np.floor(bounds[0]), np.floor(bounds[1]), np.ceil(bounds[2]), np.ceil(bounds[3]))
-        ).astype(np.uint16)
-        data = self.X[bounds[1] : bounds[3], bounds[0] : bounds[2], ...]
-        coords = np.stack(
-            np.meshgrid(range(bounds[0], bounds[2] + 1), range(bounds[1], bounds[3] + 1)),
-            axis=-1,
-        ).reshape((-1, 2))
-        mp = MultiPoint(coords) if coords.shape[0] > 1 else Point(coords)
-        inters = np.asarray(mask.intersection(mp)).astype(np.uint16)
-        if inters.size == 0:
-            return inters
+                    coords = coords[mask.contains(coords), :]
+                    return data[coords[:, 1], coords[:, 0], coords[:, 2], ...]
+            if not isinstance(mask, Polygon):
+                raise TypeError("Only polygon masks can be applied to 2D FOVs")
+            bounds = mask.bounds
+            bounds = np.asarray(
+                (np.floor(bounds[0]), np.floor(bounds[1]), np.ceil(bounds[2]), np.ceil(bounds[3]))
+            ).astype(np.uint16)
+            data = self.X[bounds[1] : bounds[3], bounds[0] : bounds[2], ...]
+            coords = np.stack(
+                np.meshgrid(range(bounds[0], bounds[2] + 1), range(bounds[1], bounds[3] + 1)),
+                axis=-1,
+            ).reshape((-1, 2))
+            mp = MultiPoint(coords) if coords.shape[0] > 1 else Point(coords)
+            inters = np.asarray(mask.intersection(mp)).astype(np.uint16)
+            if inters.size == 0:
+                return inters
+            else:
+                data = data[inters[:, 1] - bounds[1], inters[:, 0] - bounds[0], ...]
         else:
-            return data[inters[:, 1] - bounds[1], inters[:, 0] - bounds[0], ...]
+            data = self.X
+
+        if genes is not None:
+            if self.channel_names is None:
+                data = data[..., genes]
+            else:
+                idx = np.argsort(self.channel_names)
+                sorted_names = self.channel_names[idx]
+                sorted_idx = np.searchsorted(sorted_names, genes)
+                try:
+                    yidx = idx[sorted_idx]
+                except IndexError:
+                    raise KeyError(
+                        f"elements {[genes[i] for i in np.where(np.isin(genes, self.channel_names, invert=True))[0]]} not found"
+                    )
+                data = data[..., yidx]
+        return data
 
     @staticmethod
     def _encodingtype():

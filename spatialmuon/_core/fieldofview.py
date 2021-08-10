@@ -1,9 +1,11 @@
 from abc import ABC, abstractmethod
 from importlib.metadata import entry_points
-from typing import Optional
+from typing import Optional, Union, Literal
 
 import numpy as np
 import h5py
+from shapely.geometry import Polygon
+from trimesh import Trimesh
 from anndata._io.utils import read_attribute, write_attribute
 
 from .backing import BackableObject, BackedDictProxy
@@ -159,6 +161,15 @@ class FieldOfView(BackableObject):
             genes = None
 
         return self._getitem(mask, genes, polygon_method)
+
+    @abstractmethod
+    def _getitem(
+        self,
+        mask: Optional[Union[Polygon, Trimesh]] = None,
+        genes: Optional[Union[str, list[str]]] = None,
+        polygon_method: Literal["discard", "project"] = "discard",
+    ):
+        pass
 
     def _write_attributes_impl(self, obj: h5py.Group):
         super()._write_attributes_impl(obj)

@@ -10,6 +10,7 @@ from shapely.geometry import Point, Polygon
 from trimesh import Trimesh
 import h5py
 from anndata import AnnData
+from anndata.utils import make_index_unique
 from anndata._io.utils import read_attribute, write_attribute
 from anndata._core.sparse_dataset import SparseDataset
 
@@ -79,6 +80,11 @@ class Array(FieldOfView):
                     raise ValueError("X shape is inconsistent with var")
                 else:
                     self._var = var
+                    if not self._var.index.is_unique:
+                        warnings.warn(
+                            "Gene names are not unique. This will negatively affect indexing/subsetting. Making unique names..."
+                        )
+                        self._var.index = make_index_unique(self._var.index)
             else:
                 self._var = pd.DataFrame(index=range(X.shape[1]))
 

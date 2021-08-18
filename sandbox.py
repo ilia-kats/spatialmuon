@@ -12,12 +12,10 @@ from tqdm import tqdm
 
 f = "/data/l989o/data/spatialmuon/imc/BaselTMA_SP41_15.475kx12.665ky_10000x8500_5_20170905_110_274_X13Y1_32_a0_full.h5smu"
 
-a = spm.SpatialMuData(f, backingmode="r")
+mu = spm.SpatialMuData(f, backingmode="r")
+imc = mu["IMC"]
 ax = plt.gca()
-spm.plot.spatial(a["IMC"]["FOV"], ax)
-#%%
-plt.figure()
-ax = plt.gca()
+spm.plot.spatial(imc, ax, channel=1, transform=np.arcsinh)
 plt.show()
 
 #%%

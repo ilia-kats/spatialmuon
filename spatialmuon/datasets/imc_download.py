@@ -70,27 +70,6 @@ def get_description_of_cleaned_features():
     return feature_description
 
 
-def get_predictive_clustering_valid_features():
-    feature_description = get_description_of_cleaned_features()
-    columns = (
-        feature_description["image_level_features"] + feature_description["patient_level_features"]
-    )
-    columns = [
-        s
-        for s in columns
-        if s
-        not in [
-            "FileName_FullStack",
-            "merged_pid",
-            "PrimarySite",
-            "Height_FullStack",
-            "Width_FullStack",
-            "images_per_patient",
-        ]
-    ]
-    return columns
-
-
 def flatten_ptnm_tn_labels(my_class, ptnm_labels_hierarchy):
     if type(my_class) == float and math.isnan(my_class):
         return my_class
@@ -349,55 +328,71 @@ def create_muon_spatial_object(f_ome, f_masks, outfile):
     fov.feature_masks["cells"] = spatialmuon.RasterMask(mask=masks)
 
 
-if len(sys.argv) > 1:
-    outfdir = sys.argv[1]
-else:
-    outfdir = "imc"
+DEBUG = False
 
-with tempfile.TemporaryDirectory() as tmpdir:
-    imgfile = os.path.join(tmpdir, "images.zip")
-    download(
-        "https://zenodo.org/record/3518284/files/OMEandSingleCellMasks.zip?download=1",
-        imgfile,
-        desc="images",
-    )
-    print("extracting images...", file=sys.stderr)
-    unzip(imgfile, tmpdir)
-    unzip(os.path.join(tmpdir, "OMEnMasks", "ome.zip"), tmpdir)
-    unzip(os.path.join(tmpdir, "OMEnMasks", "Basel_Zuri_masks.zip"), tmpdir)
 
-    metadatafile = os.path.join(tmpdir, "metadata.zip")
-    download(
-        "https://zenodo.org/record/3518284/files/SingleCell_and_Metadata.zip?download=1",
-        metadatafile,
-        desc="metadata",
-    )
-    unzip(
-        metadatafile,
-        tmpdir,
-        [
-            "Data_publication/BaselTMA/Basel_PatientMetadata.csv",
-            "Data_publication/ZurichTMA/Zuri_PatientMetadata.csv",
-        ],
-    )
+def debug_create_spatial_muon_object():
+    # edit your paths here
+    f_ome = "/data/l989o/data/basel_zurich/OMEandSingleCellMasks/ome/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full.tiff"
+    f_masks = "/data/l989o/data/basel_zurich/OMEandSingleCellMasks/Basel_Zuri_masks/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full_maks.tiff"
+    outfile = "debug.h5smu"
+    create_muon_spatial_object(f_ome, f_masks, outfile)
 
-    df = get_metadata(
-        clean_verbose=True,
-        basel_csv=os.path.join(tmpdir, "Data_publication", "BaselTMA", "Basel_PatientMetadata.csv"),
-        zurich_csv=os.path.join(
-            tmpdir, "Data_publication", "ZurichTMA", "Zuri_PatientMetadata.csv"
-        ),
-    )
 
-    for index, row in tqdm(df.iterrows(), total=len(df), desc="creating .hs5mu objects"):
-        ome_filename = row[0]
-        f_ome = os.path.join(tmpdir, "ome", ome_filename)
+if __name__ == "__main__":
+    if DEBUG:
+        debug_create_spatial_muon_object()
+        os._exit(0)
+    if len(sys.argv) > 1:
+        outfdir = sys.argv[1]
+    else:
+        outfdir = "imc"
 
-        masks_filename = ome_filename.replace("_full.tiff", "_full_maks.tiff")
-        f_masks = os.path.join(tmpdir, "Basel_Zuri_masks", masks_filename)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        imgfile = os.path.join(tmpdir, "images.zip")
+        download(
+            "https://zenodo.org/record/3518284/files/OMEandSingleCellMasks.zip?download=1",
+            imgfile,
+            desc="images",
+        )
+        print("extracting images...", file=sys.stderr)
+        unzip(imgfile, tmpdir)
+        unzip(os.path.join(tmpdir, "OMEnMasks", "ome.zip"), tmpdir)
+        unzip(os.path.join(tmpdir, "OMEnMasks", "Basel_Zuri_masks.zip"), tmpdir)
 
-        output_folder = "generated_muon"
-        os.makedirs(output_folder, exist_ok=True)
-        outfile = ome_filename.replace(".tiff", ".h5smu")
-        outfile = os.path.join(output_folder, outfile)
-        create_muon_spatial_object(f_ome, f_masks, outfile)
+        metadatafile = os.path.join(tmpdir, "metadata.zip")
+        download(
+            "https://zenodo.org/record/3518284/files/SingleCell_and_Metadata.zip?download=1",
+            metadatafile,
+            desc="metadata",
+        )
+        unzip(
+            metadatafile,
+            tmpdir,
+            [
+                "Data_publication/BaselTMA/Basel_PatientMetadata.csv",
+                "Data_publication/ZurichTMA/Zuri_PatientMetadata.csv",
+            ],
+        )
+
+        df = get_metadata(
+            clean_verbose=True,
+            basel_csv=os.path.join(
+                tmpdir, "Data_publication", "BaselTMA", "Basel_PatientMetadata.csv"
+            ),
+            zurich_csv=os.path.join(
+                tmpdir, "Data_publication", "ZurichTMA", "Zuri_PatientMetadata.csv"
+            ),
+        )
+
+        for index, row in tqdm(df.iterrows(), total=len(df), desc="creating .hs5mu objects"):
+            ome_filename = row[0]
+            f_ome = os.path.join(tmpdir, "ome", ome_filename)
+
+            masks_filename = ome_filename.replace("_full.tiff", "_full_maks.tiff")
+            f_masks = os.path.join(tmpdir, "Basel_Zuri_masks", masks_filename)
+
+            os.makedirs(outfdir, exist_ok=True)
+            outfile = ome_filename.replace(".tiff", ".h5smu")
+            outfile = os.path.join(outfdir, outfile)
+            create_muon_spatial_object(f_ome, f_masks, outfile)

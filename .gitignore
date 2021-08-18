@@ -4,4 +4,5 @@ __pycache__/
 *.kdev4
 .kdev4/
 *.h5smu
-
+setup.cfg
+setup.py

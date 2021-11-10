@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import MutableMapping
 from abc import abstractmethod
 from typing import Optional, Union

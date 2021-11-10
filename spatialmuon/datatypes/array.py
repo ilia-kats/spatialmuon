@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Optional, Union, Literal
 from enum import Enum, auto
 import warnings
@@ -129,8 +131,16 @@ class Array(FieldOfView):
         return self._obs
 
     @property
+    def n_obs(self) -> unt:
+        return self._obs.shape[0]
+
+    @property
     def var(self) -> pd.DataFrame:
         return self._var
+
+    @property
+    def n_var(self) -> unt:
+        return self._var.shape[0]
 
     def _getitem(
         self,
@@ -224,3 +234,9 @@ class Array(FieldOfView):
         attrs = obj.attrs
         attrs["spot_shape"] = str(self._spot_shape)
         attrs["spot_size"] = self._spot_size
+
+    def __str__(self):
+        repr_str = "Array Field of View: "
+        repr_str += f"{self.n_obs} x {self.n_var}"
+
+        return repr_str

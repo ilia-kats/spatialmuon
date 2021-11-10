@@ -18,7 +18,7 @@ from tqdm import tqdm
 import h5py
 
 import spatialmuon
-from _utils import *
+from ._utils import *
 
 if len(sys.argv) > 1:
     outfname = sys.argv[1]

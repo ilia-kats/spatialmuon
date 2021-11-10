@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from importlib.metadata import entry_points
 from typing import Optional, Union, Literal
@@ -58,7 +60,7 @@ class FieldOfView(BackableObject):
         *,
         rotation: Optional[np.ndarray] = None,
         translation: Optional[np.ndarray] = None,
-        images: Optional[dict[Image]] = None,
+        images: Optional[dict[str, Image]] = None,
         feature_masks: Optional[dict] = None,
         image_masks: Optional[dict] = None,
         uns: Optional[dict] = None,

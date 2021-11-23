@@ -23,7 +23,14 @@ class SpatialMuData(BackableObject, BackedDictProxy):
             if path.isfile(backing) and is_h5smu(backing):
                 backing = h5py.File(backing, backingmode)
             else:
-                f = h5py.File(backing, "w", userblock_size=512, libver="latest")
+                f = h5py.File(
+                    backing,
+                    "w",
+                    userblock_size=4096,
+                    libver="latest",
+                    fs_strategy="page",
+                    fs_persist=True,
+                )
                 f.create_group("mod")
                 f.close()
                 with open(backing, "br+") as outfile:
@@ -71,3 +78,12 @@ class SpatialMuData(BackableObject, BackedDictProxy):
     def _write(self, grp):
         for m, mod in self.items():
             mod.write(grp.require_group("mod"), m)
+
+    def __repr__(self):
+        repr_str = "SpatialMuData object\n"
+        for m, mod in self.items():
+            repr_str += f"| {m}\n"
+            for k, v in mod.items():
+                repr_str += f"| - {k}: {v}\n"
+
+        return repr_str

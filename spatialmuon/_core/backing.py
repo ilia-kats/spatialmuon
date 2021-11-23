@@ -95,17 +95,26 @@ class BackedDictProxy(UserDict):
         for k, v in items.items():
             self.__setitem__(k, v)
 
+    def _initgrp(self):
+        if self._grp is None:
+            if self._key is not None:
+                self._grp = self._parent.backing.require_group(self._key)
+            else:
+                self._grp = self._parent.backing
+
     def __setitem__(self, key: str, value: BackableObject):
         if self.validatefun is not None:
             valid = self.validatefun(self._parent, key, value)
             if valid is not None:
                 raise ValueError(valid)
         if self._parent.isbacked:
-            if self._grp is None:
-                if self._key is not None:
-                    self._grp = self._parent.backing.require_group(self._key)
-                else:
-                    self._grp = self._parent.backing
+            self._initgrp()
             if key in self._grp and value.backing != self._grp[key] or key not in self._grp:
                 value.set_backing(self._grp, key)
         super().__setitem__(key, value)
+
+    def __delitem__(self, key: str):
+        super().__delitem__(key)
+        if self._parent.isbacked:
+            self._initgrp()
+            del self._grp[key]

@@ -1,12 +1,16 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from importlib.metadata import entry_points
 from typing import Optional, Union, Literal
+import warnings
 
 import numpy as np
 import h5py
 from shapely.geometry import Polygon
 from trimesh import Trimesh
 from anndata._io.utils import read_attribute, write_attribute
+from anndata.utils import make_index_unique
 
 from .backing import BackableObject, BackedDictProxy
 from .image import Image
@@ -38,14 +42,6 @@ class FieldOfView(BackableObject):
             return super().__new__(cls)
 
     @staticmethod
-    def __validate_image(fov, key, img):
-        if img.rotation() is not None and img.rotation().shape != (fov.ndim, fov.ndim):
-            return f"rotation matrix must have shape ({fov.ndim}, {fov.ndim})"
-        if img.translation() is not None and img.translation().shape != (fov.ndim,):
-            return f"translation vector must have shape ({fov.ndim},)"
-        return None
-
-    @staticmethod
     def __validate_mask(fov, key, mask):
         if mask.ndim != None and mask.ndim != fov.ndim:
             return f"mask with {mask.ndim} dimensions is being added to field of view with {fov.ndim} dimensions"
@@ -56,35 +52,43 @@ class FieldOfView(BackableObject):
         self,
         backing: Optional[h5py.Group] = None,
         *,
+        scale: Optional[float] = None,
         rotation: Optional[np.ndarray] = None,
         translation: Optional[np.ndarray] = None,
-        images: Optional[dict[Image]] = None,
-        feature_masks: Optional[dict] = None,
-        image_masks: Optional[dict] = None,
+        var: Optional[pd.DataFrame] = None,
+        masks: Optional[dict] = None,
         uns: Optional[dict] = None,
     ):
         super().__init__(backing)
+        self._scale = scale
         self._rotation = rotation
         self._translation = translation
+        if scale is None and self.isbacked:
+            self._scale = _get_hdf5_attribute(self.backing.attrs, "scale")
         if rotation is None and self.isbacked:
             self._rotation = _get_hdf5_attribute(self.backing.attrs, "rotation")
         if translation is None and self.isbacked:
             self._translation = _get_hdf5_attribute(self.backing.attrs, "translation")
-        self.images = BackedDictProxy(self, key="images")
-        if self.isbacked and "images" in self.backing:
-            for key, img in self.backing["images"].items():
-                self.images[key] = Image(img)
 
-        self.feature_masks = BackedDictProxy(self, key="feature_masks")
-        if self.isbacked and "feature_masks" in self.backing:
-            for key, mask in self.backing["feature_masks"].items():
-                self.feature_masks[key] = Mask(backing=mask)
+        self.masks = BackedDictProxy(self, key="masks")
+        if self.isbacked and "masks" in self.backing:
+            for key, mask in self.backing["masks"].items():
+                self.masks[key] = Mask(backing=mask)
 
-        self.image_masks = BackedDictProxy(self, key="image_masks")
-        if self.isbacked and "image_masks" in self.backing:
-            for key, mask in self.backing["image_masks"].items():
-                self.image_masks[key] = Mask(backing=mask)
-
+        if self.isbacked and "var" in self.backing:
+            self._var = read_attribute(backing["var"])
+        elif var is not None:
+            if var.shape[0] != self._X.shape[1]:
+                raise ValueError("X shape is inconsistent with var")
+            else:
+                self._var = var
+                if not self._var.index.is_unique:
+                    warnings.warn(
+                        "Gene names are not unique. This will negatively affect indexing/subsetting. Making unique names..."
+                    )
+                    self._var.index = make_index_unique(self._var.index)
+        else:
+            self._var = pd.DataFrame(index=range(X.shape[1]))
         if self.isbacked and "uns" in self.backing:
             self.uns = read_attribute(self.backing["uns"])
         elif not self.isbacked and uns is not None:
@@ -94,34 +98,34 @@ class FieldOfView(BackableObject):
 
         # we don't want to validate stuff coming from HDF5, this may break I/O
         # but mostly we can't validate for a half-initalized object
-        self.images.validatefun = self.__validate_image
-        self.feature_masks.validatefun = self.__validate_mask
-        self.image_masks.validatefun = self.__validate_mask
+        self.masks.validatefun = self.__validate_mask
 
         # init with validation
         # this requires that subclasses call this constructor at the end of their init method
         # because validation requires information from subclasses, e.g. ndim
         if not self.isbacked:
-            if images is not None:
-                self.images.update(images)
-            if feature_masks is not None:
-                self.feature_masks.update(feature_masks)
-            if image_masks is not None:
-                self.image_masks.update(image_masks)
+            if masks is not None:
+                self.masks.update(masks)
 
     def _set_backing(self, obj):
         super()._set_backing(obj)
-        for img in self.images:
-            img.set_backing(obj)
-        for mask in self.feature_masks:
-            mask.set_backing(obj)
-        for mask in self.image_masks:
+        for mask in self.masks:
             mask.set_backing(obj)
 
     @property
     @abstractmethod
     def ndim(self) -> int:
         pass
+
+    @property
+    def scale(self) -> float:
+        return self._scale if self._scale is not None and self._scale > 0 else 1
+
+    @scale.setter
+    def scale(self, newscale: Optional[float]):
+        if newscale is not None and newscale <= 0:
+            newscale = None
+        self._scale = newscale
 
     @property
     def rotation(self) -> np.ndarray:
@@ -140,6 +144,14 @@ class FieldOfView(BackableObject):
             return np.zeros(self.ndim)
         else:
             return np.zeros(3)
+
+    @property
+    def var(self) -> pd.DataFrame:
+        return self._var
+
+    @property
+    def n_var(self) -> unt:
+        return self._var.shape[0]
 
     def __getitem__(self, index):
         polygon_method = "discard"
@@ -179,13 +191,12 @@ class FieldOfView(BackableObject):
             obj.attrs["translation"] = self._translation
 
     def _write(self, obj: h5py.Group):
-        for imname, img in self.images.items():
-            img.write(obj, f"images/{imname}")
-        for maskname, mask in self.feature_masks.items():
-            mask.write(obj, f"feature_masks/{maskname}")
-        for maskname, mask in self.image_masks.items():
-            mask.write(obj, f"image_masks/{maskname}")
+        for maskname, mask in self.masks.items():
+            mask.write(obj, f"masks/{maskname}")
 
+        write_attribute(
+            obj, "var", self._var, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
+        )
         write_attribute(
             obj, "uns", self.uns, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
         )

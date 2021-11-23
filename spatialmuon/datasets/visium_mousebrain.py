@@ -18,7 +18,7 @@ from tqdm import tqdm
 import h5py
 
 import spatialmuon
-from _utils import *
+from ._utils import *
 
 if len(sys.argv) > 1:
     outfname = sys.argv[1]
@@ -96,6 +96,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
                 spot_shape=spatialmuon.SpotShape.circle,
                 spot_size=radius,
                 translation=[0, 0, fovidx * 10],
+                scale=6.698431978755106,
             )
             modality[fovname] = cfov
 

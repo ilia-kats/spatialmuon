@@ -47,8 +47,6 @@ class SpatialModality(BackableObject, BackedDictProxy):
                 fov.set_backing(None)
 
     def _write_attributes_impl(self, grp: h5py.Group):
-        if self._scale is not None:
-            grp.attrs["scale"] = self._scale
         if self.coordinate_unit is not None:
             grp.attrs["coordinate_unit"] = self.coordinate_unit
 

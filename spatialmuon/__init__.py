@@ -2,7 +2,7 @@
 
 from ._core import *
 from .datatypes.singlemolecule import SingleMolecule
-from .datatypes.array import Array, SpotShape
+from .datatypes.regions import Regions
 from .datatypes.raster import Raster
 
 __version__ = "0.1.0"

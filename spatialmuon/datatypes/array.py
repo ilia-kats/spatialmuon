@@ -142,6 +142,13 @@ class Array(FieldOfView):
     def n_var(self) -> unt:
         return self._var.shape[0]
 
+    n_vars = n_var  # legacy API
+
+    @property
+    def shape(self) -> tuple[int, int]:
+        """Shape of data, all variables and observations combined (:attr:`n_obs`, :attr:`n_var`)."""
+        return self.n_obs, self.n_var
+
     def _getitem(
         self,
         mask: Optional[Union[Polygon, Trimesh]] = None,
@@ -234,9 +241,13 @@ class Array(FieldOfView):
         attrs = obj.attrs
         attrs["spot_shape"] = str(self._spot_shape)
         attrs["spot_size"] = self._spot_size
+    
+    @property
+    def obsm(self):
+        return {"spatial": self._coordinates}
 
-    def __str__(self):
-        repr_str = "Array Field of View: "
+    def __repr__(self):
+        repr_str = "Array FoV: "
         repr_str += f"{self.n_obs} x {self.n_var}"
 
         return repr_str

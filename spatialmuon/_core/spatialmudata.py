@@ -79,7 +79,7 @@ class SpatialMuData(BackableObject, BackedDictProxy):
         for m, mod in self.items():
             mod.write(grp.require_group("mod"), m)
 
-    def __str__(self):
+    def __repr__(self):
         repr_str = "SpatialMuData object\n"
         for m, mod in self.items():
             repr_str += f"| {m}\n"

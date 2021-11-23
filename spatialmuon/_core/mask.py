@@ -51,6 +51,102 @@ class Mask(BackableObject):
         pass
 
 
+class ShapeMask(Mask, MutableMapping):
+    def __init__(
+        self,
+        backing: Optional[h5py.Group] = None,
+        masks: Optional[dict[str, tuple[tuple[float], float]]] = None,
+    ):
+        super().__init__(backing)
+
+        self._data = {}
+        self._ndim = None
+
+        if masks is not None:
+            if self.isbacked and len(self.backing) > 0:
+                raise ValueError("trying to set masks on a non-empty backing store")
+            for key, mask in masks:
+                ndim = len(mask[0])
+                if self.ndim is None:
+                    self.ndim = ndim
+                if ndim != self.ndim:
+                    raise ValueError("all masks must have the same dimensionality")
+
+                self[key] = mask
+
+    @property
+    def ndim(self):
+        return self._ndim
+
+    def __getitem__(self, key) -> Polygon:
+        if self.isbacked:
+            return (self.backing[key]["center"], self.backing[key]["radius"])
+        else:
+            return self._data[key]
+
+    def __setitem__(self, key: str, value: tuple[tuple[float], float]):
+        if self.ndim is not None and self.ndim != len(value[0]):
+            raise ValueError(f"value must have dimensionality {self.ndim}, but has {len(value[0])}")
+        if self.isbacked:
+            grp = self.backing.create_group(key)
+            grp.create_dataset("center", data=value[0])
+            grp.create_dataset("radius", data=value[1])
+        else:
+            self._data[key] = value
+
+    def __delitem__(self, key: str):
+        if self.isbacked:
+            del self.backing[key]
+        else:
+            del self._data[key]
+
+    def __len__(self):
+        if self.isbacked:
+            return len(self.backing)
+        else:
+            return len(self._data)
+
+    def __contains__(self, item):
+        if self.isbacked:
+            return item in self.backing
+        else:
+            return item in self._data
+
+    def __iter__(self):
+        if self.isbacked:
+            return iter(self.backing)
+        else:
+            return iter(self._data)
+
+    def items(self):
+        raise NotImplementedError()
+
+    def values(self):
+        raise NotImplementedError()
+
+    @staticmethod
+    def _encodingtype():
+        return "mask-shape"
+
+    @staticmethod
+    def _encodingversion():
+        return "0.1.0"
+
+    def _set_backing(self, value: h5py.Group):
+        if value is None and self.backed:
+            for k, v in self.backing.items():
+                self._data[k] = (self.backing["center"][:], self.backing["radius"][:])
+        elif value is not None:
+            self._write(value)
+            self._data.clear()
+
+    def _write(self, obj: h5py.Group):
+        for k, v in self._data.items():
+            grp = obj.create_group(k)
+            grp.create_dataset("center", v[0])
+            grp.create_dataset("radius", v[1])
+
+
 class PolygonMask(Mask, MutableMapping):
     def __init__(
         self,

@@ -13,7 +13,6 @@ class SpatialModality(BackableObject, BackedDictProxy):
         self,
         backing: Optional[h5py.Group] = None,
         fovs: Optional[dict] = None,
-        scale: Optional[float] = None,
         coordinate_unit: Optional[str] = None,
     ):
         super().__init__(backing)
@@ -23,23 +22,11 @@ class SpatialModality(BackableObject, BackedDictProxy):
                     self[f] = FieldOfView(backing=fov)
                 except UnknownEncodingException as e:
                     warnings.warn(f"Unknown field of view type {e.encoding}")
-            self.scale = _get_hdf5_attribute(self.backing.attrs, "scale", None)
             self.coordinate_unit = _get_hdf5_attribute(self.backing.attrs, "coordinate_unit", None)
         else:
             if fovs is not None:
                 self.update(fovs)
-            self.scale = scale
             self.coordinate_unit = coordinate_unit
-
-    @property
-    def scale(self):
-        return self._scale if self._scale is not None and self._scale > 0 else 1
-
-    @scale.setter
-    def scale(self, newscale: Optional[float]):
-        if newscale is not None and newscale <= 0:
-            newscale = None
-        self._scale = newscale
 
     @staticmethod
     def _encodingtype():

@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [tool.flit.entrypoints."spatialmuon.datatypes"]
 singlemolecule = "spatialmuon.datatypes.singlemolecule:SingleMolecule"
-array = "spatialmuon.datatypes.array:Array"
+regions = "spatialmuon.datatypes.regions:Regions"
 raster = "spatialmuon.datatypes.raster:Raster"
 
 [tool.flit.metadata]

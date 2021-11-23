@@ -96,6 +96,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
                 spot_shape=spatialmuon.SpotShape.circle,
                 spot_size=radius,
                 translation=[0, 0, fovidx * 10],
+                scale=6.698431978755106,
             )
             modality[fovname] = cfov
 

@@ -14,9 +14,12 @@ def pca(sm: SpatialModality, n_components: int):
         return
     else:
         fov = sm.values().__iter__().__next__()
-    if type(fov) == spatialmuon.datatypes.raster.Raster or type(fov) == spatialmuon.datatypes.array.Array:
+    if (
+        type(fov) == spatialmuon.datatypes.raster.Raster
+        or type(fov) == spatialmuon.datatypes.array.Array
+    ):
         pca = pca_raster_array(fov, n_components)
-        
+
     else:
         print("aaa")
 

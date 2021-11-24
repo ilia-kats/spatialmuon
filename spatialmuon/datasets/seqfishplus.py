@@ -31,7 +31,6 @@ urls = {
 }
 
 
-
 downloaded = {
     "point_locations": "point_locations.zip",
     "images1": "images1.zip",
@@ -64,8 +63,8 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
     for k, v in downloaded.items():
         unzip(v, tmpdir, rm=not DEBUG)
-    os.rename(os.path.join(tmpdir, 'ALL_Roi'), os.path.join(tmpdir, 'rois1'))
-    os.rename(os.path.join(tmpdir, 'ROIs'), os.path.join(tmpdir, 'rois2'))
+    os.rename(os.path.join(tmpdir, "ALL_Roi"), os.path.join(tmpdir, "rois1"))
+    os.rename(os.path.join(tmpdir, "ROIs"), os.path.join(tmpdir, "rois2"))
 
     if os.path.isfile(outfname):
         os.unlink(outfname)
@@ -134,10 +133,8 @@ with tempfile.TemporaryDirectory() as tmpdir:
             masks = spatialmuon.PolygonMasks()
             regions = spatialmuon.Regions(masks=masks)
             modality[f"run{run}_fov{fov}_rois"] = regions
-            roidir = os.path.join(tmpdir, f'rois{run}')
-            with os.scandir(
-                os.path.join(roidir, f"RoiSet_Pos{fov}")
-            ) as rdir:
+            roidir = os.path.join(tmpdir, f"rois{run}")
+            with os.scandir(os.path.join(roidir, f"RoiSet_Pos{fov}")) as rdir:
                 for rfile in rdir:
                     roi = roifile.roiread(rfile.path)
                     masks[roi.name] = roi.coordinates()

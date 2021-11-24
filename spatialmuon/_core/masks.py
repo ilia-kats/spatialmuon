@@ -76,8 +76,8 @@ class Masks(BackableObject):
         return self._obs.shape[0]
 
     def _write_data(self, grp):
-        if 'geometry' in self._obs.columns:
-            o = self._obs.drop(self._obs.geometry.name, axis=1),
+        if "geometry" in self._obs.columns:
+            o = (self._obs.drop(self._obs.geometry.name, axis=1),)
         else:
             o = self._obs
         write_attribute(
@@ -91,7 +91,9 @@ class Masks(BackableObject):
         self._write_data(obj)
 
     def __repr__(self):
-        repr_str = f"| - - {len(list(self))} {self.ndim}D masks with {self.n_obs} obs: {', '.join(self)}\n"
+        repr_str = (
+            f"| - - {len(list(self))} {self.ndim}D masks with {self.n_obs} obs: {', '.join(self)}\n"
+        )
         return repr_str
 
 
@@ -100,7 +102,7 @@ class ShapeMasks(Masks, MutableMapping):
         self,
         backing: Optional[h5py.Group] = None,
         masks_dict: Optional[dict[str, tuple[tuple[float], float]]] = None,
-        obs: Optional[pd.DataFrame] = None
+        obs: Optional[pd.DataFrame] = None,
     ):
         super().__init__(obs, backing)
 
@@ -527,4 +529,3 @@ class RasterMasks(Masks):
 
     def _write(self, obj: h5py.Group):
         obj.create_dataset("imagemask", data=self._mask, compression="gzip", compression_opts=9)
-

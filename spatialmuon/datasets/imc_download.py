@@ -339,6 +339,7 @@ if DEBUG:
     DOWNLOAD = False
     UNZIP = False
 
+
 def debug_create_spatial_muon_object():
     # edit your paths here
     f_ome = "/data/spatialmuon/datasets/imc/raw/OMEandSingleCellMasks/ome/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full.tiff"
@@ -350,7 +351,7 @@ def debug_create_spatial_muon_object():
 if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as tmpdir:
         if not DOWNLOAD:
-            download_dir = '/data/spatialmuon/datasets/imc/raw/'
+            download_dir = "/data/spatialmuon/datasets/imc/raw/"
         else:
             download_dir = tmpdir
 
@@ -377,11 +378,16 @@ if __name__ == "__main__":
             )
 
         if UNZIP:
+
             def unzip_all(dest_dir=tmpdir):
                 print("extracting images...", file=sys.stderr)
                 unzip(imgfile, dest_dir, rm=DOWNLOAD)
                 unzip(os.path.join(dest_dir, "OMEnMasks", "ome.zip"), dest_dir, rm=DOWNLOAD)
-                unzip(os.path.join(dest_dir, "OMEnMasks", "Basel_Zuri_masks.zip"), dest_dir, rm=DOWNLOAD)
+                unzip(
+                    os.path.join(dest_dir, "OMEnMasks", "Basel_Zuri_masks.zip"),
+                    dest_dir,
+                    rm=DOWNLOAD,
+                )
                 unzip(
                     metadatafile,
                     dest_dir,
@@ -389,15 +395,16 @@ if __name__ == "__main__":
                         "Data_publication/BaselTMA/Basel_PatientMetadata.csv",
                         "Data_publication/ZurichTMA/Zuri_PatientMetadata.csv",
                     ],
-                    rm=DOWNLOAD
+                    rm=DOWNLOAD,
                 )
+
             # unzipping thakes time, let's do it once and then disable this code
             if False:
-                unzip_all(dest_dir=os.path.join('/data/spatialmuon/datasets/imc/raw/', 'unzipped'))
+                unzip_all(dest_dir=os.path.join("/data/spatialmuon/datasets/imc/raw/", "unzipped"))
                 os._exit(0)
             unzip_all()
         else:
-            tmpdir = os.path.join('/data/spatialmuon/datasets/imc/raw/', 'unzipped')
+            tmpdir = os.path.join("/data/spatialmuon/datasets/imc/raw/", "unzipped")
 
         df = get_metadata(
             clean_verbose=True,

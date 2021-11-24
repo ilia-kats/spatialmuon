@@ -35,7 +35,7 @@ else:
 
 with tempfile.TemporaryDirectory() as tmpdir:
     if not DOWNLOAD:
-        download_dir = '/data/spatialmuon/datasets/visium_mousebrain/raw/'
+        download_dir = "/data/spatialmuon/datasets/visium_mousebrain/raw/"
     else:
         download_dir = tmpdir
     brainfile = os.path.join(download_dir, "mouse_brain.zip")
@@ -105,11 +105,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
             spots_dict = {o: ((x, y), radius) for (o, (x, y)) in zip(obs.index.tolist(), coords)}
             masks = ShapeMasks(masks_dict=spots_dict, obs=obs)
             cfov = spatialmuon.Regions(
-                X=X,
-                var=var,
-                translation=[0, 0, fovidx * 10],
-                scale=6.698431978755106,
-                masks=masks
+                X=X, var=var, translation=[0, 0, fovidx * 10], scale=6.698431978755106, masks=masks
             )
             modality[fovname] = cfov
 
@@ -122,5 +118,5 @@ with tempfile.TemporaryDirectory() as tmpdir:
             pbar.update()
             if DEBUG:
                 if fovidx > 1:
-                    print('debugging: stopping at the first slide')
+                    print("debugging: stopping at the first slide")
                     break

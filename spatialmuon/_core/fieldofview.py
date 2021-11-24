@@ -14,6 +14,7 @@ from anndata.utils import make_index_unique
 import pandas as pd
 
 from .backing import BackableObject, BackedDictProxy
+
 # from .image import Image
 from .masks import Masks
 from ..utils import _read_hdf5_attribute, _get_hdf5_attribute, UnknownEncodingException

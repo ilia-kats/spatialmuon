@@ -12,6 +12,7 @@ from skimage.measure import find_contours, marching_cubes
 from anndata._io.utils import read_attribute, write_attribute
 import pandas as pd
 
+from .fieldofview import FieldOfView
 from ..utils import _read_hdf5_attribute, UnknownEncodingException
 from .backing import BackableObject
 
@@ -51,7 +52,7 @@ class Masks(BackableObject):
         return self._parentdataset
 
     @parentdataset.setter
-    def parentdataset(self, dset: "FieldOfView"):
+    def parentdataset(self, dset: FieldOfView):
         self._parentdataset = dset
 
     @property

@@ -327,7 +327,7 @@ def create_muon_spatial_object(f_ome, f_masks, outfile):
     modality["ome"] = fov = spatialmuon.Raster(X=np.moveaxis(ome.asarray(), 0, -1), var=var)
     masks = spatialmuon.RasterMasks(mask=masks)
     regions = spatialmuon.Regions(masks=masks)
-    modality[f"masks"] = regions
+    modality["masks"] = regions
 
 
 # DEBUG = False

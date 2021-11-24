@@ -45,7 +45,7 @@ class FieldOfView(BackableObject):
 
     @staticmethod
     def __validate_mask(fov, key, mask):
-        if mask.ndim != None and mask.ndim != fov.ndim:
+        if mask.ndim is not None and mask.ndim != fov.ndim:
             return f"mask with {mask.ndim} dimensions is being added to field of view with {fov.ndim} dimensions"
         mask.parentdataset = fov
         return None

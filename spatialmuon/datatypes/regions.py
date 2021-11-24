@@ -14,6 +14,7 @@ import h5py
 from anndata import AnnData
 from anndata._io.utils import read_attribute, write_attribute
 from anndata._core.sparse_dataset import SparseDataset
+from spatialmuon._core.masks import Masks
 
 from .. import FieldOfView, SpatialIndex
 from ..utils import _read_hdf5_attribute, preprocess_3d_polygon_mask
@@ -25,37 +26,23 @@ class Regions(FieldOfView):
         backing: Optional[h5py.Group] = None,
         *,
         X: Optional[Union[np.ndarray, spmatrix]] = None,
-        obs: Optional[pd.DataFrame] = None,
         index_kwargs: dict = {},
+        masks: Optional[Masks] = None,
         **kwargs,
     ):
         if backing is not None:
             self._index = SpatialIndex(
                 backing=backing["index"], dimension=backing["coordinates"].shape[1], **index_kwargs
             )
-            self._obs = read_attribute(backing["obs"])
+            self._masks = Masks(backing=backing["masks"])
             attrs = backing.attrs
         else:
-            if X is None:
-                raise ValueError("no expression data and no backing store given")
-            else:
-                self._X = X
+            self._X = X
 
-            if obs is not None:
-                if obs.shape[0] != self._X.shape[0]:
-                    raise ValueError("X shape is inconsistent with obs")
-                elif obs.shape[0] != self._coordinates.shape[0]:
-                    raise ValueError("obs shape is inconsistent with coordinates")
-                else:
-                    self._obs = obs
-            else:
-                self._obs = pd.DataFrame(index=range(X.shape[0]))
-
-            self._index = SpatialIndex(coordinates=self._coordinates, **index_kwargs)
+            self._masks = masks
+            # self._index = SpatialIndex(coordinates=self._coordinates, **index_kwargs)
 
         super().__init__(backing, **kwargs)
-
-        self._obs = gpd.GeoDataFrame(self._obs, geometry=[Point(x) for x in self._coordinates])
 
     @property
     def X(self) -> Union[np.ndarray, spmatrix, h5py.Dataset, SparseDataset]:
@@ -65,14 +52,6 @@ class Regions(FieldOfView):
                 return SparseDataset(X)
         else:
             return self._X
-
-    @property
-    def obs(self) -> gpd.GeoDataFrame:
-        return self._obs
-
-    @property
-    def n_obs(self) -> unt:
-        return self._obs.shape[0]
 
     def _getitem(
         self,
@@ -101,7 +80,7 @@ class Regions(FieldOfView):
                     sub = self._obs.iloc[idx, :]
                     nemptyidx = mask.contains(np.vstack(sub.geometry))
                 else:
-                    raise TypeError("unknown mask type")
+                    raise TypeError("unknown masks type")
                 X = (self.X[idx, :][nemptyidx, :],)
                 obs = sub.iloc[nemptyidx, :]
         else:
@@ -131,11 +110,13 @@ class Regions(FieldOfView):
         super()._set_backing(obj)
         if obj is not None:
             self._write_data(obj)
-            self._index.set_backing(obj, "index")
-            self._X = None
+            # self._index.set_backing(obj, "index")
+            # self._X = None
+            self._masks.set_backing(obj, "masks")
         else:
             self._X = read_attribute(obj, "X")
-            self._index.set_backing(None)
+            # self._index.set_backing(None)
+            self._masks.set_backing(None)
 
     def _write(self, grp):
         super()._write(grp)
@@ -143,15 +124,10 @@ class Regions(FieldOfView):
         self._index.write(grp, "index")
 
     def _write_data(self, grp):
-        write_attribute(
-            grp, "X", self._X, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
-        )
-        write_attribute(
-            grp,
-            "obs",
-            self._obs.drop(self._obs.geometry.name, axis=1),
-            dataset_kwargs={"compression": "gzip", "compression_opts": 9},
-        )
+        if self._X is not None:
+            write_attribute(
+                grp, "X", self._X, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
+            )
 
     def _write_attributes_impl(self, obj):
         pass

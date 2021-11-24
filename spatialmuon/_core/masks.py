@@ -9,29 +9,42 @@ import h5py
 from shapely.geometry import Polygon
 from trimesh import Trimesh
 from skimage.measure import find_contours, marching_cubes
+from anndata._io.utils import read_attribute, write_attribute
+import pandas as pd
 
 from ..utils import _read_hdf5_attribute, UnknownEncodingException
 from .backing import BackableObject
 
 
-class Mask(BackableObject):
+class Masks(BackableObject):
     def __new__(cls, *, backing: Optional[h5py.Group] = None, **kwargs):
         if backing is not None:
             masktype = _read_hdf5_attribute(backing.attrs, "encoding-type")
-            if masktype == "mask-polygon":
-                return super(cls, PolygonMask).__new__(PolygonMask)
-            elif masktype == "mask-raster":
-                return super(cls, RasterMask).__new__(RasterMask)
-            elif masktype == "mask-mesh":
-                return super(cls, MeshMask).__new__(MeshMask)
+            if masktype == "masks-polygon":
+                return super(cls, PolygonMasks).__new__(PolygonMasks)
+            elif masktype == "masks-raster":
+                return super(cls, RasterMasks).__new__(RasterMasks)
+            elif masktype == "masks-mesh":
+                return super(cls, MeshMasks).__new__(MeshMasks)
             else:
                 raise UnknownEncodingException(masktype)
         else:
             return super().__new__(cls)
 
-    def __init__(self, backing: Optional[Union[h5py.Group, h5py.Dataset]] = None):
+    def __init__(
+        self,
+        obs: Optional[pd.DataFrame] = None,
+        backing: Optional[Union[h5py.Group, h5py.Dataset]] = None,
+    ):
         super().__init__(backing)
         self._parentdataset = None
+        if backing is not None:
+            self._obs = read_attribute(backing["obs"])
+        else:
+            if obs is not None:
+                self._obs = obs
+            else:
+                self._obs = pd.DataFrame()
 
     @property
     def parentdataset(self):
@@ -50,29 +63,60 @@ class Mask(BackableObject):
     def __getitem__(self, key):
         pass
 
+    @abstractmethod
+    def __len__(self):
+        pass
 
-class ShapeMask(Mask, MutableMapping):
+    @property
+    def obs(self) -> pd.DataFrame:
+        return self._obs
+
+    @property
+    def n_obs(self) -> int:
+        return self._obs.shape[0]
+
+    def _write_data(self, grp):
+        if 'geometry' in self._obs.columns:
+            o = self._obs.drop(self._obs.geometry.name, axis=1),
+        else:
+            o = self._obs
+        write_attribute(
+            grp,
+            "obs",
+            o,
+            dataset_kwargs={"compression": "gzip", "compression_opts": 9},
+        )
+
+    def _set_backing(self, obj=None):
+        self._write_data(obj)
+
+
+class ShapeMasks(Masks, MutableMapping):
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,
-        masks: Optional[dict[str, tuple[tuple[float], float]]] = None,
+        masks_dict: Optional[dict[str, tuple[tuple[float], float]]] = None,
+        obs: Optional[pd.DataFrame] = None
     ):
-        super().__init__(backing)
+        super().__init__(obs, backing)
 
         self._data = {}
         self._ndim = None
 
-        if masks is not None:
+        if masks_dict is not None:
             if self.isbacked and len(self.backing) > 0:
                 raise ValueError("trying to set masks on a non-empty backing store")
-            for key, mask in masks:
+            for key, mask in masks_dict.items():
                 ndim = len(mask[0])
                 if self.ndim is None:
-                    self.ndim = ndim
+                    self._ndim = ndim
                 if ndim != self.ndim:
                     raise ValueError("all masks must have the same dimensionality")
 
+            if self.isbacked:
                 self[key] = mask
+            else:
+                self._data[key] = mask
 
     @property
     def ndim(self):
@@ -90,7 +134,7 @@ class ShapeMask(Mask, MutableMapping):
         if self.isbacked:
             grp = self.backing.create_group(key)
             grp.create_dataset("center", data=value[0])
-            grp.create_dataset("radius", data=value[1])
+            grp.create_dataset("radius", data=np.array([value[1]]))
         else:
             self._data[key] = value
 
@@ -126,13 +170,14 @@ class ShapeMask(Mask, MutableMapping):
 
     @staticmethod
     def _encodingtype():
-        return "mask-shape"
+        return "masks-shape"
 
     @staticmethod
     def _encodingversion():
         return "0.1.0"
 
     def _set_backing(self, value: h5py.Group):
+        super()._set_backing(value)
         if value is None and self.backed:
             for k, v in self.backing.items():
                 self._data[k] = (self.backing["center"][:], self.backing["radius"][:])
@@ -144,10 +189,10 @@ class ShapeMask(Mask, MutableMapping):
         for k, v in self._data.items():
             grp = obj.create_group(k)
             grp.create_dataset("center", v[0])
-            grp.create_dataset("radius", v[1])
+            grp.create_dataset("radius", np.array([v[1]]))
 
 
-class PolygonMask(Mask, MutableMapping):
+class PolygonMasks(Masks, MutableMapping):
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,
@@ -235,13 +280,14 @@ class PolygonMask(Mask, MutableMapping):
 
     @staticmethod
     def _encodingtype():
-        return "mask-polygon"
+        return "masks-polygon"
 
     @staticmethod
     def _encodingversion():
         return "0.1.0"
 
     def _set_backing(self, value: h5py.Group):
+        super()._set_backing(value)
         if value is None and self.backed:
             for k, v in self.backing.items():
                 self._data[k] = Polygon(v[:])
@@ -254,13 +300,13 @@ class PolygonMask(Mask, MutableMapping):
             obj.create_dataset(k, data=v.exterior.coords, compression="gzip", compression_opts=9)
 
 
-class MeshMask(Mask, MutableMapping):
+class MeshMasks(Masks, MutableMapping):
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,
         masks: Optional[dict[str, Union[Trimesh, tuple[np.ndarray, np.ndarray]]]] = None,
     ):
-        super.__init__(backing)
+        super().__init__(backing)
         self._data = {}
         if masks is not None:
             if self.isbacked and len(self.backing) > 0:
@@ -288,16 +334,16 @@ class MeshMask(Mask, MutableMapping):
                 vertices, faces = value
                 if vertices.shape[1] != 3:
                     raise ValueError(
-                        f"masks must be 3-dimensional, but mask {key} has dimensionality {vertices.shape[1]}"
+                        f"masks must be 3-dimensional, but masks {key} has dimensionality {vertices.shape[1]}"
                     )
                 if faces.shape[1] != 3 and faces.shape[1] != 4:
                     raise ValueError(
-                        f"faces must reference 3 or 4 vertices, but faces for mask {key} reference {faces.shape[1]} vertices"
+                        f"faces must reference 3 or 4 vertices, but faces for masks {key} reference {faces.shape[1]} vertices"
                     )
                 maxface = faces.max()
                 if maxface > vertices.shape[0] - 1:
                     raise ValueError(
-                        f"mask {key} has {vertices.shape[0]} vertices, but faces reference up to {maxface} vertices"
+                        f"masks {key} has {vertices.shape[0]} vertices, but faces reference up to {maxface} vertices"
                     )
 
             self.backing.create_dataset(
@@ -339,13 +385,14 @@ class MeshMask(Mask, MutableMapping):
 
     @staticmethod
     def _encodingtype():
-        return "mask-mesh"
+        return "masks-mesh"
 
     @staticmethod
     def _encodingversion():
         return "0.1.0"
 
     def _set_backing(self, value: h5py.Group):
+        super()._set_backing(value)
         if value is None and self.backed:
             for k in self.keys():
                 self._data[k] = self[k]
@@ -363,7 +410,7 @@ class MeshMask(Mask, MutableMapping):
             )
 
 
-class RasterMask(Mask):
+class RasterMasks(Masks):
     def __init__(
         self,
         backing: Optional[h5py.Dataset] = None,
@@ -378,13 +425,13 @@ class RasterMask(Mask):
             if self.isbacked and self.backing.size > 0:
                 raise ValueError("attempting to set masks on a non-empty backing store")
             if mask.ndim < 2 or mask.ndim > 3:
-                raise ValueError("mask must have 2 or 3 dimensions")
+                raise ValueError("masks must have 2 or 3 dimensions")
             if not np.issubdtype(mask.dtype, np.unsignedinteger):
-                raise ValueError("mask must have an unsigned integer dtype")
+                raise ValueError("masks must have an unsigned integer dtype")
             self._mask = mask
         elif not self.isbacked:
             if shape is None or dtype is None:
-                raise ValueError("if mask is None shape and dtype must be given")
+                raise ValueError("if masks is None shape and dtype must be given")
             if len(shape) < 2 or len(shape) > 3:
                 raise ValueError("shape must have 2 or 3 dimensions")
             if not np.issubdtype(dtype, np.unsignedinteger):
@@ -460,34 +507,20 @@ class RasterMask(Mask):
 
     @staticmethod
     def _encodingtype():
-        return "mask-raster"
+        return "masks-raster"
 
     @staticmethod
     def _encodingversion():
         return "0.1.0"
 
-    def _set_backing(self, value: h5py.Dataset):
+    def _set_backing(self, value: h5py.Group):
+        super()._set_backing(value)
         if value is None and self.backed:
-            self._mask = self.backing[:]
+            self._mask = self.backing["imagemask"]
         elif value is not None:
             self._write(value)
             self._mask = None
 
-    def _write(self, obj: h5py.Dataset):
-        obj[()] = self._mask
+    def _write(self, obj: h5py.Group):
+        obj.create_dataset("imagemask", data=self._mask, compression="gzip", compression_opts=9)
 
-    def _writeable_object(self, parent: h5py.Group, key: str) -> h5py.Dataset:
-        if key in parent:
-            dset = parent[key]
-            if dset.dtype != self.dtype or dset.shape != self.shape:
-                del parent[key]
-            else:
-                return dset
-        return parent.create_dataset(
-            key,
-            shape=self.shape,
-            dtype=self.dtype,
-            maxshape=(None, None) if self.ndim == 2 else (None, None, None),
-            compression="gzip",
-            compression_opts=9,
-        )

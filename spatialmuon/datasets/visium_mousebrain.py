@@ -13,12 +13,20 @@ from scipy.sparse import csr_matrix
 import geopandas as gpd
 from shapely.geometry import Point
 from PIL import Image
+from spatialmuon._core.masks import ShapeMasks
 
 from tqdm import tqdm
 import h5py
 
 import spatialmuon
-from ._utils import *
+from spatialmuon.datasets._utils import download, unzip, md5
+
+DEBUG = False
+# DEBUG = True
+
+DOWNLOAD = True
+if DEBUG:
+    DOWNLOAD = False
 
 if len(sys.argv) > 1:
     outfname = sys.argv[1]
@@ -26,18 +34,24 @@ else:
     outfname = "visium.h5smu"
 
 with tempfile.TemporaryDirectory() as tmpdir:
+    if not DOWNLOAD:
+        download_dir = '/data/spatialmuon/datasets/visium_mousebrain/raw/'
+    else:
+        download_dir = tmpdir
+    brainfile = os.path.join(download_dir, "mouse_brain.zip")
+    if DOWNLOAD:
+        download(
+            "https://cell2location.cog.sanger.ac.uk/tutorial/mouse_brain_visium_wo_cloupe_data.zip",
+            brainfile,
+            desc="data",
+        )
+    unzip(brainfile, tmpdir, rm=DOWNLOAD)
+
     if os.path.isfile(outfname):
         os.unlink(outfname)
 
     smudata = spatialmuon.SpatialMuData(outfname)
     smudata["Visium"] = modality = spatialmuon.SpatialModality(coordinate_unit="px")
-    brainfile = os.path.join(tmpdir, "mouse_brain.zip")
-    download(
-        "https://cell2location.cog.sanger.ac.uk/tutorial/mouse_brain_visium_wo_cloupe_data.zip",
-        brainfile,
-        desc="data",
-    )
-    unzip(brainfile, tmpdir)
 
     fovdir = os.path.join(tmpdir, "mouse_brain_visium_wo_cloupe_data", "rawdata")
     fovs = [f for f in os.listdir(fovdir) if not f.startswith(".")]
@@ -88,21 +102,25 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
             # the samples are offset by 10 μm in the Z axis according to the paper, but I have no idea how much that is in pixels.
             # So just do 10 px
-            cfov = spatialmuon.Array(
-                coordinates=coords,
+            spots_dict = {o: ((x, y), radius) for (o, (x, y)) in zip(obs.index.tolist(), coords)}
+            masks = ShapeMasks(masks_dict=spots_dict, obs=obs)
+            cfov = spatialmuon.Regions(
                 X=X,
                 var=var,
-                obs=obs,
-                spot_shape=spatialmuon.SpotShape.circle,
-                spot_size=radius,
                 translation=[0, 0, fovidx * 10],
                 scale=6.698431978755106,
+                masks=masks
             )
             modality[fovname] = cfov
 
             img = Image.open(os.path.join(cdir, "spatial", "tissue_hires_image.png"))
             hires_img = np.asarray(img)
             img.close()
-            cfov.images["H&E"] = spatialmuon.Image(image=hires_img)
+            modality[f"{fovname}H&E"] = spatialmuon.Raster(X=hires_img)
+            # cfov.images["H&E"] = spatialmuon.Image(image=hires_img)
 
             pbar.update()
+            if DEBUG:
+                if fovidx > 1:
+                    print('debugging: stopping at the first slide')
+                    break

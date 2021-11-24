@@ -11,10 +11,11 @@ from shapely.geometry import Polygon
 from trimesh import Trimesh
 from anndata._io.utils import read_attribute, write_attribute
 from anndata.utils import make_index_unique
+import pandas as pd
 
 from .backing import BackableObject, BackedDictProxy
-from .image import Image
-from .mask import Mask
+# from .image import Image
+from .masks import Masks
 from ..utils import _read_hdf5_attribute, _get_hdf5_attribute, UnknownEncodingException
 
 
@@ -73,22 +74,23 @@ class FieldOfView(BackableObject):
         self.masks = BackedDictProxy(self, key="masks")
         if self.isbacked and "masks" in self.backing:
             for key, mask in self.backing["masks"].items():
-                self.masks[key] = Mask(backing=mask)
+                self.masks[key] = Masks(backing=mask)
 
         if self.isbacked and "var" in self.backing:
             self._var = read_attribute(backing["var"])
         elif var is not None:
-            if var.shape[0] != self._X.shape[1]:
-                raise ValueError("X shape is inconsistent with var")
-            else:
-                self._var = var
-                if not self._var.index.is_unique:
-                    warnings.warn(
-                        "Gene names are not unique. This will negatively affect indexing/subsetting. Making unique names..."
-                    )
-                    self._var.index = make_index_unique(self._var.index)
+            # if var.shape[0] != self._X.shape[1]:
+            #     raise ValueError("X shape is inconsistent with var")
+            # else:
+            self._var = var
+            if not self._var.index.is_unique:
+                warnings.warn(
+                    "Gene names are not unique. This will negatively affect indexing/subsetting. Making unique names..."
+                )
+                self._var.index = make_index_unique(self._var.index)
         else:
-            self._var = pd.DataFrame(index=range(X.shape[1]))
+            self._var = pd.DataFrame()
+            # self._var = pd.DataFrame(index=range(self._X.shape[1]))
         if self.isbacked and "uns" in self.backing:
             self.uns = read_attribute(self.backing["uns"])
         elif not self.isbacked and uns is not None:
@@ -150,7 +152,7 @@ class FieldOfView(BackableObject):
         return self._var
 
     @property
-    def n_var(self) -> unt:
+    def n_var(self) -> int:
         return self._var.shape[0]
 
     def __getitem__(self, index):

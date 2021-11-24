@@ -50,7 +50,7 @@ def preprocess_3d_polygon_mask(
     elif method == "project":
         if mask.has_z:
             warnings.warn(
-                "Method is `project` but mask has 3 dimensions. Assuming that mask is in-plane with the data and skipping projection."
+                "Method is `project` but masks has 3 dimensions. Assuming that masks is in-plane with the data and skipping projection."
             )
         else:
             mean = coords.mean(axis=0)

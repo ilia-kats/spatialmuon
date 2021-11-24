@@ -6,3 +6,4 @@ __pycache__/
 *.h5smu
 setup.cfg
 setup.py
+.idea/

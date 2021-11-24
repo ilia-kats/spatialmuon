@@ -134,7 +134,7 @@ class SingleMolecule(FieldOfView):
                     sub = self._data_subset(idx, genes)
                     return sub.iloc[mask.contains(np.vstack(sub.geometry)), :]
                 else:
-                    raise TypeError("unknown mask type")
+                    raise TypeError("unknown masks type")
         elif genes is not None:
             return self._data_subset(genes=genes)
 

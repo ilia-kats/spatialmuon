@@ -1,6 +1,7 @@
 import os
 import urllib.request
 import zipfile
+import hashlib
 
 from tqdm import tqdm
 
@@ -32,3 +33,11 @@ def unzip(file, outdir, files=None, rm=True):
     zfile.close()
     if rm:
         os.unlink(file)
+
+
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()

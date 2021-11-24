@@ -15,66 +15,87 @@ from PIL import Image
 import roifile
 
 import spatialmuon
-from _utils import *
+from spatialmuon.datasets._utils import download, unzip
 
 if len(sys.argv) > 1:
     outfname = sys.argv[1]
 else:
     outfname = "seqfishplus.h5smu"
 
+urls = {
+    "point_locations": "https://zenodo.org/record/2669683/files/seqFISH%2B_NIH3T3_point_locations.zip?download=1",
+    "images1": "https://zenodo.org/record/2669683/files/DAPI_experiment1.zip?download=1",
+    "images2": "https://zenodo.org/record/2669683/files/DAPI_experiment2.zip?download=1",
+    "rois1": "https://zenodo.org/record/2669683/files/ROIs_Experiment1_NIH3T3.zip?download=1",
+    "rois2": "https://zenodo.org/record/2669683/files/ROIs_Experiment2_NIH3T3.zip?download=1",
+}
+
+
+
+downloaded = {
+    "point_locations": "point_locations.zip",
+    "images1": "images1.zip",
+    "images2": "images2.zip",
+    "rois1": "rois1.zip",
+    "rois2": "rois2.zip",
+}
+
+DEBUG = False
+# DEBUG = True
+
+DOWNLOAD = True
+if DEBUG:
+    DOWNLOAD = False
 
 with tempfile.TemporaryDirectory() as tmpdir:
+    if not DOWNLOAD:
+        download_dir = "/data/spatialmuon/datasets/seqfishplus/raw/"
+    else:
+        download_dir = tmpdir
+
+    for k, v in downloaded.items():
+        downloaded[k] = os.path.join(download_dir, v)
+
+    if not DEBUG:
+        for k, v in downloaded.items():
+            dest = v
+            url = urls[k]
+            download(url, dest, desc=f"downloading {k}")
+
+    for k, v in downloaded.items():
+        unzip(v, tmpdir, rm=not DEBUG)
+    os.rename(os.path.join(tmpdir, 'ALL_Roi'), os.path.join(tmpdir, 'rois1'))
+    os.rename(os.path.join(tmpdir, 'ROIs'), os.path.join(tmpdir, 'rois2'))
+
     if os.path.isfile(outfname):
         os.unlink(outfname)
     smudata = spatialmuon.SpatialMuData(outfname)
     modality = spatialmuon.SpatialModality(coordinate_unit="px")
     smudata["SeqFISH+"] = modality
 
-    locationsfile = os.path.join(tmpdir, "point_locations.zip")
-    download(
-        "https://zenodo.org/record/2669683/files/seqFISH%2B_NIH3T3_point_locations.zip?download=1",
-        locationsfile,
-        desc="point locations",
-    )
-    locationsdir = os.path.join(tmpdir, "point_locations")
-    unzip(locationsfile, locationsdir)
-
     gene_names = [
         str(g)
         for g in np.concatenate(
-            loadmat(os.path.join(locationsdir, "all_gene_Names.mat"))["allNames"].squeeze()
+            loadmat(os.path.join(tmpdir, "all_gene_Names.mat"))["allNames"].squeeze()
         )
     ]
 
-    for run, imgurl, roiurl in zip(
-        (1, 2),
-        (
-            "https://zenodo.org/record/2669683/files/DAPI_experiment1.zip?download=1",
-            "https://zenodo.org/record/2669683/files/DAPI_experiment2.zip?download=1",
-        ),
-        (
-            "https://zenodo.org/record/2669683/files/ROIs_Experiment1_NIH3T3.zip?download=1",
-            "https://zenodo.org/record/2669683/files/ROIs_Experiment2_NIH3T3.zip?download=1",
-        ),
-    ):
-        imgzipfile = os.path.join(tmpdir, "images.zip")
-        download(imgurl, imgzipfile, desc=f"run {run} images")
-        unzip(imgzipfile, tmpdir)
+    for run in (1, 2):
         imgdir = os.path.join(tmpdir, f"final_background_experiment{run}")
-
-        roizipfile = os.path.join(tmpdir, "rois.zip")
-        roidir = os.path.join(tmpdir, f"rois_run{run}")
-        download(roiurl, roizipfile, desc=f"run {run} ROIs")
-        unzip(roizipfile, roidir)
-
-        positions = loadmat(os.path.join(locationsdir, f"RNA_locations_run_{run}.mat"))["tot"]
+        positions = loadmat(os.path.join(tmpdir, f"RNA_locations_run_{run}.mat"))["tot"]
         nfov, ncell, ngene = positions.shape
         for fov in range(nfov):
+            if DEBUG:
+                if fov > 0:
+                    break
             cellids = []
             coords = []
             nspots = 0
             feature_name = []
             for gene in range(ngene):
+                if DEBUG:
+                    if gene > 1:
+                        break
                 cnspots = 0
                 for cell in range(ncell):
                     ccoords = positions[fov, cell, gene]
@@ -108,13 +129,15 @@ with tempfile.TemporaryDirectory() as tmpdir:
                 translation=translation,
             )
             modality[f"run{run}_fov{fov}"] = cfov
-            cfov.images["DAPI"] = spatialmuon.Image(image=dapi_img)
+            modality[f"run{run}_fov{fov}_dapi"] = spatialmuon.Raster(X=dapi_img)
 
-            mask = spatialmuon.PolygonMask()
-            cfov.feature_masks["ROIs"] = mask
+            masks = spatialmuon.PolygonMasks()
+            regions = spatialmuon.Regions(masks=masks)
+            modality[f"run{run}_fov{fov}_rois"] = regions
+            roidir = os.path.join(tmpdir, f'rois{run}')
             with os.scandir(
-                os.path.join(roidir, os.listdir(roidir)[0], f"RoiSet_Pos{fov}")
+                os.path.join(roidir, f"RoiSet_Pos{fov}")
             ) as rdir:
                 for rfile in rdir:
                     roi = roifile.roiread(rfile.path)
-                    mask[roi.name] = roi.coordinates()
+                    masks[roi.name] = roi.coordinates()

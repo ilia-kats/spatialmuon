@@ -9,13 +9,14 @@ import math
 from typing import List, Dict, Union, Optional
 import re
 from xml.etree import ElementTree
+from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
 import tifffile
 
 import spatialmuon
-from _utils import *
+from spatialmuon.datasets._utils import unzip, download
 
 DISEASE_STATUSES = ["non-tumor", "tumor"]
 CANCER_SUBTYPES = ["PR+ER+", "PR-ER+", "PR-ER-", "PR+ER-"]
@@ -316,64 +317,87 @@ def create_muon_spatial_object(f_ome, f_masks, outfile):
     for channel in metadata:
         if channel.tag.endswith("Channel"):
             channel_names.append(channel.attrib["Fluor"])
-
+    var = pd.DataFrame({"channel_name": channel_names})
     masks = np.asarray(tifffile.imread(f_masks))
+
     if os.path.isfile(outfile):
         os.unlink(outfile)
     smudata = spatialmuon.SpatialMuData(outfile)
     smudata["IMC"] = modality = spatialmuon.SpatialModality(coordinate_unit="μm")
-    modality["FOV"] = fov = spatialmuon.Raster(
-        X=np.moveaxis(ome.asarray(), 0, -1), channel_names=channel_names
-    )
-    fov.feature_masks["cells"] = spatialmuon.RasterMask(mask=masks)
+    modality["ome"] = fov = spatialmuon.Raster(X=np.moveaxis(ome.asarray(), 0, -1), var=var)
+    masks = spatialmuon.RasterMasks(mask=masks)
+    regions = spatialmuon.Regions(masks=masks)
+    modality[f"masks"] = regions
 
 
-DEBUG = False
+# DEBUG = False
+DEBUG = True
 
+DOWNLOAD = True
+UNZIP = True
+if DEBUG:
+    DOWNLOAD = False
+    UNZIP = False
 
 def debug_create_spatial_muon_object():
     # edit your paths here
-    f_ome = "/data/l989o/data/basel_zurich/OMEandSingleCellMasks/ome/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full.tiff"
-    f_masks = "/data/l989o/data/basel_zurich/OMEandSingleCellMasks/Basel_Zuri_masks/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full_maks.tiff"
+    f_ome = "/data/spatialmuon/datasets/imc/raw/OMEandSingleCellMasks/ome/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full.tiff"
+    f_masks = "/data/spatialmuon/datasets/imc/raw/OMEandSingleCellMasks/Basel_Zuri_masks/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full_maks.tiff"
     outfile = "debug.h5smu"
     create_muon_spatial_object(f_ome, f_masks, outfile)
 
 
 if __name__ == "__main__":
-    if DEBUG:
-        debug_create_spatial_muon_object()
-        os._exit(0)
-    if len(sys.argv) > 1:
-        outfdir = sys.argv[1]
-    else:
-        outfdir = "imc"
-
     with tempfile.TemporaryDirectory() as tmpdir:
-        imgfile = os.path.join(tmpdir, "images.zip")
-        download(
-            "https://zenodo.org/record/3518284/files/OMEandSingleCellMasks.zip?download=1",
-            imgfile,
-            desc="images",
-        )
-        print("extracting images...", file=sys.stderr)
-        unzip(imgfile, tmpdir)
-        unzip(os.path.join(tmpdir, "OMEnMasks", "ome.zip"), tmpdir)
-        unzip(os.path.join(tmpdir, "OMEnMasks", "Basel_Zuri_masks.zip"), tmpdir)
+        if not DOWNLOAD:
+            download_dir = '/data/spatialmuon/datasets/imc/raw/'
+        else:
+            download_dir = tmpdir
 
-        metadatafile = os.path.join(tmpdir, "metadata.zip")
-        download(
-            "https://zenodo.org/record/3518284/files/SingleCell_and_Metadata.zip?download=1",
-            metadatafile,
-            desc="metadata",
-        )
-        unzip(
-            metadatafile,
-            tmpdir,
-            [
-                "Data_publication/BaselTMA/Basel_PatientMetadata.csv",
-                "Data_publication/ZurichTMA/Zuri_PatientMetadata.csv",
-            ],
-        )
+            # quick debug
+            if False:
+                debug_create_spatial_muon_object()
+                os._exit(0)
+
+        outfdir = "imc"
+        imgfile = os.path.join(download_dir, "images.zip")
+        metadatafile = os.path.join(download_dir, "metadata.zip")
+        if DOWNLOAD:
+            # the download with this python function is currently slow, better to replace it with a subprocess call,
+            # or for the moment, download it from a terminal
+            download(
+                "https://zenodo.org/record/3518284/files/OMEandSingleCellMasks.zip?download=1",
+                imgfile,
+                desc="images",
+            )
+            download(
+                "https://zenodo.org/record/3518284/files/SingleCell_and_Metadata.zip?download=1",
+                metadatafile,
+                desc="metadata",
+            )
+
+        if UNZIP:
+            def unzip_all(dest_dir=tmpdir):
+                print("extracting images...", file=sys.stderr)
+                unzip(imgfile, dest_dir, rm=DOWNLOAD)
+                unzip(os.path.join(dest_dir, "OMEnMasks", "ome.zip"), dest_dir, rm=DOWNLOAD)
+                unzip(os.path.join(dest_dir, "OMEnMasks", "Basel_Zuri_masks.zip"), dest_dir, rm=DOWNLOAD)
+                unzip(
+                    metadatafile,
+                    dest_dir,
+                    [
+                        "Data_publication/BaselTMA/Basel_PatientMetadata.csv",
+                        "Data_publication/ZurichTMA/Zuri_PatientMetadata.csv",
+                    ],
+                    rm=DOWNLOAD
+                )
+            # unzipping thakes time, let's do it once and then disable this code
+            if False:
+                unzip_all(dest_dir=os.path.join('/data/spatialmuon/datasets/imc/raw/', 'unzipped'))
+                os._exit(0)
+            unzip_all()
+        else:
+            tmpdir = os.path.join('/data/spatialmuon/datasets/imc/raw/', 'unzipped')
 
         df = get_metadata(
             clean_verbose=True,

@@ -3,6 +3,13 @@
 We provide ready-to-use SpatialMuon objects (`.h5smu` files) for several datasets, and for each for them we include 
 the script that we used to convert the data into the new format.
 
+### Where to find the processed data
+You can find the following datasets converted into the `.h5smu` format inside the folder 
+`/data/spatialmuon/datasets` of the `pc02` GPU machine. 
+For each dataset there is the folder `raw` and the folder `smu`. The former is useful in case you want to rerun the 
+conversion scripts without having to redownload the files (and for large files also without having to extract them), 
+the second contains `.h5smu` files ready to go.
+
  Main technology/ies | Biology | Origin | Brief description | Script | Folder in the `pc02` machine |
 |-------------|-------------|---------|-----------|---------|------|
 | Visium | Mouse brain | [Kleshchevnikov et al. (2020)](https://doi.org/10.1101/2020.11.15.378125) | TODO: how many samples, 1? consecutive slides, 5? One H&E stained image for each Visium slide.| [visium_mousebrain.py](./spatialmuon/datasets/visium_mousebrain.py) | `visium_mousebrain` |

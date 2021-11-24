@@ -6,7 +6,7 @@ from setuptools import setup
 setup(
     name="spatialmuon",
     version="0.1.0",
-    author="Ilia Kats, Luca Marconato",.
+    author="Ilia Kats, Luca Marconato",
     author_email="luca.marconato@embl.de",
     url="https://github.com/ilia-kats/spatialmuon",
 )

@@ -1,14 +1,20 @@
 # Spatial Muon
+
+`spatialmuon` is a framework to handle spatial data in a technology-agnostic manner.
+
+[Documentation](https://spatialmuon.readthedocs.io/) | [Discord](https://discord.com/invite/MMsgDhnSwQ)
+
+[![Documentation Status](https://readthedocs.org/projects/spatialmuon/badge/?version=latest)](http://spatialmuon.readthedocs.io/?badge=latest)
+[![PyPi version](https://img.shields.io/pypi/v/spatialmuon)](https://pypi.org/project/spatialmuon)
+
 ## Datasets
-We provide ready-to-use SpatialMuon objects (`.h5smu` files) for several datasets, and for each for them we include 
-the script that we used to convert the data into the new format.
+We provide ready-to-use SpatialMuon objects (`.h5smu` files) for several datasets, and for each for them we include the script that we used to convert the data into the new format.
 
 ### Where to find the processed data
+
 You can find the following datasets converted into the `.h5smu` format inside the folder 
 `/data/spatialmuon/datasets` of the `pc02` GPU machine. 
-For each dataset there is the folder `raw` and the folder `smu`. The former is useful in case you want to rerun the 
-conversion scripts without having to redownload the files (and for large files also without having to extract them), 
-the second contains `.h5smu` files ready to go.
+For each dataset there is the folder `raw` and the folder `smu`. The former is useful in case you want to rerun the conversion scripts without having to redownload the files (and for large files also without having to extract them), the second contains `.h5smu` files ready to go.
 
  Main technology/ies | Biology | Origin | Brief description | Script | Folder in the `pc02` machine |
 |-------------|-------------|---------|-----------|---------|------|

@@ -131,3 +131,9 @@ class Regions(FieldOfView):
 
     def _write_attributes_impl(self, obj):
         pass
+
+    def __repr__(self):
+        repr_str = f"region fov with {self.n_var} var\n"
+        repr_str += str(self._masks)
+        return repr_str
+

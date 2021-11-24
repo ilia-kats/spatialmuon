@@ -90,6 +90,10 @@ class Masks(BackableObject):
     def _set_backing(self, obj=None):
         self._write_data(obj)
 
+    def __repr__(self):
+        repr_str = f"| - - {len(list(self))} {self.ndim}D masks with {self.n_obs} obs: {', '.join(self)}\n"
+        return repr_str
+
 
 class ShapeMasks(Masks, MutableMapping):
     def __init__(

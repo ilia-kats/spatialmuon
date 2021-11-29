@@ -100,3 +100,20 @@ def is_h5smu(filename):
         if f.read(13) != b"SpatialMuData":
             return False
     return h5py.is_hdf5(filename)
+
+def matrix_to_rotation(m: np.array, output: str = "degree"):
+    """ Returns the angle between 'v1' and 'v2' in degree or radians """
+    
+    v1 = np.array(((0), (1)))
+    v2 = v1.dot(m)
+    v1_u = v1 / np.linalg.norm(v1)
+    v2_u = v2 / np.linalg.norm(v2)
+    rotation = np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+    
+    if output == "degree":
+        
+        return(rotation * 180/np.pi)
+    
+    elif (output == "radians"):
+        
+        return(rotation)

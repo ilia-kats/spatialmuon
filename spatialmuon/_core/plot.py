@@ -100,7 +100,8 @@ def plot_channel(
         raise NotImplementedError()
 
     if scalebar:
-        scalebar = ScaleBar(sm.scale, sm.coordinate_unit, box_alpha=0.8)
+        unit = "um" if "μ" in sm.coordinate_unit else sm.coordinate_unit
+        scalebar = ScaleBar(fov.scale, unit, box_alpha=0.8)
         ax.add_artist(scalebar)
 
     return scalar_mappable
@@ -217,7 +218,8 @@ def plot_image(
         raise NotImplementedError()
 
     if scalebar:
-        scalebar = ScaleBar(sm.scale, sm.coordinate_unit, box_alpha=0.8)
+        unit = "um" if "μ" in sm.coordinate_unit else sm.coordinate_unit
+        scalebar = ScaleBar(fov.scale, unit, box_alpha=0.8)
         ax.add_artist(scalebar)
 
 

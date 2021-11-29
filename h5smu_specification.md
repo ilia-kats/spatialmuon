@@ -32,6 +32,7 @@ contains one sub-group per modality
     - `encoding-version`: version of the format
     - `scale`: Positive float, scale factor of this modality, default to 1.
     - `rotation`: rotation matrix to align this FOV with the other FOVs. Can be 2D or 3D. Optional, if missing assumed to be the identity matrix. It needs to have determinant with module 1.
+    - `center_of_rotation`: , reference point for rotation, default (0, 0, ...), primarily used for spm.Raster()
     - `translation`: 2 or 3 element translation vector to align this FOV with the other FOVs.
     - additional data sets depending on type (array/single-molecule), see below
 

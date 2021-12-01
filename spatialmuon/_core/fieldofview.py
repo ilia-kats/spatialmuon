@@ -16,7 +16,7 @@ import pandas as pd
 from .backing import BackableObject, BackedDictProxy
 
 # from .image import Image
-from .masks import Masks
+import spatialmuon
 from ..utils import _read_hdf5_attribute, _get_hdf5_attribute, UnknownEncodingException
 
 
@@ -75,7 +75,7 @@ class FieldOfView(BackableObject):
         self.masks = BackedDictProxy(self, key="masks")
         if self.isbacked and "masks" in self.backing:
             for key, mask in self.backing["masks"].items():
-                self.masks[key] = Masks(backing=mask)
+                self.masks[key] = spatialmuon._core.masks.Masks(backing=mask)
 
         if self.isbacked and "var" in self.backing:
             self._var = read_attribute(backing["var"])

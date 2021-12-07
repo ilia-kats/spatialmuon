@@ -212,27 +212,33 @@ class Raster(FieldOfView):
             warnings.warn(msg)
             
         # Calcualte grid layout
-        n_x = math.ceil(n_tiles**0.5)
-        n_y = math.floor(n_tiles**0.5)
-        if n_x*n_y < n_tiles:
-            n_y += 1
+        if not isinstance(grid_size, list):
+            n_x = math.ceil(n_tiles**0.5)
+            n_y = math.floor(n_tiles**0.5)
+            if n_x*n_y < n_tiles:
+                n_y += 1
+        else:
+            n_x = grid_size[0]
+            n_y = grid_size[1]
+                
         fig, axs = plt.subplots(n_y, n_x)
         
         if len(channels_to_plot) > 1:
             axs = axs.flatten()
         
         for idx, c in enumerate(channels_to_plot):
-            channel_idx = self.var.query("channel_name == '{}'".format(c)).index.tolist()[0] # Get index of channel in data
-            x = self.X[:,:,channel_idx] if preprocessing is None else preprocessing(self.X[:,:,channel_idx])
-            if len(channels_to_plot) > 1:
-                axs[channel_idx].matshow(x)
-                axs[channel_idx].set_title(c)
-                for ax in axs.flat:
-                    ax.set_axis_off()
-            else:
-                axs.matshow(x)
-                axs.set_title(c)
-                axs.set_axis_off()
+            if idx < n_tiles:
+                channel_idx = self.var.query("channel_name == '{}'".format(c)).index.tolist()[0] # Get index of channel in data
+                x = self.X[:,:,channel_idx] if preprocessing is None else preprocessing(self.X[:,:,channel_idx])
+                if len(channels_to_plot) > 1:
+                    axs[channel_idx].matshow(x)
+                    axs[channel_idx].text(0, -10, c, size=12)
+                    for ax in axs.flat:
+                        ax.set_axis_off()
+                else:
+                    axs.matshow(x)
+                    axs.set_title(c)
+                    axs.set_axis_off()
 
         fig.tight_layout()
         fig.show()

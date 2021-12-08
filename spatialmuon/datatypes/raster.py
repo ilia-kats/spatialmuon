@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 from .. import FieldOfView
 from ..utils import _get_hdf5_attribute
+from .._core.plot import plot_preview_grid
 
 
 class Raster(FieldOfView):
@@ -171,21 +172,18 @@ class Raster(FieldOfView):
           grid_size: Union[int, list[int]] = 1,
           preprocessing: Optional[Callable] = None
         ):
-        
-        upper_limit_tiles = 50
-        default_grid = [5, 5]
-        
+
         if not (isinstance(channels, list) or isinstance(channels, str)):
             raise ValueError("'channels' must be either a single character string or a list of them.")
-        
+
         if isinstance(channels, list) and not all(isinstance(x, str) for x in channels):
             raise ValueError("If 'channels' is a list, all elements must be character strings.")
-        
+
         if isinstance(channels, list):
             for c in channels:
                 if c not in self.var["channel_name"].tolist():
                     raise ValueError("'{}' not found in channels, available are: {}".format(c, ', '.join(map(str, self.var["channel_name"]))))
-        
+
         if isinstance(channels, str) and channels != "all":
             if channels not in self.var["channel_name"].tolist():
                 raise ValueError("'{}' not found in channels, available are: {}".format(channels, ', '.join(map(str, self.var["channel_name"]))))
@@ -194,54 +192,18 @@ class Raster(FieldOfView):
             channels_to_plot = self.var["channel_name"].tolist()
         else:
             channels_to_plot = channels if isinstance(channels, list) else [channels]
-        
-        if isinstance(grid_size, list) and len(grid_size) == 2 and all(isinstance(x, int) for x in grid_size):
-            n_tiles = grid_size[0] * grid_size[1]
-        elif grid_size == 1 and len(channels_to_plot) != 1:
-            n_tiles = len(channels_to_plot)
-        elif isinstance(grid_size, int):
-            n_tiles = grid_size**2
-        else:
-            raise ValueError("'grid_size' must either be a single integer or a list of two integers.")
             
-        if n_tiles > upper_limit_tiles:
-            warnings.warn("The generated plot will be very large and might slow down your machine. Consider plotting it outside of spatialmuon.")
-
-        if len(channels_to_plot) > n_tiles:
-            msg = "More channels available than covered by 'grid_size'. Only the first {} channels will be plotted".format(n_tiles)
-            warnings.warn(msg)
+        data_to_plot = {}    
             
-        # Calcualte grid layout
-        if not isinstance(grid_size, list):
-            n_x = math.ceil(n_tiles**0.5)
-            n_y = math.floor(n_tiles**0.5)
-            if n_x*n_y < n_tiles:
-                n_y += 1
-        else:
-            n_x = grid_size[0]
-            n_y = grid_size[1]
-                
-        fig, axs = plt.subplots(n_y, n_x)
-        
-        if len(channels_to_plot) > 1:
-            axs = axs.flatten()
-        
         for idx, c in enumerate(channels_to_plot):
-            if idx < n_tiles:
-                channel_idx = self.var.query("channel_name == '{}'".format(c)).index.tolist()[0] # Get index of channel in data
-                x = self.X[:,:,channel_idx] if preprocessing is None else preprocessing(self.X[:,:,channel_idx])
-                if len(channels_to_plot) > 1:
-                    axs[idx].matshow(x)
-                    axs[idx].text(0, -10, c, size=12)
-                    for ax in axs.flat:
-                        ax.set_axis_off()
-                else:
-                    axs.matshow(x)
-                    axs.set_title(c)
-                    axs.set_axis_off()
-
-        fig.tight_layout()
-        fig.show()
+            channel_idx = self.var.query("channel_name == '{}'".format(c)).index.tolist()[0] # Get index of channel in data
+            data_to_plot[c] = self.X[:,:,channel_idx]    
+            
+        plot_preview_grid(
+            data_to_plot = data_to_plot,
+            grid_size = grid_size,
+            preprocessing = preprocessing
+        )
         
 
         

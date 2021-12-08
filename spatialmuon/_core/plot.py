@@ -1,6 +1,6 @@
 from spatialmuon._core.fieldofview import FieldOfView
 from spatialmuon._core.spatialmodality import SpatialModality
-from spatialmuon.utils import matrix_to_rotation
+from spatialmuon.utils import angle_between
 from typing import Union, Optional, Callable
 import spatialmuon.datatypes
 import matplotlib.pyplot as plt
@@ -11,8 +11,11 @@ import matplotlib.image
 import matplotlib.patches
 import matplotlib.collections
 import matplotlib.transforms
-from scipy import ndimage
+from matplotlib.transforms import Affine2D
+import math
+import warnings
 
+from scipy import ndimage
 # import matplotlib.font_manager as fm)
 # from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from matplotlib_scalebar.scalebar import ScaleBar
@@ -122,12 +125,35 @@ def plot_channel_raster(
         x = preprocessing(x)
     if color is not None:
         raise NotImplementedError()
-    rot_in_deg = matrix_to_rotation(fov.rotation)
-    x = ndimage.rotate(x, rot_in_deg)
+    if fov.ndim != 2:
+        raise NotImplementedError("Can only do 2D for now")
+    v1 = np.array((1, 0))
+    v2 = fov.vector
+    deg = angle_between(v1, v2)
+
+    w, h = x.shape
+    cx, cy = fov.origin
+    
+    if not (int(cx) == 0 and int(cy) == 0):
+        x = np.pad(x, pad_width=((cx, 0), (cy, 0)))
+        
+    if deg != 0:
+        pad_x = int(w-cx)
+        pad_y = int(h-cy)
+        print(pad_x, pad_y, cx, cy)
+        # TODO(ttreis): Implement padding if centerpoint is right/bottom
+        x_pad = np.pad(x, pad_width=((pad_x, 0), (pad_y, 0)))
+        x_pad_rot = ndimage.rotate(x_pad, deg, reshape=False)
+        x_pad_rot_cut = x_pad_rot[pad_x:, pad_y:]
+        x = np.pad(
+            x_pad_rot_cut, 
+            pad_width=((int(cx), 0), (int(cy), 0))
+        )
+        
     im = ax.imshow(
         x, 
         alpha=alpha,
-        cmap=cmap, 
+        cmap=cmap,
         **kwargs
     )
     
@@ -261,3 +287,60 @@ def plot_image_raster(
         x = preprocessing(x)
     im = ax.imshow(x, **kwargs)
     return im
+
+def plot_preview_grid(
+      data_to_plot: dict = None,
+      grid_size: Union[int, list[int]] = 1,
+      preprocessing: Optional[Callable] = None
+    ):
+    
+    upper_limit_tiles = 50
+    default_grid = [5, 5]
+
+    if isinstance(grid_size, list) and len(grid_size) == 2 and all(isinstance(x, int) for x in grid_size):
+        n_tiles = grid_size[0] * grid_size[1]
+    elif grid_size == 1 and len(data_to_plot) != 1:
+        n_tiles = len(data_to_plot)
+    elif isinstance(grid_size, int):
+        n_tiles = grid_size**2
+    else:
+        raise ValueError("'grid_size' must either be a single integer or a list of two integers.")
+
+    if n_tiles > upper_limit_tiles:
+        warnings.warn("The generated plot will be very large and might slow down your machine. Consider plotting it outside of spatialmuon.")
+
+    if len(data_to_plot) > n_tiles:
+        msg = "More channels available than covered by 'grid_size'. Only the first {} channels will be plotted".format(n_tiles)
+        warnings.warn(msg)
+
+    # Calcualte grid layout
+    if not isinstance(grid_size, list):
+        n_x = math.ceil(n_tiles**0.5)
+        n_y = math.floor(n_tiles**0.5)
+        if n_x*n_y < n_tiles:
+            n_y += 1 
+    else:
+        n_x = grid_size[0]
+        n_y = grid_size[1]
+
+    fig, axs = plt.subplots(n_y, n_x)
+
+    if len(data_to_plot) > 1:
+        axs = axs.flatten()
+
+    for idx, channel in enumerate(data_to_plot):
+        if idx < n_tiles:
+            x = data_to_plot[channel] if preprocessing is None else preprocessing(data_to_plot[channel])
+            if len(data_to_plot) > 1:
+                axs[idx].matshow(x)
+                axs[idx].text(0, -10, channel, size=12)
+                for ax in axs.flat:
+                    ax.set_axis_off()
+            else:
+                axs.matshow(x)
+                axs.set_title(channel)
+                axs.set_axis_off()
+
+    fig.tight_layout()
+    fig.show()
+    

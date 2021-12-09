@@ -3,6 +3,7 @@ import warnings
 
 from .backing import BackableObject, BackedDictProxy
 from .fieldofview import FieldOfView, UnknownEncodingException
+from .plot import plot_preview_grid
 from ..utils import _read_hdf5_attribute, _get_hdf5_attribute
 
 import h5py
@@ -59,15 +60,15 @@ class SpatialModality(BackableObject, BackedDictProxy):
           channels: Optional[Union[str, list[str]]] = "all",
           grid_size: Union[int, list[int]] = 1,
           preprocessing: Optional[Callable] = None
-        ):
-        
+        ):        
+
         if not (isinstance(channels, list) or isinstance(channels, str)):
             raise ValueError("'channels' must be either a single character string or a list of them.")
 
         if isinstance(channels, list) and not all(isinstance(x, str) for x in channels):
             raise ValueError("If 'channels' is a list, all elements must be character strings.")
-
-        valid_channels = {}
+            
+        valid_channels = {} # will be used for more informative error messages
         for key, ome in self.data.items():
             valid_channels[key] = []
             for c in ome.var["channel_name"].tolist():
@@ -92,6 +93,7 @@ class SpatialModality(BackableObject, BackedDictProxy):
             channels_to_plot = [channels + "/" + c for c in self.data[channels].var["channel_name"].tolist()]
         
         if isinstance(channels, list):
+            # Split user input list into full FOVs (which need to be dissected) and individual channels, will later be reunited
             full_fovs = []
             partial_fov_channels = []
             channels_to_plot = []
@@ -105,5 +107,16 @@ class SpatialModality(BackableObject, BackedDictProxy):
                     channels_to_plot = channels_to_plot + [ff + "/" + c for c in self.data[ff].var["channel_name"].tolist()]
             channels_to_plot = channels_to_plot + partial_fov_channels
             
-        print(channels_to_plot)
+        data_to_plot = {} # will be passed to the plotting function    
+        for c in channels_to_plot:
             
+            fov, channel = c.split("/")
+            channel_idx = self.data[fov].var.query("channel_name == '{}'".format(channel)).index.tolist()[0]
+            data_to_plot[c] = self.data[fov].X[:,:,channel_idx]     
+            
+        plot_preview_grid(
+            data_to_plot = data_to_plot,
+            grid_size = grid_size,
+            preprocessing = preprocessing
+        )
+        

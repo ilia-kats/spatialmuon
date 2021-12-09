@@ -1,5 +1,5 @@
-from spatialmuon._core.fieldofview import FieldOfView
-from spatialmuon._core.spatialmodality import SpatialModality
+from __future__ import annotations
+
 from spatialmuon.utils import angle_between
 from typing import Union, Optional, Callable
 import spatialmuon.datatypes
@@ -291,7 +291,9 @@ def plot_image_raster(
 def plot_preview_grid(
       data_to_plot: dict = None,
       grid_size: Union[int, list[int]] = 1,
-      preprocessing: Optional[Callable] = None
+      preprocessing: Optional[Callable] = None,
+      overlap: bool = False,
+      cmap: Optional[matplotlib.colors.Colormap] = matplotlib.cm.viridis
     ):
     
     upper_limit_tiles = 50
@@ -324,6 +326,7 @@ def plot_preview_grid(
         n_y = grid_size[1]
 
     fig, axs = plt.subplots(n_y, n_x)
+    plt.set_cmap(cmap)
 
     if len(data_to_plot) > 1:
         axs = axs.flatten()

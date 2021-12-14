@@ -24,7 +24,8 @@ jobs:
       with:
         max_line_length: 127 # GitHub editor width
         warning_classes: F401,F841,E203 # Imported but unused; Assigned but unused; https://github.com/PyCQA/pycodestyle/issues/373
-        ignore: W,F # Only fail on errors (E)
+        error_classes: E
+        ignore: W
     - name: Test with pytest
       run: |
         pip install pytest

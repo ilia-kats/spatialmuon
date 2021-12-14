@@ -23,9 +23,7 @@ jobs:
     - uses: TrueBrain/actions-flake8@v2
       with:
         max_line_length: 127 # GitHub editor width
-        warning_classes: F,E203 # Imported but unused; Assigned but unused; https://github.com/PyCQA/pycodestyle/issues/373
-        error_classes: E
-        ignore: W
+        select: E
     - name: Test with pytest
       run: |
         pip install pytest

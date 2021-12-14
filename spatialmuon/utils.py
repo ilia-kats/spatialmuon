@@ -101,10 +101,7 @@ def is_h5smu(filename):
             return False
     return h5py.is_hdf5(filename)
 
-    """ Returns the signed angle between 'v1' and 'v2' in degree or radians """
-
-    rotation = np.arctan2(v1[0] * v2[1] - v1[1] * v2[0], v1[0] * v2[0] + v1[1] * v2[1])
-
+def angle_between(v1: np.array, v2: np.array, output: str = "degree"):
     """ Returns the signed angle between 'v1' and 'v2' in degree or radians """
     
     rotation = np.arctan2(v1[0]*v2[1] - v1[1]*v2[0], v1[0]*v2[0] + v1[1]*v2[1]) 

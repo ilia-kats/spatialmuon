@@ -203,9 +203,9 @@ class Raster(FieldOfView):
             data_to_plot[c] = self.X[:,:,channel_idx]    
             
         plot_preview_grid(
-            data_to_plot = data_to_plot,
-            grid_size = grid_size,
-            preprocessing = preprocessing,
-            overlap = overlap,
-            cmap = cmap
+            data_to_plot=data_to_plot,
+            grid_size=grid_size,
+            preprocessing=preprocessing,
+            overlap=overlap,
+            cmap=cmap
         )

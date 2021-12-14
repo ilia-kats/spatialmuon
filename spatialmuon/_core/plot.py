@@ -138,8 +138,8 @@ def plot_channel_raster(
         x = np.pad(x, pad_width=((cx, 0), (cy, 0)))
         
     if deg != 0:
-        pad_x = int(w-cx)
-        pad_y = int(h-cy)
+        pad_x = int(w - cx)
+        pad_y = int(h - cy)
         print(pad_x, pad_y, cx, cy)
         # TODO(ttreis): Implement padding if centerpoint is right/bottom
         x_pad = np.pad(x, pad_width=((pad_x, 0), (pad_y, 0)))
@@ -290,11 +290,11 @@ def plot_image_raster(
 
 
 def plot_preview_grid(
-      data_to_plot: dict = None,
-      grid_size: Union[int, list[int]] = 1,
-      preprocessing: Optional[Callable] = None,
-      overlap: bool = False,
-      cmap: Union[matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]] = matplotlib.cm.get_cmap("viridis")
+    data_to_plot: dict = None,
+    grid_size: Union[int, list[int]] = 1,
+    preprocessing: Optional[Callable] = None,
+    overlap: bool = False,
+    cmap: Union[matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]] = matplotlib.cm.get_cmap("viridis")
 ):
     
     plt.style.use("dark_background")

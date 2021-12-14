@@ -340,7 +340,9 @@ def plot_preview_grid(
         )
 
     if n_tiles > upper_limit_tiles:
-        warnings.warn("The generated plot will be very large and might slow down your machine. Consider plotting it outside of spatialmuon.")
+        warnings.warn(
+            "The generated plot will be very large and might slow down your machine. Consider plotting it outside of spatialmuon."
+        )
 
     if len(data_to_plot) > n_tiles:
         msg = "More channels available than covered by 'grid_size'. Only the first {} channels will be plotted".format(n_tiles)

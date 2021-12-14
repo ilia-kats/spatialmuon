@@ -312,7 +312,7 @@ def plot_preview_grid(
         matplotlib.cm.get_cmap("summer"),
         matplotlib.cm.get_cmap("autumn"),
         matplotlib.cm.get_cmap("winter"),
-        matplotlib.cm.get_cmap("cool")
+        matplotlib.cm.get_cmap("cool"),
     ]
     upper_limit_tiles = 50
     default_grid = [5, 5]

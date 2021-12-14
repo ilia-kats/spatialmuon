@@ -21,8 +21,8 @@ import h5py
 import spatialmuon
 from spatialmuon.datasets._utils import download, unzip, md5
 
-DEBUG = False
-# DEBUG = True
+# DEBUG = False
+DEBUG = True
 
 DOWNLOAD = True
 if DEBUG:
@@ -70,7 +70,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
                 var = pd.DataFrame(index=matrix["features/name"].asstr()[()])
                 var["id"] = matrix["features/id"].asstr()[()]
-                for fname in matrix["features/_all_tag_keys"].asstr()[()]:
+                for fname in matrix["features/_all_tag_keys"].asstr()[()]:F
                     feat = matrix[f"features/{fname}"]
                     if h5py.check_string_dtype(feat.dtype):
                         feat = feat.asstr()
@@ -100,7 +100,8 @@ with tempfile.TemporaryDirectory() as tmpdir:
             radius = 0.5 * meta["spot_diameter_fullres"] * meta["tissue_hires_scalef"]
             coords = coords * meta["tissue_hires_scalef"]
 
-            # the samples are offset by 10 μm in the Z axis according to the paper, but I have no idea how much that is in pixels.
+            # the samples are offset by 10 μm in the Z axis according to the paper
+            # I have no idea how much that is in pixels
             # So just do 10 px
             spots_dict = {o: ((x, y), radius) for (o, (x, y)) in zip(obs.index.tolist(), coords)}
             masks = ShapeMasks(masks_dict=spots_dict, obs=obs)

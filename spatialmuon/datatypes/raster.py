@@ -209,6 +209,3 @@ class Raster(FieldOfView):
             overlap = overlap,
             cmap = cmap
         )
-        
-
-        

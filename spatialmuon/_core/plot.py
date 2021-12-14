@@ -311,7 +311,11 @@ def plot_preview_grid(
     ]
     upper_limit_tiles = 50
 
-    if isinstance(grid_size, list) and len(grid_size) == 2 and all(isinstance(x, int) for x in grid_size):
+    if (
+        isinstance(grid_size, list)
+        and len(grid_size) == 2
+        and all(isinstance(x, int) for x in grid_size)
+    ):
         n_tiles = grid_size[0] * grid_size[1]
     elif grid_size == 1 and len(data_to_plot) != 1:
         n_tiles = len(data_to_plot)

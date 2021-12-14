@@ -65,7 +65,7 @@ class SingleMolecule(FieldOfView):
                     metadata = []
                     for g in genes:
                         rng = self.backing["feature_range"][g][()]
-                        coords.append(self.backing["coordinates"][rng[0] : rng[1]])
+                        coords.append(self.backing["coordinates"][rng[0]: rng[1]])
                         metadata.append(
                             read_dataframe_subset(
                                 self.backing["metadata"], slice(rng[0], rng[1])

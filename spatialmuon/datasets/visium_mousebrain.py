@@ -70,7 +70,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
                 var = pd.DataFrame(index=matrix["features/name"].asstr()[()])
                 var["id"] = matrix["features/id"].asstr()[()]
-                for fname in matrix["features/_all_tag_keys"].asstr()[()]:F
+                for fname in matrix["features/_all_tag_keys"].asstr()[()]:
                     feat = matrix[f"features/{fname}"]
                     if h5py.check_string_dtype(feat.dtype):
                         feat = feat.asstr()

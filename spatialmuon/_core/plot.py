@@ -288,13 +288,14 @@ def plot_image_raster(
     im = ax.imshow(x, **kwargs)
     return im
 
+
 def plot_preview_grid(
       data_to_plot: dict = None,
       grid_size: Union[int, list[int]] = 1,
       preprocessing: Optional[Callable] = None,
       overlap: bool = False,
       cmap: Union[matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]] = matplotlib.cm.get_cmap("viridis")
-    ):
+):
     
     plt.style.use("dark_background")
     default_cmaps = [
@@ -341,7 +342,7 @@ def plot_preview_grid(
 
     if n_tiles > upper_limit_tiles:
         warnings.warn(
-            "The generated plot will be very large and might slow down your machine. Consider plotting it outside of spatialmuon."
+            "The generated plot will be very large. Consider plotting it outside of spatialmuon."
         )
 
     if len(data_to_plot) > n_tiles:
@@ -349,10 +350,11 @@ def plot_preview_grid(
             n_tiles
         )
         warnings.warn(msg)
+        
     if isinstance(cmap, matplotlib.colors.Colormap) and len(data_to_plot.keys()) > 1:
         cmap = default_cmaps
 
-    if overlap == False:
+    if overlap is False:
 
         # Calcualte grid layout
         if not isinstance(grid_size, list):
@@ -384,7 +386,7 @@ def plot_preview_grid(
                     axs.matshow(x, cmap=cmap)
                     axs.set_title(channel)
                     axs.set_axis_off()
-    elif overlap == True:
+    elif overlap is True:
         fig, axs = plt.subplots(1, 1)
         for idx, channel in enumerate(data_to_plot):
             a = 1 / (len(data_to_plot.keys()) - 1) if idx > 0 else 1

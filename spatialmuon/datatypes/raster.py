@@ -173,6 +173,7 @@ class Raster(FieldOfView):
             obj.attrs["px_distance"] = self._px_distance
         if self._px_dimensions is not None:
             obj.attrs["px_dimensions"] = self._px_dimensions
+
     def plot(
         self,
         channels: Optional[Union[str, list[str]]] = "all",

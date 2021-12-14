@@ -143,10 +143,7 @@ def plot_channel_raster(
         x_pad = np.pad(x, pad_width=((pad_x, 0), (pad_y, 0)))
         x_pad_rot = ndimage.rotate(x_pad, deg, reshape=False)
         x_pad_rot_cut = x_pad_rot[pad_x:, pad_y:]
-        x = np.pad(
-            x_pad_rot_cut,
-            pad_width=((int(cx), 0), (int(cy), 0))
-        )
+        x = np.pad(x_pad_rot_cut, pad_width=((int(cx), 0), (int(cy), 0)))
 
     im = ax.imshow(x, alpha=alpha, cmap=cmap, **kwargs)
 

@@ -136,7 +136,6 @@ def plot_channel_raster(
     
     if not (int(cx) == 0 and int(cy) == 0):
         x = np.pad(x, pad_width=((cx, 0), (cy, 0)))
-        
     if deg != 0:
         pad_x = int(w - cx)
         pad_y = int(h - cy)
@@ -294,9 +293,10 @@ def plot_preview_grid(
     grid_size: Union[int, list[int]] = 1,
     preprocessing: Optional[Callable] = None,
     overlap: bool = False,
-    cmap: Union[matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]] = matplotlib.cm.get_cmap("viridis")
+    cmap: Union[
+        matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
+    ] = matplotlib.cm.get_cmap("viridis"),
 ):
-    
     plt.style.use("dark_background")
     default_cmaps = [
         matplotlib.cm.get_cmap("viridis"),
@@ -350,7 +350,6 @@ def plot_preview_grid(
             n_tiles
         )
         warnings.warn(msg)
-        
     if isinstance(cmap, matplotlib.colors.Colormap) and len(data_to_plot.keys()) > 1:
         cmap = default_cmaps
 

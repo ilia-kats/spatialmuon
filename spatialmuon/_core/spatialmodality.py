@@ -23,9 +23,7 @@ class SpatialModality(BackableObject, BackedDictProxy):
                     self[f] = FieldOfView(backing=fov)
                 except UnknownEncodingException as e:
                     warnings.warn(f"Unknown field of view type {e.encoding}")
-            self.coordinate_unit = _get_hdf5_attribute(
-                self.backing.attrs, "coordinate_unit", None
-            )
+            self.coordinate_unit = _get_hdf5_attribute(self.backing.attrs, "coordinate_unit", None)
         else:
             if fovs is not None:
                 self.update(fovs)
@@ -74,9 +72,7 @@ class SpatialModality(BackableObject, BackedDictProxy):
             )
 
         if isinstance(channels, list) and not all(isinstance(x, str) for x in channels):
-            raise ValueError(
-                "If 'channels' is a list, all elements must be character strings."
-            )
+            raise ValueError("If 'channels' is a list, all elements must be character strings.")
 
         valid_channels = {}  # will be used for more informative error messages
         for key, ome in self.data.items():
@@ -111,8 +107,7 @@ class SpatialModality(BackableObject, BackedDictProxy):
             channels_to_plot = channels
         elif isinstance(channels, str) and channels in [k for k in self.data.keys()]:
             channels_to_plot = [
-                channels + "/" + c
-                for c in self.data[channels].var["channel_name"].tolist()
+                channels + "/" + c for c in self.data[channels].var["channel_name"].tolist()
             ]
 
         if isinstance(channels, list):
@@ -137,9 +132,7 @@ class SpatialModality(BackableObject, BackedDictProxy):
 
             fov, channel = c.split("/")
             channel_idx = (
-                self.data[fov]
-                .var.query("channel_name == '{}'".format(channel))
-                .index.tolist()[0]
+                self.data[fov].var.query("channel_name == '{}'".format(channel)).index.tolist()[0]
             )
             data_to_plot[c] = self.data[fov].X[:, :, channel_idx]
 

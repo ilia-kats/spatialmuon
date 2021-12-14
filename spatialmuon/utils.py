@@ -76,15 +76,9 @@ def read_dataframe_subset(grp: h5py.Group, yidx):
             cat_dset = grp[categories]
             cats = cat_dset.asstr()[()]
             ordered = _get_hdf5_attribute(cat_dset.attrs, "ordered", False)
-            columns[c] = pd.Categorical.from_codes(
-                col[yidx], categories, ordered=ordered
-            )
+            columns[c] = pd.Categorical.from_codes(col[yidx], categories, ordered=ordered)
         else:
-            columns[c] = (
-                col[yidx]
-                if not h5py.check_string_dtype(col.dtype)
-                else col.asstr()[yidx]
-            )
+            columns[c] = col[yidx] if not h5py.check_string_dtype(col.dtype) else col.asstr()[yidx]
     idx = (
         grp[idx_key][yidx]
         if not h5py.check_string_dtype(grp[idx_key].dtype)
@@ -109,7 +103,7 @@ def is_h5smu(filename):
 
 
 def angle_between(v1: np.array, v2: np.array, output: str = "degree"):
-    """ Returns the signed angle between 'v1' and 'v2' in degree or radians """
+    """Returns the signed angle between 'v1' and 'v2' in degree or radians"""
 
     rotation = np.arctan2(v1[0] * v2[1] - v1[1] * v2[0], v1[0] * v2[0] + v1[1] * v2[1])
 
@@ -119,4 +113,3 @@ def angle_between(v1: np.array, v2: np.array, output: str = "degree"):
     elif output == "radians":
 
         return rotation
-

@@ -149,12 +149,7 @@ def plot_channel_raster(
             pad_width=((int(cx), 0), (int(cy), 0))
         )
 
-    im = ax.imshow(
-        x, 
-        alpha=alpha,
-        cmap=cmap,
-        **kwargs
-    )
+    im = ax.imshow(x, alpha=alpha, cmap=cmap, **kwargs)
 
     return im
 

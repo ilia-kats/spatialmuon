@@ -172,12 +172,12 @@ class Raster(FieldOfView):
             obj.attrs["px_dimensions"] = self._px_dimensions
             
     def plot(
-          self, 
-          channels: Optional[Union[str, list[str]]] = "all",
-          grid_size: Union[int, list[int]] = 1,
-          preprocessing: Optional[Callable] = None,
-          overlap: bool = False,
-          cmap: Union[matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]] = matplotlib.cm.viridis
+        self, 
+        channels: Optional[Union[str, list[str]]] = "all",
+        grid_size: Union[int, list[int]] = 1,
+        preprocessing: Optional[Callable] = None,
+        overlap: bool = False,
+        cmap: Union[matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]] = matplotlib.cm.viridis
     ):
 
         if not (isinstance(channels, list) or isinstance(channels, str)):

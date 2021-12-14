@@ -74,7 +74,6 @@ def read_dataframe_subset(grp: h5py.Group, yidx):
         categories = _get_hdf5_attribute(col.attrs, "categories")
         if categories is not None:
             cat_dset = grp[categories]
-            cats = cat_dset.asstr()[()]
             ordered = _get_hdf5_attribute(cat_dset.attrs, "ordered", False)
             columns[c] = pd.Categorical.from_codes(col[yidx], categories, ordered=ordered)
         else:

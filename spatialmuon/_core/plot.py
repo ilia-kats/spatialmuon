@@ -335,8 +335,10 @@ def plot_preview_grid(
     ):
         raise ValueError("'cmap' must either be a single or a list of matplotlib.colors.Colormap.")
     if (isinstance(cmap, list) and len(cmap) > 1) and not (len(cmap) == len(data_to_plot.keys())):
-        raise ValueError("'cmap' must either be length one or the same length as the channels that will be plotted.")
-        
+        raise ValueError(
+            "'cmap' must either be length one or the same length as the channels that will be plotted."
+        )
+
     if n_tiles > upper_limit_tiles:
         warnings.warn("The generated plot will be very large and might slow down your machine. Consider plotting it outside of spatialmuon.")
 

@@ -19,6 +19,7 @@ def pca(sm: SpatialModality, n_components: int):
         or type(fov) == spatialmuon.datatypes.array.Array
     ):
         pca = pca_raster_array(fov, n_components)
+        reutrn(pca)
 
     else:
         print("aaa")

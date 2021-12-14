@@ -214,9 +214,9 @@ class Raster(FieldOfView):
             channels_to_plot = self.var["channel_name"].tolist()
         else:
             channels_to_plot = channels if isinstance(channels, list) else [channels]
-            
-        data_to_plot = {}    
-            
+
+        data_to_plot = {}
+
         for idx, c in enumerate(channels_to_plot):
             # Get index of channel in data
             channel_idx = self.var.query("channel_name == '{}'".format(c)).index.tolist()[0]

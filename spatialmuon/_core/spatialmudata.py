@@ -34,11 +34,10 @@ class SpatialMuData(BackableObject, BackedDictProxy):
                 f.create_group("mod")
                 f.close()
                 with open(backing, "br+") as outfile:
-                    outfile.write(
-                        f"SpatialMuData (format-version={__spatialmudataversion__};creator=spatialmuon;creator-version={__version__})".encode(
-                            "utf-8"
-                        )
-                    )
+                    fname = "SpatialMuData (format-version={};".format(__spatialmudataversion__)
+                    fname += "creator=spatialmuon;"
+                    fname += "creator-version={})".format(__version__)
+                    outfile.write(fname.encode("utf-8"))
                 backing = h5py.File(backing, "r+")
 
         super().__init__(backing, key="mod", items=modalities)

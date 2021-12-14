@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union, Literal
+from typing import Optional, Union, Literal, Callable
 import warnings
 
 import math
@@ -8,6 +8,7 @@ import numpy as np
 import h5py
 from shapely.geometry import Polygon, Point, MultiPoint
 from trimesh import Trimesh
+import matplotlib
 import matplotlib.pyplot as plt
 
 from .. import FieldOfView
@@ -91,7 +92,7 @@ class Raster(FieldOfView):
                         )
                 elif isinstance(mask, Trimesh):
                     lb, ub = np.floor(mask.bounds[0, :]), np.ceil(mask.bounds[1, :])
-                    data = self.X[lb[0] : ub[0], lb[1] : ub[1], lb[2] : ub[2], ...]
+                    data = self.X[lb[0]: ub[0], lb[1]: ub[1], lb[2]: ub[2], ...]
                     coords = np.stack(
                         np.meshgrid(
                             range(ub[0] - lb[0] + 2),
@@ -108,7 +109,7 @@ class Raster(FieldOfView):
             bounds = np.asarray(
                 (np.floor(bounds[0]), np.floor(bounds[1]), np.ceil(bounds[2]), np.ceil(bounds[3]))
             ).astype(np.uint16)
-            data = self.X[bounds[1] : bounds[3], bounds[0] : bounds[2], ...]
+            data = self.X[bounds[1]: bounds[3], bounds[0]: bounds[2], ...]
             coords = np.stack(
                 np.meshgrid(range(bounds[0], bounds[2] + 1), range(bounds[1], bounds[3] + 1)),
                 axis=-1,
@@ -133,7 +134,11 @@ class Raster(FieldOfView):
                     yidx = idx[sorted_idx]
                 except IndexError:
                     raise KeyError(
-                        f"elements {[genes[i] for i in np.where(np.isin(genes, self.channel_names, invert=True))[0]]} not found"
+                        "elements {} not found".format(
+                            [genes[i] for i in np.where(
+                                np.isin(genes, self.channel_names, invert=True)
+                            )[0]]
+                        )
                     )
                 data = data[..., yidx]
         return data
@@ -167,11 +172,13 @@ class Raster(FieldOfView):
             obj.attrs["px_dimensions"] = self._px_dimensions
             
     def plot(
-          self, 
-          channels: Optional[Union[str, list[str]]] = "all",
-          grid_size: Union[int, list[int]] = 1,
-          preprocessing: Optional[Callable] = None
-        ):
+        self, 
+        channels: Optional[Union[str, list[str]]] = "all",
+        grid_size: Union[int, list[int]] = 1,
+        preprocessing: Optional[Callable] = None,
+        overlap: bool = False,
+        cmap: Union[matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]] = matplotlib.cm.viridis
+    ):
 
         if not (isinstance(channels, list) or isinstance(channels, str)):
             raise ValueError("'channels' must be either a single character string or a list of them.")
@@ -182,11 +189,15 @@ class Raster(FieldOfView):
         if isinstance(channels, list):
             for c in channels:
                 if c not in self.var["channel_name"].tolist():
-                    raise ValueError("'{}' not found in channels, available are: {}".format(c, ', '.join(map(str, self.var["channel_name"]))))
+                    raise ValueError("'{}' not found in channels, available are: {}".format(
+                        c, ', '.join(map(str, self.var["channel_name"]))
+                    ))
 
         if isinstance(channels, str) and channels != "all":
             if channels not in self.var["channel_name"].tolist():
-                raise ValueError("'{}' not found in channels, available are: {}".format(channels, ', '.join(map(str, self.var["channel_name"]))))
+                raise ValueError("'{}' not found in channels, available are: {}".format(
+                    channels, ', '.join(map(str, self.var["channel_name"]))
+                ))
 
         if channels == "all":
             channels_to_plot = self.var["channel_name"].tolist()
@@ -196,14 +207,14 @@ class Raster(FieldOfView):
         data_to_plot = {}    
             
         for idx, c in enumerate(channels_to_plot):
-            channel_idx = self.var.query("channel_name == '{}'".format(c)).index.tolist()[0] # Get index of channel in data
-            data_to_plot[c] = self.X[:,:,channel_idx]    
+            # Get index of channel in data
+            channel_idx = self.var.query("channel_name == '{}'".format(c)).index.tolist()[0]
+            data_to_plot[c] = self.X[:, :, channel_idx]    
             
         plot_preview_grid(
-            data_to_plot = data_to_plot,
-            grid_size = grid_size,
-            preprocessing = preprocessing
+            data_to_plot=data_to_plot,
+            grid_size=grid_size,
+            preprocessing=preprocessing,
+            overlap=overlap,
+            cmap=cmap
         )
-        
-
-        

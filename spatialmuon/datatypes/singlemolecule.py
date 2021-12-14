@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from typing import Optional, Union, Literal
 
 import numpy as np
@@ -44,7 +43,9 @@ class SingleMolecule(FieldOfView):
             )
         elif data is not None:
             self._data = data.sort_index()
-            self._index = SpatialIndex(coordinates=np.vstack(self._data.geometry), **index_kwargs)
+            self._index = SpatialIndex(
+                coordinates=np.vstack(self._data.geometry), **index_kwargs
+            )
         else:
             raise ValueError("no coordinates and no backing store given")
         super().__init__(backing, **kwargs)
@@ -64,9 +65,11 @@ class SingleMolecule(FieldOfView):
                     metadata = []
                     for g in genes:
                         rng = self.backing["feature_range"][g][()]
-                        coords.append(self.backing["coordinates"][rng[0] : rng[1]])
+                        coords.append(self.backing["coordinates"][rng[0]: rng[1]])
                         metadata.append(
-                            read_dataframe_subset(self.backing["metadata"], slice(rng[0], rng[1]))
+                            read_dataframe_subset(
+                                self.backing["metadata"], slice(rng[0], rng[1])
+                            )
                         )
                     coords = np.vstack(coords)
                     metadata = pd.concat(metadata, axis=0)
@@ -80,14 +83,20 @@ class SingleMolecule(FieldOfView):
                         genes = genes[0]
                     if isinstance(genes, str):
                         rng = self.backing["feature_range"][genes][()]
-                        ncls = NCLS(rng[0, np.newaxis], rng[1, np.newaxis] - 1, rng[0, np.newaxis])
+                        ncls = NCLS(
+                            rng[0, np.newaxis],
+                            rng[1, np.newaxis] - 1,
+                            rng[0, np.newaxis],
+                        )
                     else:
                         intervals = []
                         for g in genes:
                             rng = self.backing["feature_range"][g][()]
                             intervals.append(rng)
                         intervals = np.vstack(intervals)
-                        ncls = NCLS(intervals[:, 0], intervals[:, 1] - 1, intervals[:, 0])
+                        ncls = NCLS(
+                            intervals[:, 0], intervals[:, 1] - 1, intervals[:, 0]
+                        )
                     idx = yidx if yidx.size > 1 else yidx[np.newaxis]
                     yidx = yidx[ncls.has_overlaps(idx, idx, np.arange(yidx.size))]
 
@@ -96,7 +105,9 @@ class SingleMolecule(FieldOfView):
                 slc = slice(min, yidx.max() + 1)
                 yidx -= min
                 coords = self.backing["coordinates"][slc][yidx]
-                metadata = read_dataframe_subset(self.backing["metadata"], slc).iloc[yidx, :]
+                metadata = read_dataframe_subset(self.backing["metadata"], slc).iloc[
+                    yidx, :
+                ]
 
             return gpd.GeoDataFrame(metadata, geometry=[Point(*c) for c in coords])
         else:

@@ -138,8 +138,8 @@ def plot_channel_raster(
         x = np.pad(x, pad_width=((cx, 0), (cy, 0)))
         
     if deg != 0:
-        pad_x = int(w-cx)
-        pad_y = int(h-cy)
+        pad_x = int(w - cx)
+        pad_y = int(h - cy)
         print(pad_x, pad_y, cx, cy)
         # TODO(ttreis): Implement padding if centerpoint is right/bottom
         x_pad = np.pad(x, pad_width=((pad_x, 0), (pad_y, 0)))
@@ -268,7 +268,7 @@ def plot_image_raster(
     rgb_channels: Optional[Union[list[str], list[int]]],
     preprocessing: Optional[Callable],
     **kwargs,
-) -> Optional[Union[matplotlib.image.AxesImage]]:
+) -> Optional[matplotlib.image.AxesImage]:
     n = fov.X.shape[-1]
     if rgb_channels is None:
         if n != 3:
@@ -288,14 +288,33 @@ def plot_image_raster(
     im = ax.imshow(x, **kwargs)
     return im
 
+
 def plot_preview_grid(
-      data_to_plot: dict = None,
-      grid_size: Union[int, list[int]] = 1,
-      preprocessing: Optional[Callable] = None,
-      overlap: bool = False,
-      cmap: Optional[matplotlib.colors.Colormap] = matplotlib.cm.viridis
-    ):
+    data_to_plot: dict = None,
+    grid_size: Union[int, list[int]] = 1,
+    preprocessing: Optional[Callable] = None,
+    overlap: bool = False,
+    cmap: Union[matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]] = matplotlib.cm.get_cmap("viridis")
+):
     
+    plt.style.use("dark_background")
+    default_cmaps = [
+        matplotlib.cm.get_cmap("viridis"),
+        matplotlib.cm.get_cmap("plasma"),
+        matplotlib.cm.get_cmap("inferno"),
+        matplotlib.cm.get_cmap("magma"),
+        matplotlib.cm.get_cmap("cividis"),
+        matplotlib.cm.get_cmap("Purples"),
+        matplotlib.cm.get_cmap("Blues"),
+        matplotlib.cm.get_cmap("Greens"),
+        matplotlib.cm.get_cmap("Oranges"),
+        matplotlib.cm.get_cmap("Reds"),
+        matplotlib.cm.get_cmap("spring"),
+        matplotlib.cm.get_cmap("summer"),
+        matplotlib.cm.get_cmap("autumn"),
+        matplotlib.cm.get_cmap("winter"),
+        matplotlib.cm.get_cmap("cool"),
+    ]
     upper_limit_tiles = 50
     default_grid = [5, 5]
 
@@ -308,42 +327,93 @@ def plot_preview_grid(
     else:
         raise ValueError("'grid_size' must either be a single integer or a list of two integers.")
 
+    if not isinstance(overlap, bool):
+        raise ValueError("'overlap' must be 'True' or 'False'.")
+
+    if not (
+        isinstance(cmap, matplotlib.colors.Colormap)
+        or (isinstance(cmap, list) and all(isinstance(c, matplotlib.colors.Colormap) for c in cmap))
+    ):
+        raise ValueError("'cmap' must either be a single or a list of matplotlib.colors.Colormap.")
+    if (isinstance(cmap, list) and len(cmap) > 1) and not (len(cmap) == len(data_to_plot.keys())):
+        raise ValueError(
+            "'cmap' must either be length one or the same length as the channels that will be plotted."
+        )
+
     if n_tiles > upper_limit_tiles:
-        warnings.warn("The generated plot will be very large and might slow down your machine. Consider plotting it outside of spatialmuon.")
+        warnings.warn(
+            "The generated plot will be very large. Consider plotting it outside of spatialmuon."
+        )
 
     if len(data_to_plot) > n_tiles:
-        msg = "More channels available than covered by 'grid_size'. Only the first {} channels will be plotted".format(n_tiles)
+        msg = "More channels available than covered by 'grid_size'. Only the first {} channels will be plotted".format(
+            n_tiles
+        )
         warnings.warn(msg)
+        
+    if isinstance(cmap, matplotlib.colors.Colormap) and len(data_to_plot.keys()) > 1:
+        cmap = default_cmaps
 
-    # Calcualte grid layout
-    if not isinstance(grid_size, list):
-        n_x = math.ceil(n_tiles**0.5)
-        n_y = math.floor(n_tiles**0.5)
-        if n_x*n_y < n_tiles:
-            n_y += 1 
-    else:
-        n_x = grid_size[0]
-        n_y = grid_size[1]
+    if overlap is False:
 
-    fig, axs = plt.subplots(n_y, n_x)
-    plt.set_cmap(cmap)
+        # Calcualte grid layout
+        if not isinstance(grid_size, list):
+            n_x = math.ceil(n_tiles ** 0.5)
+            n_y = math.floor(n_tiles ** 0.5)
+            if n_x * n_y < n_tiles:
+                n_y += 1
+        else:
+            n_x = grid_size[0]
+            n_y = grid_size[1]
 
-    if len(data_to_plot) > 1:
-        axs = axs.flatten()
+        fig, axs = plt.subplots(n_y, n_x)
+        if len(data_to_plot) > 1:
+            axs = axs.flatten()
 
-    for idx, channel in enumerate(data_to_plot):
-        if idx < n_tiles:
-            x = data_to_plot[channel] if preprocessing is None else preprocessing(data_to_plot[channel])
-            if len(data_to_plot) > 1:
-                axs[idx].matshow(x)
-                axs[idx].text(0, -10, channel, size=12)
-                for ax in axs.flat:
-                    ax.set_axis_off()
-            else:
-                axs.matshow(x)
-                axs.set_title(channel)
-                axs.set_axis_off()
+        for idx, channel in enumerate(data_to_plot):
+            if idx < n_tiles:
+                x = (
+                    data_to_plot[channel]
+                    if preprocessing is None
+                    else preprocessing(data_to_plot[channel])
+                )
+                if len(data_to_plot) > 1:
+                    axs[idx].matshow(x, cmap=cmap[idx])
+                    axs[idx].text(0, -10, channel, size=12)
+                    for ax in axs.flat:
+                        ax.set_axis_off()
+                else:
+                    axs.matshow(x, cmap=cmap)
+                    axs.set_title(channel)
+                    axs.set_axis_off()
+    elif overlap is True:
+        fig, axs = plt.subplots(1, 1)
+        for idx, channel in enumerate(data_to_plot):
+            a = 1 / (len(data_to_plot.keys()) - 1) if idx > 0 else 1
+            x = (
+                data_to_plot[channel]
+                if preprocessing is None
+                else preprocessing(data_to_plot[channel])
+            )
+            axs.matshow(x, cmap=cmap[idx], alpha=a)
+        title = "background: {}; overlay: {}".format(
+            [k for k in data_to_plot.keys()][0],
+            ", ".join(map(str, [k for k in data_to_plot.keys()][1:])),
+        )
+        legend = []
+        for idx, c in enumerate(cmap):
+            rgba = c(0.5)
+            legend.append(
+                matplotlib.patches.Patch(
+                    facecolor=rgba, edgecolor=rgba, label=[k for k in data_to_plot.keys()][idx]
+                )
+            )
+
+        axs.legend(handles=legend, frameon=False, loc="center left", bbox_to_anchor=(1, 0.5))
+        axs.set_title(title)
+        axs.set_axis_off()
 
     fig.tight_layout()
     fig.show()
-    
+
+    plt.style.use("default")

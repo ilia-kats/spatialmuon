@@ -31,7 +31,18 @@ PTNM_T_LABELS_HIERARCHY = {
     "T3": [],
     "T4": ["T4b"],
 }
-VALID_PTNM_N_LABELS = ["pNX", "pN0", "pN1", "pN1a", "pN1mi", "pN2", "pN2a", "pN3", "pN3a", "pN3b"]
+VALID_PTNM_N_LABELS = [
+    "pNX",
+    "pN0",
+    "pN1",
+    "pN1a",
+    "pN1mi",
+    "pN2",
+    "pN2a",
+    "pN3",
+    "pN3a",
+    "pN3b",
+]
 PTNM_N_LABELS_HIERARCHY = {
     "pNX": [],
     "pN0": [],
@@ -83,7 +94,9 @@ def flatten_ptnm_tn_labels(my_class, ptnm_labels_hierarchy):
         return my_class
     else:
         assert my_class in small_classes_labels
-        parent_class = [k for k, v in ptnm_labels_hierarchy.items() for vv in v if vv == my_class]
+        parent_class = [
+            k for k, v in ptnm_labels_hierarchy.items() for vv in v if vv == my_class
+        ]
         assert len(parent_class) == 1
         parent_class = parent_class[0]
         return parent_class
@@ -110,7 +123,8 @@ def clean_metadata(df_basel, df_zurich, verbose=False):
     df = pd.concat([df_basel, df_zurich])
     feature_description = get_description_of_cleaned_features()
     assert set(df.columns.to_list()) == set(
-        feature_description["image_level_features"] + feature_description["patient_level_features"]
+        feature_description["image_level_features"]
+        + feature_description["patient_level_features"]
     )
     pids = sorted(df["merged_pid"].unique())
     for my_pid in pids:
@@ -124,7 +138,12 @@ def clean_metadata(df_basel, df_zurich, verbose=False):
     assert np.sum(df_zurich["diseasestatus"].isna()) == len(df_zurich)
     df_zurich["diseasestatus"] = ["tumor"] * len(df_zurich)
     df = pd.concat([df_basel, df_zurich])
-    assert all([e in DISEASE_STATUSES for e in df["diseasestatus"].value_counts().to_dict().keys()])
+    assert all(
+        [
+            e in DISEASE_STATUSES
+            for e in df["diseasestatus"].value_counts().to_dict().keys()
+        ]
+    )
 
     assert df_basel["PrimarySite"].value_counts().to_dict() == {"breast": len(df_basel)}
     assert np.sum(df_zurich["PrimarySite"].isna()) == len(df_zurich)
@@ -134,14 +153,21 @@ def clean_metadata(df_basel, df_zurich, verbose=False):
         n = np.sum(df[column].isna())
         if n > 0:
             if verbose:
-                print(f"warning: {df_name}[{column}] contains {n} NAs out of {len(df)} values")
+                print(
+                    f"warning: {df_name}[{column}] contains {n} NAs out of {len(df)} values"
+                )
 
-    assert all([e in CANCER_SUBTYPES for e in df["Subtype"].value_counts().to_dict().keys()])
+    assert all(
+        [e in CANCER_SUBTYPES for e in df["Subtype"].value_counts().to_dict().keys()]
+    )
     warn_on_na(df_basel, "df_basel", "Subtype")
     warn_on_na(df_zurich, "df_zurich", "Subtype")
 
     assert all(
-        [e in CANCER_CLINICAL_TYPES for e in df["clinical_type"].value_counts().to_dict().keys()]
+        [
+            e in CANCER_CLINICAL_TYPES
+            for e in df["clinical_type"].value_counts().to_dict().keys()
+        ]
     )
     warn_on_na(df_basel, "df_basel", "clinical_type")
     warn_on_na(df_zurich, "df_zurich", "clinical_type")
@@ -178,7 +204,9 @@ def clean_metadata(df_basel, df_zurich, verbose=False):
             lambda x: flatten_ptnm_tn_labels(x, PTNM_T_LABELS_HIERARCHY)
         )
     df = pd.concat([df_basel, df_zurich])
-    assert all([e in VALID_PTNM_T_LABELS for e in df["PTNM_T"].value_counts().to_dict().keys()])
+    assert all(
+        [e in VALID_PTNM_T_LABELS for e in df["PTNM_T"].value_counts().to_dict().keys()]
+    )
     if verbose:
         # TODO: check if this interpretation is correct
         print('warning: interpreting the PTNM_T label "[]" as "TX"')
@@ -207,7 +235,9 @@ def clean_metadata(df_basel, df_zurich, verbose=False):
             lambda x: flatten_ptnm_tn_labels(x, PTNM_N_LABELS_HIERARCHY)
         )
     df = pd.concat([df_basel, df_zurich])
-    assert all([e in VALID_PTNM_N_LABELS for e in df["PTNM_N"].value_counts().to_dict().keys()])
+    assert all(
+        [e in VALID_PTNM_N_LABELS for e in df["PTNM_N"].value_counts().to_dict().keys()]
+    )
     if verbose:
         # TODO: check if these interpretations are correct
         print('warning: interpreting the PTNM_N label "[]" as "pNX"')
@@ -229,7 +259,9 @@ def clean_metadata(df_basel, df_zurich, verbose=False):
     df_basel["PTNM_M"] = df_basel["PTNM_M"].apply(ptnm_m_renamer)
     df_zurich["PTNM_M"] = df_zurich["PTNM_M"].apply(ptnm_m_renamer)
     df = pd.concat([df_basel, df_zurich])
-    assert all([e in VALID_PTNM_M_LABELS for e in df["PTNM_M"].value_counts().to_dict().keys()])
+    assert all(
+        [e in VALID_PTNM_M_LABELS for e in df["PTNM_M"].value_counts().to_dict().keys()]
+    )
     if verbose:
         # TODO: check if this interpretations is correct
         print('warning: interpreting the "M0_IPLUS" label as "cMo(i+)"')
@@ -275,16 +307,22 @@ def get_metadata(basel_csv, zurich_csv, clean=True, clean_verbose=True):
         df_zurich["FileName_FullStack"].groupby(df_zurich["PID"]).transform("count")
     )
 
-    valid_omes = df_basel.FileName_FullStack.to_list() + df_zurich.FileName_FullStack.to_list()
+    valid_omes = (
+        df_basel.FileName_FullStack.to_list() + df_zurich.FileName_FullStack.to_list()
+    )
 
     dropped_basel = len(df_basel[~df_basel["FileName_FullStack"].isin(valid_omes)])
     df_basel = df_basel[df_basel["FileName_FullStack"].isin(valid_omes)]
-    print(f"discarding {dropped_basel} omes from the Basel cohort, remaining: {len(df_basel)}")
+    print(
+        f"discarding {dropped_basel} omes from the Basel cohort, remaining: {len(df_basel)}"
+    )
     # assert dropped_basel == 0
 
     dropped_zurich = len(df_zurich[~df_zurich["FileName_FullStack"].isin(valid_omes)])
     df_zurich = df_zurich[df_zurich["FileName_FullStack"].isin(valid_omes)]
-    print(f"discarding {dropped_basel} omes from the Zurich cohort, remaning: {len(df_zurich)}")
+    print(
+        f"discarding {dropped_basel} omes from the Zurich cohort, remaning: {len(df_zurich)}"
+    )
     # assert dropped_zurich == 0
 
     df_basel["images_per_patient_filtered"] = (
@@ -324,7 +362,9 @@ def create_muon_spatial_object(f_ome, f_masks, outfile):
         os.unlink(outfile)
     smudata = spatialmuon.SpatialMuData(outfile)
     smudata["IMC"] = modality = spatialmuon.SpatialModality(coordinate_unit="μm")
-    modality["ome"] = fov = spatialmuon.Raster(X=np.moveaxis(ome.asarray(), 0, -1), var=var)
+    modality["ome"] = fov = spatialmuon.Raster(
+        X=np.moveaxis(ome.asarray(), 0, -1), var=var
+    )
     masks = spatialmuon.RasterMasks(mask=masks)
     regions = spatialmuon.Regions(masks=masks)
     modality["masks"] = regions
@@ -342,8 +382,8 @@ if DEBUG:
 
 def debug_create_spatial_muon_object():
     # edit your paths here
-    f_ome = "/data/spatialmuon/datasets/imc/raw/OMEandSingleCellMasks/ome/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full.tiff"
-    f_masks = "/data/spatialmuon/datasets/imc/raw/OMEandSingleCellMasks/Basel_Zuri_masks/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full_maks.tiff"
+    f_ome = "/data/spatialmuon/datasets/imc/raw/OMEandSingleCellMasks/ome/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full.tiff"  # noqa: E501
+    f_masks = "/data/spatialmuon/datasets/imc/raw/OMEandSingleCellMasks/Basel_Zuri_masks/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full_maks.tiff"  # noqa: E501
     outfile = "debug.h5smu"
     create_muon_spatial_object(f_ome, f_masks, outfile)
 
@@ -382,7 +422,11 @@ if __name__ == "__main__":
             def unzip_all(dest_dir=tmpdir):
                 print("extracting images...", file=sys.stderr)
                 unzip(imgfile, dest_dir, rm=DOWNLOAD)
-                unzip(os.path.join(dest_dir, "OMEnMasks", "ome.zip"), dest_dir, rm=DOWNLOAD)
+                unzip(
+                    os.path.join(dest_dir, "OMEnMasks", "ome.zip"),
+                    dest_dir,
+                    rm=DOWNLOAD,
+                )
                 unzip(
                     os.path.join(dest_dir, "OMEnMasks", "Basel_Zuri_masks.zip"),
                     dest_dir,
@@ -400,7 +444,11 @@ if __name__ == "__main__":
 
             # unzipping thakes time, let's do it once and then disable this code
             if False:
-                unzip_all(dest_dir=os.path.join("/data/spatialmuon/datasets/imc/raw/", "unzipped"))
+                unzip_all(
+                    dest_dir=os.path.join(
+                        "/data/spatialmuon/datasets/imc/raw/", "unzipped"
+                    )
+                )
                 os._exit(0)
             unzip_all()
         else:
@@ -416,7 +464,9 @@ if __name__ == "__main__":
             ),
         )
 
-        for index, row in tqdm(df.iterrows(), total=len(df), desc="creating .hs5mu objects"):
+        for index, row in tqdm(
+            df.iterrows(), total=len(df), desc="creating .hs5mu objects"
+        ):
             ome_filename = row[0]
             f_ome = os.path.join(tmpdir, "ome", ome_filename)
 

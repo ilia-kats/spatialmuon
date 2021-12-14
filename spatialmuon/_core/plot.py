@@ -133,7 +133,7 @@ def plot_channel_raster(
 
     w, h = x.shape
     cx, cy = fov.origin
-    
+
     if not (int(cx) == 0 and int(cy) == 0):
         x = np.pad(x, pad_width=((cx, 0), (cy, 0)))
     if deg != 0:
@@ -148,14 +148,14 @@ def plot_channel_raster(
             x_pad_rot_cut, 
             pad_width=((int(cx), 0), (int(cy), 0))
         )
-        
+
     im = ax.imshow(
         x, 
         alpha=alpha,
         cmap=cmap,
         **kwargs
     )
-    
+
     return im
 
 

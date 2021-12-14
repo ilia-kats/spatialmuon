@@ -334,7 +334,6 @@ def plot_preview_grid(
         or (isinstance(cmap, list) and all(isinstance(c, matplotlib.colors.Colormap) for c in cmap))
     ):
         raise ValueError("'cmap' must either be a single or a list of matplotlib.colors.Colormap.")
-        
     if (isinstance(cmap, list) and len(cmap) > 1) and not (len(cmap) == len(data_to_plot.keys())):
         raise ValueError("'cmap' must either be length one or the same length as the channels that will be plotted.")
         

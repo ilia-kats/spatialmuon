@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union, Literal
+from typing import Optional, Union, Literal, Callable
 import warnings
 
 import math
@@ -8,6 +8,7 @@ import numpy as np
 import h5py
 from shapely.geometry import Polygon, Point, MultiPoint
 from trimesh import Trimesh
+import matplotlib
 import matplotlib.pyplot as plt
 
 from .. import FieldOfView
@@ -170,7 +171,9 @@ class Raster(FieldOfView):
           self, 
           channels: Optional[Union[str, list[str]]] = "all",
           grid_size: Union[int, list[int]] = 1,
-          preprocessing: Optional[Callable] = None
+          preprocessing: Optional[Callable] = None,
+          overlap: bool = False,
+          cmap: Union[matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]] = matplotlib.cm.viridis
         ):
 
         if not (isinstance(channels, list) or isinstance(channels, str)):
@@ -202,7 +205,9 @@ class Raster(FieldOfView):
         plot_preview_grid(
             data_to_plot = data_to_plot,
             grid_size = grid_size,
-            preprocessing = preprocessing
+            preprocessing = preprocessing,
+            overlap = overlap,
+            cmap = cmap
         )
         
 

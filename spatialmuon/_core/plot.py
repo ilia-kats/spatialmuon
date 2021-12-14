@@ -345,32 +345,36 @@ def plot_preview_grid(
         )
 
     if len(data_to_plot) > n_tiles:
-        msg = "More channels available than covered by 'grid_size'. Only the first {} channels will be plotted".format(n_tiles)
+        msg = "More channels available than covered by 'grid_size'. Only the first {} channels will be plotted".format(
+            n_tiles
+        )
         warnings.warn(msg)
-    
     if isinstance(cmap, matplotlib.colors.Colormap) and len(data_to_plot.keys()) > 1:
         cmap = default_cmaps
-            
-    if overlap == False:    
-        
+
+    if overlap == False:
+
         # Calcualte grid layout
         if not isinstance(grid_size, list):
-            n_x = math.ceil(n_tiles**0.5)
-            n_y = math.floor(n_tiles**0.5)
-            if n_x*n_y < n_tiles:
-                n_y += 1 
+            n_x = math.ceil(n_tiles ** 0.5)
+            n_y = math.floor(n_tiles ** 0.5)
+            if n_x * n_y < n_tiles:
+                n_y += 1
         else:
             n_x = grid_size[0]
             n_y = grid_size[1]
 
         fig, axs = plt.subplots(n_y, n_x)
-        
         if len(data_to_plot) > 1:
             axs = axs.flatten()
 
         for idx, channel in enumerate(data_to_plot):
             if idx < n_tiles:
-                x = data_to_plot[channel] if preprocessing is None else preprocessing(data_to_plot[channel])
+                x = (
+                    data_to_plot[channel]
+                    if preprocessing is None
+                    else preprocessing(data_to_plot[channel])
+                )
                 if len(data_to_plot) > 1:
                     axs[idx].matshow(x, cmap=cmap[idx])
                     axs[idx].text(0, -10, channel, size=12)
@@ -380,37 +384,30 @@ def plot_preview_grid(
                     axs.matshow(x, cmap=cmap)
                     axs.set_title(channel)
                     axs.set_axis_off()
-                    
     elif overlap == True:
-        
         fig, axs = plt.subplots(1, 1)
-        
         for idx, channel in enumerate(data_to_plot):
-            a = 1/(len(data_to_plot.keys())-1) if idx > 0 else 1
-            x = data_to_plot[channel] if preprocessing is None else preprocessing(data_to_plot[channel])
+            a = 1 / (len(data_to_plot.keys()) - 1) if idx > 0 else 1
+            x = (
+                data_to_plot[channel]
+                if preprocessing is None
+                else preprocessing(data_to_plot[channel])
+            )
             axs.matshow(x, cmap=cmap[idx], alpha=a)
         title = "background: {}; overlay: {}".format(
-            [k for k in data_to_plot.keys()][0], 
-            ", ".join(map(str, [k for k in data_to_plot.keys()][1:]))
+            [k for k in data_to_plot.keys()][0],
+            ", ".join(map(str, [k for k in data_to_plot.keys()][1:])),
         )
-        
         legend = []
         for idx, c in enumerate(cmap):
             rgba = c(0.5)
             legend.append(
                 matplotlib.patches.Patch(
-                    facecolor=rgba, 
-                    edgecolor=rgba,
-                    label=[k for k in data_to_plot.keys()][idx]
+                    facecolor=rgba, edgecolor=rgba, label=[k for k in data_to_plot.keys()][idx]
                 )
             )
-            
-        axs.legend(
-            handles=legend, 
-            frameon=False,
-            loc="center left", 
-            bbox_to_anchor=(1, 0.5)
-        )
+
+        axs.legend(handles=legend, frameon=False, loc="center left", bbox_to_anchor=(1, 0.5))
         axs.set_title(title)
         axs.set_axis_off()
 

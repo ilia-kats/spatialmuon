@@ -101,6 +101,7 @@ def is_h5smu(filename):
             return False
     return h5py.is_hdf5(filename)
 
+
 def angle_between(v1: np.array, v2: np.array, output: str = "degree"):
     """ Returns the signed angle between 'v1' and 'v2' in degree or radians """
     

@@ -416,5 +416,5 @@ def plot_preview_grid(
 
     fig.tight_layout()
     fig.show()
-    
+
     plt.style.use("default")

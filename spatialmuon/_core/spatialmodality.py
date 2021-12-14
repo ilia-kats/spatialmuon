@@ -60,7 +60,7 @@ class SpatialModality(BackableObject, BackedDictProxy):
           channels: Optional[Union[str, list[str]]] = "all",
           grid_size: Union[int, list[int]] = 1,
           preprocessing: Optional[Callable] = None
-        ):        
+    ):        
 
         if not (isinstance(channels, list) or isinstance(channels, str)):
             raise ValueError("'channels' must be either a single character string or a list of them.")
@@ -109,14 +109,13 @@ class SpatialModality(BackableObject, BackedDictProxy):
             
         data_to_plot = {} # will be passed to the plotting function    
         for c in channels_to_plot:
-            
             fov, channel = c.split("/")
             channel_idx = self.data[fov].var.query("channel_name == '{}'".format(channel)).index.tolist()[0]
-            data_to_plot[c] = self.data[fov].X[:,:,channel_idx]     
-            
+            data_to_plot[c] = self.data[fov].X[:, :, channel_idx]
+
         plot_preview_grid(
-            data_to_plot = data_to_plot,
-            grid_size = grid_size,
-            preprocessing = preprocessing
+            data_to_plot=data_to_plot,
+            grid_size=grid_size,
+            preprocessing=preprocessing
         )
         

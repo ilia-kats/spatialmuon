@@ -11,7 +11,6 @@ import matplotlib.image
 import matplotlib.patches
 import matplotlib.collections
 import matplotlib.transforms
-from matplotlib.transforms import Affine2D
 import math
 import warnings
 
@@ -145,7 +144,7 @@ def plot_channel_raster(
         x_pad_rot = ndimage.rotate(x_pad, deg, reshape=False)
         x_pad_rot_cut = x_pad_rot[pad_x:, pad_y:]
         x = np.pad(
-            x_pad_rot_cut, 
+            x_pad_rot_cut,
             pad_width=((int(cx), 0), (int(cy), 0))
         )
 
@@ -311,7 +310,6 @@ def plot_preview_grid(
         matplotlib.cm.get_cmap("cool"),
     ]
     upper_limit_tiles = 50
-    default_grid = [5, 5]
 
     if isinstance(grid_size, list) and len(grid_size) == 2 and all(isinstance(x, int) for x in grid_size):
         n_tiles = grid_size[0] * grid_size[1]

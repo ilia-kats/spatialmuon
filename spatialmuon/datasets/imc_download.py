@@ -31,7 +31,18 @@ PTNM_T_LABELS_HIERARCHY = {
     "T3": [],
     "T4": ["T4b"],
 }
-VALID_PTNM_N_LABELS = ["pNX", "pN0", "pN1", "pN1a", "pN1mi", "pN2", "pN2a", "pN3", "pN3a", "pN3b"]
+VALID_PTNM_N_LABELS = [
+    "pNX",
+    "pN0",
+    "pN1",
+    "pN1a",
+    "pN1mi",
+    "pN2",
+    "pN2a",
+    "pN3",
+    "pN3a",
+    "pN3b",
+]
 PTNM_N_LABELS_HIERARCHY = {
     "pNX": [],
     "pN0": [],
@@ -342,8 +353,8 @@ if DEBUG:
 
 def debug_create_spatial_muon_object():
     # edit your paths here
-    f_ome = "/data/spatialmuon/datasets/imc/raw/OMEandSingleCellMasks/ome/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full.tiff"
-    f_masks = "/data/spatialmuon/datasets/imc/raw/OMEandSingleCellMasks/Basel_Zuri_masks/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full_maks.tiff"
+    f_ome = "/data/spatialmuon/datasets/imc/raw/OMEandSingleCellMasks/ome/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full.tiff"  # noqa: E501
+    f_masks = "/data/spatialmuon/datasets/imc/raw/OMEandSingleCellMasks/Basel_Zuri_masks/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full_maks.tiff"  # noqa: E501
     outfile = "debug.h5smu"
     create_muon_spatial_object(f_ome, f_masks, outfile)
 
@@ -382,7 +393,11 @@ if __name__ == "__main__":
             def unzip_all(dest_dir=tmpdir):
                 print("extracting images...", file=sys.stderr)
                 unzip(imgfile, dest_dir, rm=DOWNLOAD)
-                unzip(os.path.join(dest_dir, "OMEnMasks", "ome.zip"), dest_dir, rm=DOWNLOAD)
+                unzip(
+                    os.path.join(dest_dir, "OMEnMasks", "ome.zip"),
+                    dest_dir,
+                    rm=DOWNLOAD,
+                )
                 unzip(
                     os.path.join(dest_dir, "OMEnMasks", "Basel_Zuri_masks.zip"),
                     dest_dir,

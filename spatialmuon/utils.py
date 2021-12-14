@@ -50,7 +50,7 @@ def preprocess_3d_polygon_mask(
     elif method == "project":
         if mask.has_z:
             warnings.warn(
-                "Method is `project` but masks has 3 dimensions. Assuming that masks is in-plane with the data and skipping projection."
+                "Method is `project` but masks has 3 dimensions. Assuming that masks is in-plane with the data and skipping projection."  # noqa: E501
             )
         else:
             mean = coords.mean(axis=0)
@@ -101,19 +101,15 @@ def is_h5smu(filename):
             return False
     return h5py.is_hdf5(filename)
 
-def matrix_to_rotation(m: np.array, output: str = "degree"):
-    """ Returns the angle between 'v1' and 'v2' in degree or radians """
-    
-    v1 = np.array(((0), (1)))
-    v2 = v1.dot(m)
-    v1_u = v1 / np.linalg.norm(v1)
-    v2_u = v2 / np.linalg.norm(v2)
-    rotation = np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
-    
+
+def angle_between(v1: np.array, v2: np.array, output: str = "degree"):
+    """Returns the signed angle between 'v1' and 'v2' in degree or radians"""
+
+    rotation = np.arctan2(v1[0] * v2[1] - v1[1] * v2[0], v1[0] * v2[0] + v1[1] * v2[1])
+
     if output == "degree":
-        
-        return(rotation * 180/np.pi)
-    
-    elif (output == "radians"):
-        
-        return(rotation)
+        return rotation * 180 / np.pi
+
+    elif output == "radians":
+
+        return rotation

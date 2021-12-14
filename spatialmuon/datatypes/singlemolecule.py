@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from typing import Optional, Union, Literal
 
 import numpy as np
@@ -80,7 +79,11 @@ class SingleMolecule(FieldOfView):
                         genes = genes[0]
                     if isinstance(genes, str):
                         rng = self.backing["feature_range"][genes][()]
-                        ncls = NCLS(rng[0, np.newaxis], rng[1, np.newaxis] - 1, rng[0, np.newaxis])
+                        ncls = NCLS(
+                            rng[0, np.newaxis],
+                            rng[1, np.newaxis] - 1,
+                            rng[0, np.newaxis],
+                        )
                     else:
                         intervals = []
                         for g in genes:

@@ -1,6 +1,6 @@
 from typing import Optional, Union, Callable
 import warnings
-
+import matplotlib
 from .backing import BackableObject, BackedDictProxy
 from .fieldofview import FieldOfView, UnknownEncodingException
 from .plot import plot_preview_grid
@@ -54,44 +54,62 @@ class SpatialModality(BackableObject, BackedDictProxy):
     def _write(self, grp):
         for f, fov in self.items():
             fov.write(grp, f)
-            
+
     def plot(
-          self, 
-          channels: Optional[Union[str, list[str]]] = "all",
-          grid_size: Union[int, list[int]] = 1,
-          preprocessing: Optional[Callable] = None
-        ):        
+        self,
+        channels: Optional[Union[str, list[str]]] = "all",
+        grid_size: Union[int, list[int]] = 1,
+        preprocessing: Optional[Callable] = None,
+        overlap: bool = False,
+        cmap: Union[
+            matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
+        ] = matplotlib.cm.viridis,
+    ):
 
         if not (isinstance(channels, list) or isinstance(channels, str)):
-            raise ValueError("'channels' must be either a single character string or a list of them.")
+            raise ValueError(
+                "'channels' must be either a single character string or a list of them."
+            )
 
         if isinstance(channels, list) and not all(isinstance(x, str) for x in channels):
             raise ValueError("If 'channels' is a list, all elements must be character strings.")
-            
-        valid_channels = {} # will be used for more informative error messages
+
+        valid_channels = {}  # will be used for more informative error messages
         for key, ome in self.data.items():
             valid_channels[key] = []
             for c in ome.var["channel_name"].tolist():
                 valid_channels[key].append(key + "/" + c)
-        valid_channels_flat = [k for k in valid_channels.keys()] + [x for v in valid_channels.values() for x in v]
-        
+        valid_channels_flat = [k for k in valid_channels.keys()] + [
+            x for v in valid_channels.values() for x in v
+        ]
+
         if isinstance(channels, list):
             for c in channels:
                 if c not in valid_channels_flat:
-                    raise ValueError("'{}' not found in channels, available are: {}".format(c, ', '.join(valid_channels_flat)))
+                    raise ValueError(
+                        "'{}' not found in channels, available are: {}".format(
+                            c, ", ".join(valid_channels_flat)
+                        )
+                    )
 
         if isinstance(channels, str) and channels != "all":
             if channels not in valid_channels_flat:
-                raise ValueError("'{}' not found in channels, available are: {}".format(channels, ', '.join(valid_channels_flat)))
-                
+                raise ValueError(
+                    "'{}' not found in channels, available are: {}".format(
+                        channels, ", ".join(valid_channels_flat)
+                    )
+                )
+
         if channels == "all":
             channels_to_plot = [x for v in valid_channels.values() for x in v]
-            
+
         if isinstance(channels, str) and channels not in [k for k in self.data.keys()]:
             channels_to_plot = channels
         elif isinstance(channels, str) and channels in [k for k in self.data.keys()]:
-            channels_to_plot = [channels + "/" + c for c in self.data[channels].var["channel_name"].tolist()]
-        
+            channels_to_plot = [
+                channels + "/" + c for c in self.data[channels].var["channel_name"].tolist()
+            ]
+
         if isinstance(channels, list):
             # Split user input list into full FOVs (which need to be dissected) and individual channels, will later be reunited
             full_fovs = []
@@ -104,19 +122,24 @@ class SpatialModality(BackableObject, BackedDictProxy):
                     partial_fov_channels.append(c)
             if len(full_fovs) > 0:
                 for ff in full_fovs:
-                    channels_to_plot = channels_to_plot + [ff + "/" + c for c in self.data[ff].var["channel_name"].tolist()]
+                    channels_to_plot = channels_to_plot + [
+                        ff + "/" + c for c in self.data[ff].var["channel_name"].tolist()
+                    ]
             channels_to_plot = channels_to_plot + partial_fov_channels
-            
-        data_to_plot = {} # will be passed to the plotting function    
+
+        data_to_plot = {}  # will be passed to the plotting function
         for c in channels_to_plot:
-            
+
             fov, channel = c.split("/")
-            channel_idx = self.data[fov].var.query("channel_name == '{}'".format(channel)).index.tolist()[0]
-            data_to_plot[c] = self.data[fov].X[:,:,channel_idx]     
-            
+            channel_idx = (
+                self.data[fov].var.query("channel_name == '{}'".format(channel)).index.tolist()[0]
+            )
+            data_to_plot[c] = self.data[fov].X[:, :, channel_idx]
+
         plot_preview_grid(
-            data_to_plot = data_to_plot,
-            grid_size = grid_size,
-            preprocessing = preprocessing
+            data_to_plot=data_to_plot,
+            grid_size=grid_size,
+            preprocessing=preprocessing,
+            overlap=overlap,
+            cmap=cmap,
         )
-        

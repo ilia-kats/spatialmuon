@@ -31,9 +31,9 @@ class Regions(FieldOfView):
         **kwargs,
     ):
         if backing is not None:
-            self._index = SpatialIndex(
-                backing=backing["index"], dimension=backing["coordinates"].shape[1], **index_kwargs
-            )
+            # self._index = SpatialIndex(
+            #     backing=backing["index"], dimension=backing["coordinates"].shape[1], **index_kwargs
+            # )
             self._masks = Masks(backing=backing["masks"])
             attrs = backing.attrs
         else:

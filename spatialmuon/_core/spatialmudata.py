@@ -19,10 +19,14 @@ class SpatialMuData(BackableObject, BackedDictProxy):
 
         if isinstance(backing, PathLike) or isinstance(backing, str):
             assert backingmode in ["r", "r+"], "Argument `backingmode` must be r or r+"
-
-            if path.isfile(backing) and is_h5smu(backing):
+            is_file_b = path.isfile(backing)
+            is_h5smu_b = is_h5smu(backing)
+            if is_file_b and is_h5smu_b:
                 backing = h5py.File(backing, backingmode)
+            elif is_file_b and not is_h5smu_b:
+                raise FileExistsError("file already exists and is not a valid SpatialMuon file")
             else:
+                print("creating a new file for the backed storage")
                 f = h5py.File(
                     backing,
                     "w",
@@ -85,4 +89,4 @@ class SpatialMuData(BackableObject, BackedDictProxy):
             for k, v in mod.items():
                 repr_str += f"| - {k}: {v}\n"
 
-        return repr_str
+        return repr_str.rstrip("\n")

@@ -18,7 +18,11 @@ def _read_hdf5_attribute(attrs: h5py.AttributeManager, name: str):
     For example Julia's HDF5.jl writes string attributes as fixed-size strings, which
     are read as bytes by h5py.
     """
-    attr = attrs[name]
+    try:
+        attr = attrs[name]
+    except KeyError as e:
+        print("debug")
+        raise e
     attr_id = attrs.get_id(name)
     dtype = h5py.check_string_dtype(attr_id.dtype)
     if dtype is None:

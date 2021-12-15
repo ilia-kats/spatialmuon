@@ -74,8 +74,9 @@ class FieldOfView(BackableObject):
 
         self.masks = BackedDictProxy(self, key="masks")
         if self.isbacked and "masks" in self.backing:
-            for key, mask in self.backing["masks"].items():
-                self.masks[key] = spatialmuon._core.masks.Masks(backing=mask)
+            self.masks = spatialmuon._core.masks.Masks(backing=self.backing["masks"])
+            # for key, mask in self.backing["masks"].items():
+            # self.masks[key] = spatialmuon._core.masks.Masks(backing=mask)
 
         if self.isbacked and "var" in self.backing:
             self._var = read_attribute(backing["var"])

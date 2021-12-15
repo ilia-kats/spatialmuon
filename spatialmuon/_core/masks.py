@@ -82,19 +82,14 @@ class Masks(BackableObject):
         else:
             o = self._obs
         write_attribute(
-            grp,
-            "obs",
-            o,
-            dataset_kwargs={"compression": "gzip", "compression_opts": 9},
+            grp, "obs", o, dataset_kwargs={"compression": "gzip", "compression_opts": 9},
         )
 
     def _set_backing(self, obj=None):
         self._write_data(obj)
 
     def __repr__(self):
-        repr_str = (
-            f"| - - {len(list(self))} {self.ndim}D masks with {self.n_obs} obs: {', '.join(self)}\n"
-        )
+        repr_str = f"| - - {self.ndim}D masks with {self.n_obs} obs: {', '.join(self.obs)}"
         return repr_str
 
 
@@ -425,7 +420,7 @@ class RasterMasks(Masks):
         shape: Optional[Union[tuple[int, int], tuple[int, int, int]]] = None,
         dtype: Optional[type] = None,
     ):
-        super().__init__(backing)
+        super().__init__(backing=backing)
         self._mask = None
 
         if mask is not None:
@@ -448,7 +443,7 @@ class RasterMasks(Masks):
     @property
     def ndim(self):
         if self.isbacked:
-            return self.backing.ndim
+            return self.backing["imagemask"].ndim
         else:
             return self._mask.ndim
 
@@ -530,3 +525,6 @@ class RasterMasks(Masks):
 
     def _write(self, obj: h5py.Group):
         obj.create_dataset("imagemask", data=self._mask, compression="gzip", compression_opts=9)
+
+    def __repr__(self):
+        return super().__repr__()

@@ -341,11 +341,11 @@ def create_muon_spatial_object(f_ome, f_masks, outfile):
     modality["masks"] = regions
 
 
-# DEBUG = False
-DEBUG = True
+DEBUG = False
+# DEBUG = True
 
-DOWNLOAD = True
-UNZIP = True
+DOWNLOAD = False
+UNZIP = False
 if DEBUG:
     DOWNLOAD = False
     UNZIP = False
@@ -394,9 +394,7 @@ if __name__ == "__main__":
                 print("extracting images...", file=sys.stderr)
                 unzip(imgfile, dest_dir, rm=DOWNLOAD)
                 unzip(
-                    os.path.join(dest_dir, "OMEnMasks", "ome.zip"),
-                    dest_dir,
-                    rm=DOWNLOAD,
+                    os.path.join(dest_dir, "OMEnMasks", "ome.zip"), dest_dir, rm=DOWNLOAD,
                 )
                 unzip(
                     os.path.join(dest_dir, "OMEnMasks", "Basel_Zuri_masks.zip"),
@@ -431,7 +429,7 @@ if __name__ == "__main__":
             ),
         )
 
-        for index, row in tqdm(df.iterrows(), total=len(df), desc="creating .hs5mu objects"):
+        for index, row in tqdm(df.iterrows(), total=len(df), desc="creating .h5smu objects"):
             ome_filename = row[0]
             f_ome = os.path.join(tmpdir, "ome", ome_filename)
 

@@ -24,7 +24,7 @@ class SpatialMuData(BackableObject, BackedDictProxy):
             if is_file_b and is_h5smu_b:
                 try:
                     backing = h5py.File(backing, backingmode)
-                except:
+                except OSError:
                     cmd = "h5clear -s " + backing
                     system(cmd)
                     backing = h5py.File(backing, backingmode)

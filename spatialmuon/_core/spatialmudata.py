@@ -1,5 +1,5 @@
 from typing import Optional, Dict, Union, Literal
-from os import PathLike, path
+from os import PathLike, path, system
 
 import h5py
 
@@ -21,7 +21,19 @@ class SpatialMuData(BackableObject, BackedDictProxy):
             assert backingmode in ["r", "r+"], "Argument `backingmode` must be r or r+"
             if path.isfile(backing):
                 if is_h5smu(backing):
-                    backing = h5py.File(backing, backingmode)
+                    try:
+                        backing = h5py.File(backing, backingmode)
+                    except OSError as e:
+                        if (
+                            str(e)
+                            == "Unable to open file (file is already open for write/SWMR write (may use <h5clear "
+                            "file> to clear file consistency flags))"
+                        ):
+                            cmd = "h5clear -s " + backing
+                            system(cmd)
+                            backing = h5py.File(backing, backingmode)
+                        else:
+                            raise e
                 else:
                     raise FileExistsError("file already exists and is not a valid SpatialMuon file")
             else:

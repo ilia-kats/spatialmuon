@@ -8,7 +8,8 @@ from xml.etree import ElementTree
 
 # Get current file and pre-generate paths and names
 this_dir = Path(__file__).parent
-smily_fpath = this_dir /  "../data/smily.tiff"
+smily_fpath = this_dir / "../data/smily.tiff"
+
 
 class PlottingTestClass(unittest.TestCase):
     def test_SpatialModality_generation(self):

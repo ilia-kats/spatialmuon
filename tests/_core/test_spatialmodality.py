@@ -24,11 +24,8 @@ class PlottingTestClass(unittest.TestCase):
             if channel.tag.endswith("Channel"):
                 channel_names.append(channel.attrib["Fluor"])
         var = pd.DataFrame({"channel_name": channel_names})
-        res = spatialmuon.Raster(
-            X=np.moveaxis(ome.asarray(), 0, -1), 
-            var=var
-        )
-        
+        res = spatialmuon.Raster(X=np.moveaxis(ome.asarray(), 0, -1), var=var)
+
         mod = SpatialModality(coordinate_unit="μm")
         mod["ome"] = res
 

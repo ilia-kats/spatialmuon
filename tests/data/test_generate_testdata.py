@@ -19,10 +19,11 @@ def plot_curves(curves):
     plt.show()
     plt.close()
 
+
 dash = np.linspace(0.60, 0.90, 20)
 smile = 0.3 * np.exp(1j * 2 * np.pi * dash) - 0.2j
-left_eye  = circle(0.1, -0.4 + 0.2j)
-right_eye = circle(0.1,  0.4 + 0.2j)
+left_eye = circle(0.1, -0.4 + 0.2j)
+right_eye = circle(0.1, 0.4 + 0.2j)
 face = [circle(1, 0), left_eye, smile, right_eye]
 
 fig, ax = plt.subplots()

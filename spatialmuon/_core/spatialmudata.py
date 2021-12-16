@@ -1,5 +1,5 @@
 from typing import Optional, Dict, Union, Literal
-from os import PathLike, path
+from os import PathLike, path, system
 
 import h5py
 
@@ -22,7 +22,12 @@ class SpatialMuData(BackableObject, BackedDictProxy):
             is_file_b = path.isfile(backing)
             is_h5smu_b = is_h5smu(backing)
             if is_file_b and is_h5smu_b:
-                backing = h5py.File(backing, backingmode)
+                try:
+                    backing = h5py.File(backing, backingmode)
+                except:
+                    cmd = "h5clear -s " + backing
+                    system(cmd)
+                    backing = h5py.File(backing, backingmode)
             elif is_file_b and not is_h5smu_b:
                 raise FileExistsError("file already exists and is not a valid SpatialMuon file")
             else:

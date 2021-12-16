@@ -229,3 +229,11 @@ class Raster(FieldOfView):
             overlap=overlap,
             cmap=cmap,
         )
+
+    def __repr__(self):
+        s = self.X.shape
+        x, y = s[:2]
+        c = s[-1]
+        repr_str = f"{x}x{y} pixels image with {c} channels"
+        return repr_str
+

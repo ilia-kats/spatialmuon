@@ -4,6 +4,7 @@ from pathlib import Path
 from PIL import Image
 import tifffile as tiff
 
+
 def circle(radius, center):
     theta = np.linspace(0, 2 * np.pi, 200)
     return center + radius * np.exp(1j * theta)
@@ -28,16 +29,15 @@ with tiff.TiffWriter(smily_fpath) as tiff_fh:
         ax.set_axis_off()
         ax.set_aspect(1)
         for idx, shape in enumerate(face):
-            ax.plot(shape.real, shape.imag, c="black", alpha=1/(idx+1))
+            ax.plot(shape.real, shape.imag, c="black", alpha=1 / (idx + 1))
         fig.canvas.draw()
         data = np.frombuffer(fig.canvas.tostring_argb(), dtype=np.uint8)
         w, h = fig.canvas.get_width_height()
         img = Image.fromarray(data.reshape((int(h), int(w), -1)))
         img = data.reshape((int(h), int(w), -1))
         tiff_fh.write(img, photometric="rgb")
-    
 # generate fake-metadata
-metadata = "<ome:OME xmlns:ns2='http://www.openmicroscopy.org/Schemas/BinaryFile/2013-06s' " 
+metadata = "<ome:OME xmlns:ns2='http://www.openmicroscopy.org/Schemas/BinaryFile/2013-06s' "
 metadata += "xmlns:om='openmicroscopy.org/OriginalMetadata' "
 metadata += "xmlns:ome='http://www.openmicroscopy.org/Schemas/ome/2013-06s' "
 metadata += "xmlns:sa='http://www.openmicroscopy.org/Schemas/sa/2013-06s' "
@@ -45,7 +45,9 @@ metadata += "xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' "
 metadata += "xsi:schemaLocation='http://www.openmicroscopy.org/Schemas/OME/2013-06 http://www.openmicroscopy.org/Schemas/OME/2012-03/ome.xsd'>"
 metadata += "\n\t<ome:Image ID='Image:0' Name='ome_tiff_smily.tiff'>"
 metadata += "\n\t\t<ome:AcquisitionDate>2017-11-28T13:17:31.052385</ome:AcquisitionDate>"
-metadata += "\n\t\t<ome:Pixels DimensionOrder='YCZT' ID='Pixels:0' SizeC='2' SizeT='1' SizeX='{}' SizeY='{}' SizeZ='1' Type='float'>".format(img.shape[0], img.shape[1])
+metadata += "\n\t\t<ome:Pixels DimensionOrder='YCZT' ID='Pixels:0' SizeC='2' SizeT='1' SizeX='{}' SizeY='{}' SizeZ='1' Type='float'>".format(
+    img.shape[0], img.shape[1]
+)
 metadata += "\n\t\t\t<ome:Channel Fluor='happy' ID='Channel:0:0' Name='happy' SamplesPerPixel='1'>"
 metadata += "\n\t\t\t\t<ome:LightPath />"
 metadata += "\n\t\t\t</ome:Channel>"
@@ -63,5 +65,4 @@ metadata += "\n\t\t\t</sa:Value>"
 metadata += "\n\t\t</sa:XMLAnnotation>"
 metadata += "\n\t</sa:StructuredAnnotations>"
 metadata += "\n</ome:OME>"
-    
 tiff.tiffcomment(smily_fpath, metadata)

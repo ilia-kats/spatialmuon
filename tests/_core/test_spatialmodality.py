@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
-from spatialmuon import SpatialModality
+from spatialmuon import SpatialModality, Raster
 import tifffile
 from xml.etree import ElementTree
 
@@ -25,7 +25,7 @@ class PlottingTestClass(unittest.TestCase):
             if channel.tag.endswith("Channel"):
                 channel_names.append(channel.attrib["Fluor"])
         var = pd.DataFrame({"channel_name": channel_names})
-        res = spatialmuon.Raster(X=np.moveaxis(ome.asarray(), 0, -1), var=var)
+        res = Raster(X=np.moveaxis(ome.asarray(), 0, -1), var=var)
 
         mod = SpatialModality(coordinate_unit="μm")
         mod["ome"] = res

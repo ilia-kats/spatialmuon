@@ -31,6 +31,7 @@ class SpatialModality_creation(unittest.TestCase):
         mod = SpatialModality(coordinate_unit="μm")
         mod["ome"] = res
         self.assertTrue(isinstance(mod, spatialmuon._core.spatialmodality.SpatialModality))
+
     def test_can_create_SpatialModality_from_Regions(self):
         # Create a small demo dataset
         np.random.seed(1000)
@@ -58,6 +59,7 @@ class SpatialModality_creation(unittest.TestCase):
 
         assert smudata["Visium"][fovname].n_var == D
         assert smudata["Visium"][fovname]._masks.n_obs == N
+
 
 if __name__ == "__main__":
     unittest.main()

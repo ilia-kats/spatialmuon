@@ -362,7 +362,10 @@ def plot_preview_grid(
             n_x = grid_size[0]
             n_y = grid_size[1]
 
-        fig, axs = plt.subplots(n_y, n_x)
+        (x, y) = data_to_plot.values().__iter__().__next__().shape
+        cell_size_x = 2 * x / max(x, y)
+        cell_size_y = 2 * y / max(x, y)
+        fig, axs = plt.subplots(n_y, n_x, figsize=(cell_size_y * n_y, cell_size_x * n_x))
         if len(data_to_plot) > 1:
             axs = axs.flatten()
 
@@ -374,14 +377,17 @@ def plot_preview_grid(
                     else preprocessing(data_to_plot[channel])
                 )
                 if len(data_to_plot) > 1:
-                    axs[idx].matshow(x, cmap=cmap[0])
+                    axs[idx].imshow(x, cmap=cmap[0])
                     axs[idx].text(0, -10, channel, size=12)
-                    for ax in axs.flat:
-                        ax.set_axis_off()
+                    axs[idx].set_axis_off()
+                    # for ax in axs.flat:
+                    #     ax.set_axis_off()
                 else:
-                    axs.matshow(x, cmap=cmap)
+                    axs.imshow(x, cmap=cmap)
                     axs.set_title(channel)
                     axs.set_axis_off()
+        for idx in range(n_tiles, n_x * n_y):
+            axs[idx].set_axis_off()
     elif overlap is True:
         fig, axs = plt.subplots(1, 1)
         for idx, channel in enumerate(data_to_plot):
@@ -391,7 +397,7 @@ def plot_preview_grid(
                 if preprocessing is None
                 else preprocessing(data_to_plot[channel])
             )
-            axs.matshow(x, cmap=cmap[idx], alpha=a)
+            axs.imshow(x, cmap=cmap[idx], alpha=a)
         title = "background: {}; overlay: {}".format(
             [k for k in data_to_plot.keys()][0],
             ", ".join(map(str, [k for k in data_to_plot.keys()][1:])),
@@ -409,7 +415,8 @@ def plot_preview_grid(
         axs.set_title(title)
         axs.set_axis_off()
 
-    fig.tight_layout()
-    fig.show()
+    plt.subplots_adjust()
+    plt.tight_layout()
+    plt.show()
 
     plt.style.use("default")

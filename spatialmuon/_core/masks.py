@@ -68,7 +68,7 @@ class Masks(BackableObject):
     def __len__(self):
         pass
 
-    @abstractmethod
+    #@abstractmethod
     def update_obs_from_masks(self):
         pass
 

@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
-from PIL import Image
 import tifffile as tiff
 from skimage import color
 from matplotlib.patches import Rectangle

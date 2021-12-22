@@ -344,8 +344,11 @@ def plot_preview_grid(
             n_tiles
         )
         warnings.warn(msg)
-    if isinstance(cmap, matplotlib.colors.Colormap) and len(data_to_plot.keys()) > 1:
-        cmap = default_cmaps
+    if isinstance(cmap, matplotlib.colors.Colormap):
+        if len(data_to_plot.keys()) <= len(default_cmaps):
+            cmap = default_cmaps
+        elif len(data_to_plot.keys()) > len(default_cmaps):
+            cmap = [default_cmaps[0] for x in data_to_plot.keys()]
 
     if overlap is False:
 

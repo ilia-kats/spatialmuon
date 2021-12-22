@@ -30,4 +30,6 @@ jobs:
     - name: Test with pytest
       run: |
         pip install pytest
-        pytest
+        pip install matplotlib
+        pip install matplotlib_scalebar
+        pytest --verbose --color=yes

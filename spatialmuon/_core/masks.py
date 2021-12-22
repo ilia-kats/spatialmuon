@@ -542,10 +542,9 @@ class RasterMasks(Masks):
             )
         if self._mask is None:
             raise ValueError("no mask data has been specified")
-        u = np.unique(self._mask)
-        l = np.arange(len(u))
-        df = pd.DataFrame(data=dict(original_labels=u))
-        self._obs = df
+        unique_masks = np.unique(self._mask)
+        mask_df = pd.DataFrame(data=dict(original_labels=unique_masks))
+        self._obs = mask_df
 
 
 if __name__ == "__main__":
@@ -553,4 +552,3 @@ if __name__ == "__main__":
 
     rm = RasterMasks(backing=None, mask=x)
     rm.update_obs_from_masks()
-

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from spatialmuon.utils import angle_between
-from typing import Union, Optional, Callable
+from typing import Union, Optional, Callable, List
 import spatialmuon.datatypes
 import matplotlib.pyplot as plt
 import matplotlib.axes
@@ -15,6 +15,7 @@ import math
 import warnings
 
 from scipy import ndimage
+
 # import matplotlib.font_manager as fm)
 # from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from matplotlib_scalebar.scalebar import ScaleBar
@@ -36,9 +37,7 @@ def plot_channel(
     **kwargs,
 ) -> Optional[matplotlib.cm.ScalarMappable]:
     if fov_name not in sm:
-        raise ValueError(
-            f"{fov_name} is not a FieldOfView of the considered SpatialModality"
-        )
+        raise ValueError(f"{fov_name} is not a FieldOfView of the considered SpatialModality")
     else:
         fov = sm[fov_name]
 
@@ -166,9 +165,7 @@ def plot_channel_array(
     if preprocessing is not None:
         x = preprocessing(x)
     if fov._spot_shape != spatialmuon.datatypes.array.SpotShape.circle:
-        raise NotImplementedError(
-            "preliminary implementation for Visium-like data only"
-        )
+        raise NotImplementedError("preliminary implementation for Visium-like data only")
     points = fov.obs["geometry"].tolist()
     coords = np.array([[p.x, p.y] for p in points])
     radius = fov._spot_size
@@ -223,9 +220,7 @@ def plot_image(
     **kwargs,
 ):
     if fov_name not in sm:
-        raise ValueError(
-            f"{fov_name} is not a FieldOfView of the considered SpatialModality"
-        )
+        raise ValueError(f"{fov_name} is not a FieldOfView of the considered SpatialModality")
     else:
         fov = sm[fov_name]
     if type(fov) == spatialmuon.datatypes.raster.Raster:
@@ -317,7 +312,7 @@ def plot_preview_grid(
     elif grid_size == 1 and len(data_to_plot) != 1:
         n_tiles = len(data_to_plot)
     elif isinstance(grid_size, int):
-        n_tiles = grid_size**2
+        n_tiles = grid_size ** 2
     else:
         raise ValueError("'grid_size' must either be a single integer or a list of two integers.")
 
@@ -345,7 +340,15 @@ def plot_preview_grid(
         )
         warnings.warn(msg)
     if isinstance(cmap, matplotlib.colors.Colormap) and len(data_to_plot.keys()) > 1:
-        cmap = default_cmaps
+        if overlap is True:
+            cmap = default_cmaps
+        else:
+            cmap = cmap if type(cmap) is List else [cmap]
+    if overlap is True and n_tiles > len(cmap):
+        warnings.warn(
+            f"{n_tiles} channels to plot but {len(cmap)} colormaps available; colormaps will be cycled."
+        )
+        cmap = cmap * n_tiles // len(cmap) + 1
 
     if overlap is False:
 
@@ -371,7 +374,7 @@ def plot_preview_grid(
                     else preprocessing(data_to_plot[channel])
                 )
                 if len(data_to_plot) > 1:
-                    axs[idx].matshow(x, cmap=cmap[idx])
+                    axs[idx].matshow(x, cmap=cmap[0])
                     axs[idx].text(0, -10, channel, size=12)
                     for ax in axs.flat:
                         ax.set_axis_off()

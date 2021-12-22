@@ -1,5 +1,4 @@
 import unittest
-import tifffile
 import spatialmuon
 from pathlib import Path
 

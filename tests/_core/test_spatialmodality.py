@@ -29,7 +29,6 @@ class PlottingTestClass(unittest.TestCase):
 
         mod = SpatialModality(coordinate_unit="μm")
         mod["ome"] = res
-        
         self.assertTrue(isinstance(mod, spatialmuon._core.spatialmodality.SpatialModality))
 
 

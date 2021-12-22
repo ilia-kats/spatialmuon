@@ -5,6 +5,7 @@ from PIL import Image
 import tifffile as tiff
 from skimage import color
 
+
 def circle(radius, center):
     theta = np.linspace(0, 2 * np.pi, 200)
     return center + radius * np.exp(1j * theta)

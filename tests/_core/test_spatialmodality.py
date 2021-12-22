@@ -13,9 +13,9 @@ this_dir = Path(__file__).parent
 fpath = this_dir / "../data/ome_example.tiff"
 
 
-class test_SpatialModality_creation_A(unittest.TestCase):
+class SpatialModality_creation(unittest.TestCase):
 
-    def can_create_SpatialModality_from_Raster(self):
+    def test_can_create_SpatialModality_from_Raster(self):
         ome = tifffile.TiffFile(fpath, is_ome=True)
         metadata = ElementTree.fromstring(ome.ome_metadata)[0]
         for chld in metadata:
@@ -32,11 +32,8 @@ class test_SpatialModality_creation_A(unittest.TestCase):
         mod = SpatialModality(coordinate_unit="μm")
         mod["ome"] = res
         self.assertTrue(isinstance(mod, spatialmuon._core.spatialmodality.SpatialModality))
-
-        
-class test_SpatialModality_creation_B(unittest.TestCase):
     
-    def can_create_SpatialModality_from_Regions(self):
+    def test_can_create_SpatialModality_from_Regions(self):
         # Create a small demo dataset
         np.random.seed(1000)
         N, D = 100, 20

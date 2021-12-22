@@ -11,8 +11,8 @@ fpath_ome_mask_left_eye = this_dir / "mask_left_eye.tiff"
 fpath_ome_mask_right_eye = this_dir / "mask_right_eye.tiff"
 fpath_ome_mask_mouth = this_dir / "mask_mouth.tiff"
 
-c = Converter()    
-    
+c = Converter()
+
 smudata = SpatialMuData(fpath_h5smu_example, backingmode="r+")
 
 mod = SpatialModality(coordinate_unit="μm")

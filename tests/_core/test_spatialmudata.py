@@ -15,7 +15,6 @@ fpath_ome_mask_mouth = this_dir / "../data/mask_mouth.tiff"
 
 
 class SpatialMuData_TestClass(unittest.TestCase):
-    
     def test_can_create_SpatialMuData(self):
         this_dir = Path(__file__).parent
         fpath_h5smu_example = this_dir / "h5smu_example.h5smu"
@@ -24,7 +23,7 @@ class SpatialMuData_TestClass(unittest.TestCase):
         fpath_ome_mask_right_eye = this_dir / "../data/mask_right_eye.tiff"
         fpath_ome_mask_mouth = this_dir / "../data/mask_mouth.tiff"
 
-        c = Converter()    
+        c = Converter()
 
         smudata = SpatialMuData(fpath_h5smu_example, backingmode="r+")
 
@@ -36,6 +35,7 @@ class SpatialMuData_TestClass(unittest.TestCase):
 
         smudata["IMC"] = mod
         self.assertTrue(isinstance(smudata, spatialmuon._core.spatialmudata.SpatialMuData))
+
 
 if __name__ == "__main__":
     unittest.main()

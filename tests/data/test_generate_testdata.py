@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from PIL import Image
 import tifffile as tiff
-
+from skimage import color
 
 def circle(radius, center):
     theta = np.linspace(0, 2 * np.pi, 200)
@@ -12,7 +12,7 @@ def circle(radius, center):
 
 # Get current file and pre-generate paths and names
 this_dir = Path(__file__).parent
-smily_fpath = this_dir / "smily.tiff"
+smily_fpath = this_dir / "ome_example.tiff"
 
 # Draw and save smily
 smile = 0.3 * np.exp(1j * 2 * np.pi * np.linspace(0.6, 0.9, 20)) - 0.2j
@@ -29,13 +29,14 @@ with tiff.TiffWriter(smily_fpath) as tiff_fh:
         ax.set_axis_off()
         ax.set_aspect(1)
         for idx, shape in enumerate(face):
-            ax.plot(shape.real, shape.imag, c="black", alpha=1 / (idx + 1))
+            ax.plot(shape.real, shape.imag)
         fig.canvas.draw()
-        data = np.frombuffer(fig.canvas.tostring_argb(), dtype=np.uint8)
+        data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
         w, h = fig.canvas.get_width_height()
-        img = Image.fromarray(data.reshape((int(h), int(w), -1)))
-        img = data.reshape((int(h), int(w), -1))
-        tiff_fh.write(img, photometric="rgb")
+        img = np.reshape(data, (h, w, -1))
+        img_grey = color.rgb2gray(img).astype(np.uint16)
+        tiff_fh.write(img_grey, photometric="miniswhite")
+
 # generate fake-metadata
 metadata = "<ome:OME xmlns:ns2='http://www.openmicroscopy.org/Schemas/BinaryFile/2013-06s' "
 metadata += "xmlns:om='openmicroscopy.org/OriginalMetadata' "
@@ -46,7 +47,7 @@ metadata += "xsi:schemaLocation='http://www.openmicroscopy.org/Schemas/OME/2013-
 metadata += "\n\t<ome:Image ID='Image:0' Name='ome_tiff_smily.tiff'>"
 metadata += "\n\t\t<ome:AcquisitionDate>2017-11-28T13:17:31.052385</ome:AcquisitionDate>"
 metadata += "\n\t\t<ome:Pixels DimensionOrder='YCZT' ID='Pixels:0' SizeC='2' SizeT='1' SizeX='{}' SizeY='{}' SizeZ='1' Type='float'>".format(
-    img.shape[0], img.shape[1]
+    img_grey.shape[0], img_grey.shape[1]
 )
 metadata += "\n\t\t\t<ome:Channel Fluor='happy' ID='Channel:0:0' Name='happy' SamplesPerPixel='1'>"
 metadata += "\n\t\t\t\t<ome:LightPath />"

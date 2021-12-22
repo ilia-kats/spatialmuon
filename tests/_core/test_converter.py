@@ -8,9 +8,9 @@ this_dir = Path(__file__).parent
 fpath = this_dir / "../data/ome_example.tiff"
 
 
-class Converter_conversions(unittest.TestCase):
+class Converter_TestClass(unittest.TestCase):
     def test_can_create_Raster_from_tiff(self):
-        c = spatialmuon.Converter()
+        c = spatialmuon._core.Converter()
         ome_raster = c.raster_from_tiff(fpath)
         self.assertTrue(isinstance(ome_raster, spatialmuon.datatypes.raster.Raster))
 

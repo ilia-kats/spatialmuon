@@ -14,7 +14,6 @@ fpath = this_dir / "../data/ome_example.tiff"
 
 
 class SpatialModality_creation(unittest.TestCase):
-
     def test_can_create_SpatialModality_from_Raster(self):
         ome = tifffile.TiffFile(fpath, is_ome=True)
         metadata = ElementTree.fromstring(ome.ome_metadata)[0]
@@ -32,7 +31,6 @@ class SpatialModality_creation(unittest.TestCase):
         mod = SpatialModality(coordinate_unit="μm")
         mod["ome"] = res
         self.assertTrue(isinstance(mod, spatialmuon._core.spatialmodality.SpatialModality))
-    
     def test_can_create_SpatialModality_from_Regions(self):
         # Create a small demo dataset
         np.random.seed(1000)
@@ -53,12 +51,13 @@ class SpatialModality_creation(unittest.TestCase):
 
         spots_dict = {o: ((x, y), radius) for (o, (x, y)) in zip(obs.index.tolist(), coords)}
         masks = spatialmuon.ShapeMasks(masks_dict=spots_dict, obs=obs)
-        cfov = spatialmuon.Regions(X=X, var=var, translation=[0, 0, fovidx * 10], scale=1.23, masks=masks)
+        cfov = spatialmuon.Regions(
+            X=X, var=var, translation=[0, 0, fovidx * 10], scale=1.23, masks=masks
+        )
         modality[fovname] = cfov
 
         assert smudata["Visium"][fovname].n_var == D
         assert smudata["Visium"][fovname]._masks.n_obs == N
 
-    
 if __name__ == "__main__":
     unittest.main()

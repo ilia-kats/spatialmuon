@@ -344,9 +344,7 @@ def plot_preview_grid(
             n_tiles
         )
         warnings.warn(msg)
-        
     if isinstance(cmap, matplotlib.colors.Colormap):
-        
         if len(data_to_plot.keys()) <= len(default_cmaps):
             cmap = default_cmaps
         elif len(data_to_plot.keys()) > len(default_cmaps):

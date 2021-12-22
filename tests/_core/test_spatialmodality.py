@@ -33,6 +33,9 @@ class test_SpatialModality_creation_A(unittest.TestCase):
         mod["ome"] = res
         self.assertTrue(isinstance(mod, spatialmuon._core.spatialmodality.SpatialModality))
 
+        
+class test_SpatialModality_creation_B(unittest.TestCase):
+    
     def can_create_SpatialModality_from_Regions(self):
         # Create a small demo dataset
         np.random.seed(1000)

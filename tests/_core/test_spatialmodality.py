@@ -1,5 +1,4 @@
 import unittest
-import pytest
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -14,7 +13,6 @@ this_dir = Path(__file__).parent
 fpath = this_dir / "../data/ome_example.tiff"
 
 
-@pytest.mark.usefixtures("filepath_h5smu")
 class SpatialModality_creation(unittest.TestCase):
     def test_can_create_SpatialModality_from_Raster(self):
         ome = tifffile.TiffFile(fpath, is_ome=True)
@@ -34,7 +32,8 @@ class SpatialModality_creation(unittest.TestCase):
         mod["ome"] = res
         self.assertTrue(isinstance(mod, spatialmuon._core.spatialmodality.SpatialModality))
 
-    def test_can_create_SpatialModality_from_Regions(self, filepath_h5smu):
+    def test_can_create_SpatialModality_from_Regions(self):
+        tmp_dir_name = Path(tempfile.mkdtemp()) / "tmp.h5smu"
         # Create a small demo dataset
         np.random.seed(1000)
         N, D = 100, 20
@@ -49,7 +48,7 @@ class SpatialModality_creation(unittest.TestCase):
 
         radius = 1.0
 
-        smudata = spatialmuon.SpatialMuData(filepath_h5smu)
+        smudata = spatialmuon.SpatialMuData(tmp_dir_name)
         smudata["Visium"] = modality = spatialmuon.SpatialModality(coordinate_unit="px")
 
         spots_dict = {o: ((x, y), radius) for (o, (x, y)) in zip(obs.index.tolist(), coords)}

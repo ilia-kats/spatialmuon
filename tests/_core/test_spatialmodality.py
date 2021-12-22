@@ -6,6 +6,7 @@ import spatialmuon
 from spatialmuon import SpatialModality, Raster
 import tifffile
 from xml.etree import ElementTree
+import tempfile
 
 # Get current file and pre-generate paths and names
 this_dir = Path(__file__).parent
@@ -32,6 +33,7 @@ class SpatialModality_creation(unittest.TestCase):
         self.assertTrue(isinstance(mod, spatialmuon._core.spatialmodality.SpatialModality))
 
     def test_can_create_SpatialModality_from_Regions(self):
+        tmp_dir_name = Path(tempfile.mkdtemp()) / "tmp.h5smu"
         # Create a small demo dataset
         np.random.seed(1000)
         N, D = 100, 20
@@ -46,7 +48,7 @@ class SpatialModality_creation(unittest.TestCase):
 
         radius = 1.0
 
-        smudata = spatialmuon.SpatialMuData(filepath_h5smu)
+        smudata = spatialmuon.SpatialMuData(tmp_dir_name)
         smudata["Visium"] = modality = spatialmuon.SpatialModality(coordinate_unit="px")
 
         spots_dict = {o: ((x, y), radius) for (o, (x, y)) in zip(obs.index.tolist(), coords)}

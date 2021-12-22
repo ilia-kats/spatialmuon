@@ -12,12 +12,10 @@ fpath_ome_mask_mouth = this_dir / "../data/mask_mouth.tiff"
 
 
 class Converter_TestClass(unittest.TestCase):
-    
     def test_can_create_Raster_from_tiff(self):
         c = spatialmuon.Converter()
         ome_raster = c.raster_from_tiff(fpath_ome)
         self.assertTrue(isinstance(ome_raster, spatialmuon.datatypes.raster.Raster))
-        
     def test_can_create_Raster_from_tiff(self):
         c = spatialmuon.Converter()
         ome_mask_left_eye = c.rastermask_from_tiff(fpath_ome_mask_left_eye)

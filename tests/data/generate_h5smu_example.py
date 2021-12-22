@@ -1,5 +1,4 @@
 from spatialmuon import Converter, SpatialMuData, SpatialModality
-import os
 from pathlib import Path
 
 this_dir = Path(__file__).parent

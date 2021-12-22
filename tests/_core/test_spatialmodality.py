@@ -13,8 +13,29 @@ this_dir = Path(__file__).parent
 fpath = this_dir / "../data/ome_example.tiff"
 
 
-class PlottingTestClass(unittest.TestCase):
+class SpatialModality_creation_tests(unittest.TestCase):
+    
+    
     def can_create_SpatialModality_from_Raster(self):
+        ome = tifffile.TiffFile(fpath, is_ome=True)
+        metadata = ElementTree.fromstring(ome.ome_metadata)[0]
+        for chld in metadata:
+            if chld.tag.endswith("Pixels"):
+                metadata = chld
+                break
+        channel_names = []
+        for channel in metadata:
+            if channel.tag.endswith("Channel"):
+                channel_names.append(channel.attrib["Fluor"])
+        var = pd.DataFrame({"channel_name": channel_names})
+        res = Raster(X=np.moveaxis(ome.asarray(), 0, -1), var=var)
+
+        mod = SpatialModality(coordinate_unit="μm")
+        mod["ome"] = res
+        self.assertTrue(isinstance(mod, spatialmuon._core.spatialmodality.SpatialModality))
+        
+        
+    def can_create_SpatialModality_from_Regions(self):
         ome = tifffile.TiffFile(fpath, is_ome=True)
         metadata = ElementTree.fromstring(ome.ome_metadata)[0]
         for chld in metadata:
@@ -33,5 +54,6 @@ class PlottingTestClass(unittest.TestCase):
         self.assertTrue(isinstance(mod, spatialmuon._core.spatialmodality.SpatialModality))
 
 
+    
 if __name__ == "__main__":
     unittest.main()

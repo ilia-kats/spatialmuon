@@ -32,4 +32,4 @@ jobs:
         pip install pytest
         pip install matplotlib
         pip install matplotlib_scalebar
-        pytest
+        pytest --verbose --color=yes

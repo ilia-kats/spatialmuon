@@ -1,12 +1,7 @@
 import unittest
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 from pathlib import Path
 import spatialmuon
 from spatialmuon import Converter, SpatialMuData, SpatialModality
-import tifffile
-from xml.etree import ElementTree
 
 # Get current file and pre-generate paths and names
 this_dir = Path(__file__).parent

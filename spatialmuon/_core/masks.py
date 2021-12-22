@@ -30,7 +30,7 @@ class Masks(BackableObject):
             else:
                 raise UnknownEncodingException(masktype)
         else:
-            return super().__init__(cls)
+            return super().__new__(cls)
 
     def __init__(
         self,

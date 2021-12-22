@@ -13,6 +13,7 @@ import tempfile
 this_dir = Path(__file__).parent
 fpath = this_dir / "../data/ome_example.tiff"
 
+
 @pytest.mark.usefixtures("filepath_h5smu")
 class SpatialModality_creation(unittest.TestCase):
     def test_can_create_SpatialModality_from_Raster(self):

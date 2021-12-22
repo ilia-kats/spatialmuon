@@ -14,7 +14,7 @@ fpath = this_dir / "../data/ome_example.tiff"
 
 
 class PlottingTestClass(unittest.TestCase):
-    def can_create_SpatialModality(self):
+    def can_create_SpatialModality_from_Raster(self):
         ome = tifffile.TiffFile(fpath, is_ome=True)
         metadata = ElementTree.fromstring(ome.ome_metadata)[0]
         for chld in metadata:

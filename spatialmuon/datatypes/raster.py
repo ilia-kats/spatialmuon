@@ -236,4 +236,3 @@ class Raster(FieldOfView):
         c = s[-1]
         repr_str = f"{x}x{y} pixels image with {c} channels"
         return repr_str
-

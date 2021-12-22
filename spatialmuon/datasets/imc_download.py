@@ -129,7 +129,7 @@ def clean_metadata(df_basel, df_zurich, verbose=False):
         must_be_shared = feature_description["patient_level_features"]
         dfff = dff[must_be_shared]
         dfff.eq(dfff.iloc[0, :], axis=1)
-        pass
+        # print("debug")
 
     assert np.sum(df_basel["diseasestatus"].isna()) == 0
     assert np.sum(df_zurich["diseasestatus"].isna()) == len(df_zurich)
@@ -334,15 +334,18 @@ def create_muon_spatial_object(f_ome, f_masks, outfile):
     if os.path.isfile(outfile):
         os.unlink(outfile)
     smudata = spatialmuon.SpatialMuData(outfile)
-    smudata["IMC"] = modality = spatialmuon.SpatialModality(coordinate_unit="μm")
+    smudata["imc"] = modality = spatialmuon.SpatialModality(coordinate_unit="μm")
     modality["ome"] = fov = spatialmuon.Raster(X=np.moveaxis(ome.asarray(), 0, -1), var=var)
-    masks = spatialmuon.RasterMasks(mask=masks)
-    regions = spatialmuon.Regions(masks=masks)
+    raster_masks = spatialmuon.RasterMasks(mask=masks)
+    raster_masks.update_obs_from_masks()
+    regions = spatialmuon.Regions(masks=raster_masks)
     modality["masks"] = regions
+    print(smudata)
+    pass
 
 
-DEBUG = False
-# DEBUG = True
+# DEBUG = False
+DEBUG = True
 
 DOWNLOAD = False
 UNZIP = False
@@ -360,6 +363,9 @@ def debug_create_spatial_muon_object():
 
 
 if __name__ == "__main__":
+    if DEBUG:
+        debug_create_spatial_muon_object()
+        os._exit(0)
     with tempfile.TemporaryDirectory() as tmpdir:
         if not DOWNLOAD:
             download_dir = "/data/spatialmuon/datasets/imc/raw/"

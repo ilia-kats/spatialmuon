@@ -12,9 +12,9 @@ from skimage.measure import find_contours, marching_cubes
 from anndata._io.utils import read_attribute, write_attribute
 import pandas as pd
 
-from .fieldofview import FieldOfView
-from ..utils import _read_hdf5_attribute, UnknownEncodingException
-from .backing import BackableObject
+from spatialmuon._core.fieldofview import FieldOfView
+from spatialmuon._core.backing import BackableObject
+from spatialmuon.utils import _read_hdf5_attribute, UnknownEncodingException
 
 
 class Masks(BackableObject):
@@ -68,6 +68,10 @@ class Masks(BackableObject):
     def __len__(self):
         pass
 
+    @abstractmethod
+    def update_obs_from_masks(self):
+        pass
+
     @property
     def obs(self) -> pd.DataFrame:
         return self._obs
@@ -88,8 +92,9 @@ class Masks(BackableObject):
     def _set_backing(self, obj=None):
         self._write_data(obj)
 
-    def __repr__(self):
-        repr_str = f"| - - {self.ndim}D masks with {self.n_obs} obs: {', '.join(self.obs)}"
+    def __repr__(self, mask_type="masks"):
+        repr_str = f"│   ├── {self.ndim}D {mask_type} with {self.n_obs} obs: {', '.join(self.obs)}"
+        repr_str = "│   └──".join(repr_str.rsplit("│   ├──", 1))
         return repr_str
 
 
@@ -527,4 +532,23 @@ class RasterMasks(Masks):
         obj.create_dataset("imagemask", data=self._mask, compression="gzip", compression_opts=9)
 
     def __repr__(self):
-        return super().__repr__()
+        return super().__repr__(mask_type="raster masks")
+
+    def update_obs_from_masks(self):
+        # if the dataframe is not empty
+        if len(self._obs.columns) != 0:
+            raise ValueError(
+                "replacing the old obs is only performed when obs is an empty DataFrame or it is None"
+            )
+        if self._mask is None:
+            raise ValueError("no mask data has been specified")
+        unique_masks = np.unique(self._mask)
+        mask_df = pd.DataFrame(data=dict(original_labels=unique_masks))
+        self._obs = mask_df
+
+
+if __name__ == "__main__":
+    x = np.array(range(100), dtype=np.uint).reshape(10, 10)
+
+    rm = RasterMasks(backing=None, mask=x)
+    rm.update_obs_from_masks()

@@ -22,8 +22,9 @@ class SpatialMuData_TestClass(unittest.TestCase):
 
         smudata = SpatialMuData(fpath_h5smu_example, backingmode="r+")
 
-        mod = SpatialModality(coordinate_unit="μm")
+        mod = SpatialModality()
         mod["ome"] = c.raster_from_tiff(fpath_ome_example)
+        mod["ome"].coordinate_units = 'um'
         mod["left_eye"] = c.rastermask_from_tiff(fpath_ome_mask_left_eye)
         mod["right_eye"] = c.rastermask_from_tiff(fpath_ome_mask_right_eye)
         mod["mouth"] = c.rastermask_from_tiff(fpath_ome_mask_mouth)

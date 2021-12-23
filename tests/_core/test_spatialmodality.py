@@ -26,9 +26,9 @@ class SpatialModality_creation(unittest.TestCase):
             if channel.tag.endswith("Channel"):
                 channel_names.append(channel.attrib["Fluor"])
         var = pd.DataFrame({"channel_name": channel_names})
-        res = Raster(X=np.moveaxis(ome.asarray(), 0, -1), var=var)
+        res = Raster(X=np.moveaxis(ome.asarray(), 0, -1), var=var, coordinate_unit="μm")
 
-        mod = SpatialModality(coordinate_unit="μm")
+        mod = SpatialModality()
         mod["ome"] = res
         self.assertTrue(isinstance(mod, spatialmuon._core.spatialmodality.SpatialModality))
 
@@ -49,12 +49,12 @@ class SpatialModality_creation(unittest.TestCase):
         radius = 1.0
 
         smudata = spatialmuon.SpatialMuData(tmp_dir_name)
-        smudata["Visium"] = modality = spatialmuon.SpatialModality(coordinate_unit="px")
+        smudata["Visium"] = modality = spatialmuon.SpatialModality()
 
         spots_dict = {o: ((x, y), radius) for (o, (x, y)) in zip(obs.index.tolist(), coords)}
         masks = spatialmuon.ShapeMasks(masks_dict=spots_dict, obs=obs)
         cfov = spatialmuon.Regions(
-            X=X, var=var, translation=[0, 0, fovidx * 10], scale=1.23, masks=masks
+            X=X, var=var, translation=[0, 0, fovidx * 10], scale=1.23, masks=masks, coordinate_unit="px"
         )
         modality[fovname] = cfov
 

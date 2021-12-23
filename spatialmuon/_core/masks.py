@@ -537,7 +537,7 @@ class RasterMasks(Masks):
 
     def update_obs_from_masks(self):
         # if the dataframe is not empty
-        if len(self._obs.columns) != 0:
+        if self._obs is not None and len(self._obs.columns) != 0:
             raise ValueError(
                 "replacing the old obs is only performed when obs is an empty DataFrame or it is None"
             )

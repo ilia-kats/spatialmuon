@@ -61,6 +61,7 @@ class FieldOfView(BackableObject):
         var: Optional[pd.DataFrame] = None,
         masks: Optional[dict] = None,
         uns: Optional[dict] = None,
+        coordinate_unit: Optional[str] = None,
     ):
         super().__init__(backing)
         self._scale = scale
@@ -72,6 +73,10 @@ class FieldOfView(BackableObject):
             self._rotation = _get_hdf5_attribute(self.backing.attrs, "rotation")
         if translation is None and self.isbacked:
             self._translation = _get_hdf5_attribute(self.backing.attrs, "translation")
+        if coordinate_unit is None and self.isbacked:
+            self.coordinate_unit = _get_hdf5_attribute(self.backing.attrs, "coordinate_unit", None)
+        else:
+            self.coordinate_unit = coordinate_unit
 
         self.masks = BackedDictProxy(self, key="masks")
         if self.isbacked and "masks" in self.backing:
@@ -194,6 +199,8 @@ class FieldOfView(BackableObject):
             obj.attrs["rotation"] = self._rotation
         if self._translation is not None:
             obj.attrs["translation"] = self._translation
+        if self.coordinate_unit is not None:
+            obj.attrs["coordinate_unit"] = self.coordinate_unit
 
     def _write(self, obj: h5py.Group):
         for maskname, mask in self.masks.items():

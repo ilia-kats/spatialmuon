@@ -77,6 +77,7 @@ class Raster(FieldOfView):
         else:
             return self._px_distance
 
+    # flake8: noqa: C901
     def _getitem(
         self,
         mask: Optional[Union[Polygon, Trimesh]] = None,

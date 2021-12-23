@@ -79,6 +79,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
         )
     ]
 
+    # flake8: noqa: C901
     for run in (1, 2):
         imgdir = os.path.join(tmpdir, f"final_background_experiment{run}")
         positions = loadmat(os.path.join(tmpdir, f"RNA_locations_run_{run}.mat"))["tot"]

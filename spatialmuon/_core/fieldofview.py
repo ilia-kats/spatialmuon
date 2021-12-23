@@ -50,6 +50,7 @@ class FieldOfView(BackableObject):
         mask.parentdataset = fov
         return None
 
+    # flake8: noqa: C901
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,

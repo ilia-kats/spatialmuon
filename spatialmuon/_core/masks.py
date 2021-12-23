@@ -476,6 +476,7 @@ class RasterMasks(Masks):
     def __len__(self):
         return np.max(self.data)
 
+    # flake8: noqa: C901
     def __getitem__(self, key):
         if not np.issubdtype(type(key), np.integer):
             raise TypeError("key must be an integer")

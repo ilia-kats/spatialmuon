@@ -100,6 +100,7 @@ def flatten_ptnm_tn_labels(my_class, ptnm_labels_hierarchy):
         return parent_class
 
 
+# flake8: noqa: C901
 def clean_metadata(df_basel, df_zurich, verbose=False):
     if verbose:
         print("clearing metadata")

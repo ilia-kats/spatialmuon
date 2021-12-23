@@ -22,6 +22,7 @@ from matplotlib_scalebar.scalebar import ScaleBar
 import numpy as np
 
 
+# flake8: noqa: C901
 def plot_channel(
     sm: SpatialModality,
     fov_name: str,
@@ -273,7 +274,7 @@ def plot_image_raster(
     im = ax.imshow(x, **kwargs)
     return im
 
-
+# flake8: noqa: C901
 def plot_preview_grid(
     data_to_plot: dict = None,
     grid_size: Union[int, list[int]] = 1,

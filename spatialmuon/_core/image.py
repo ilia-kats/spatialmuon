@@ -10,6 +10,7 @@ from ..utils import _get_hdf5_attribute, _read_hdf5_attribute
 
 
 class Image(BackableObject):
+    # flake8: noqa: C901
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,

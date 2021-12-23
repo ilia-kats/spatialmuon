@@ -55,6 +55,7 @@ class SpatialModality(BackableObject, BackedDictProxy):
         for f, fov in self.items():
             fov.write(grp, f)
 
+    # flake8: noqa: C901
     def plot(
         self,
         channels: Optional[Union[str, list[str]]] = "all",

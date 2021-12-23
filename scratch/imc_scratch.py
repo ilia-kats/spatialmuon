@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 
 import spatialmuon as smu
 import numpy as np
+import os
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 
 f = "/data/l989o/deployed/a/data/spatial_uzh_processed/a/spatialmuon/BaselTMA_SP41_15.475kx12.665ky_10000x8500_5_20170905_107_114_X13Y4_219_a0_full.h5smu"
 d = smu.SpatialMuData(backing=f)
@@ -11,13 +14,10 @@ d["imc"]["ome"].plot(preprocessing=np.arcsinh)
 d['imc']['masks'].plot()
 
 ##
-import os
 os._exit(0)
-import matplotlib.pyplot as plt
 
 x = d["imc"]["ome"].X[...]
 x.shape[-1]
-import matplotlib.gridspec as gridspec
 
 plt.figure(figsize=(30, 20))
 gs = gridspec.GridSpec(11, 5)

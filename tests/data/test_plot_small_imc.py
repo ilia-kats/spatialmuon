@@ -43,7 +43,7 @@ class Converter_TestClass(unittest.TestCase):
         print(d)
         ##
 
-    def test_can_plot_single_channel_in_ax(self):
+    def test_can_plot_raster_single_channel_in_ax(self):
         ##
         plt.figure()
         ax = plt.gca()
@@ -55,7 +55,7 @@ class Converter_TestClass(unittest.TestCase):
         plt.show()
         ##
 
-    def test_can_plot_overlapping_channels_in_ax(self):
+    def test_can_plot_raster_overlapping_channels_in_ax(self):
         ##
         red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["black", "red"])
         yellow_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["black", "yellow"])
@@ -75,14 +75,14 @@ class Converter_TestClass(unittest.TestCase):
         plt.show()
         ##
 
-    def test_can_plot_single_channel(self):
+    def test_can_plot_raster_single_channel(self):
         ##
         d = spatialmuon.SpatialMuData(backing=fpath)
         ome = d["imc"]["ome"]
         ome.plot(channels="ArAr80", preprocessing=np.arcsinh)
         ##
 
-    def test_can_plot_overlapping_channels(self):
+    def test_can_plot_raster_overlapping_channels(self):
         ##
         red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["black", "red"])
         yellow_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["black", "yellow"])
@@ -98,20 +98,37 @@ class Converter_TestClass(unittest.TestCase):
         )
         ##
 
-    def test_can_plot_non_overlapping_channels(self):
+    def test_can_plot_raster_non_overlapping_channels(self):
         d = spatialmuon.SpatialMuData(backing=fpath)
         ome = d["imc"]["ome"]
         ome.plot(
             preprocessing=np.arcsinh,
         )
 
+    def test_can_plot_regions_random_color(self):
+        d = spatialmuon.SpatialMuData(backing=fpath)
+        masks = d["imc"]["masks"]
+        masks.plot()
+
+    def test_can_plot_regions_solid_color(self):
+        pass
+
+    def test_can_accumulate_raster_with_raster_masks(self):
+        pass
+
+    def test_can_plot_regions_value(self):
+        pass
 
 if __name__ == "__main__":
     if not DEBUGGING:
         unittest.main()
     else:
-        # Converter_TestClass().test_can_plot_single_channel_in_ax()
-        Converter_TestClass().test_can_plot_single_channel()
-        # Converter_TestClass().test_can_plot_overlapping_channels_in_ax()
-        # Converter_TestClass().test_can_plot_overlapping_channels()
-        Converter_TestClass().test_can_plot_non_overlapping_channels()
+        # Converter_TestClass().test_can_plot_raster_single_channel_in_ax()
+        # Converter_TestClass().test_can_plot_raster_single_channel()
+        # Converter_TestClass().test_can_plot_raster_overlapping_channels_in_ax()
+        # Converter_TestClass().test_can_plot_raster_overlapping_channels()
+        # Converter_TestClass().test_can_plot_raster_non_overlapping_channels()
+        Converter_TestClass().test_can_plot_regions_random_color()
+        Converter_TestClass().test_can_plot_regions_solid_color()
+        Converter_TestClass().test_can_accumulate_raster_with_raster_masks()
+        Converter_TestClass().test_can_plot_regions_value()

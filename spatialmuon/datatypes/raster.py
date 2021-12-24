@@ -19,6 +19,7 @@ from matplotlib_scalebar.scalebar import ScaleBar
 
 from spatialmuon import FieldOfView
 from spatialmuon.utils import _get_hdf5_attribute
+from spatialmuon.datatypes.utils import regions_raster_plot
 
 
 class Raster(FieldOfView):
@@ -240,8 +241,15 @@ class Raster(FieldOfView):
 
         for idx, channel in enumerate(channels_to_plot):
             if idx < n_tiles:
-                self._plot_in_canvas(channels_to_plot=[channel], preprocessing=preprocessing, cmap=cmap,
-                                     ax=axs[idx], legend=False, colorbar=False, scalebar=idx == 0)
+                self._plot_in_canvas(
+                    channels_to_plot=[channel],
+                    preprocessing=preprocessing,
+                    cmap=cmap,
+                    ax=axs[idx],
+                    legend=False,
+                    colorbar=False,
+                    scalebar=idx == 0,
+                )
         for idx in range(n_tiles, n_x * n_y):
             axs[idx].set_axis_off()
         plt.subplots_adjust()
@@ -258,7 +266,7 @@ class Raster(FieldOfView):
         ax: matplotlib.axes.Axes = None,
         legend: bool = True,
         colorbar: bool = True,
-        scalebar: bool = True
+        scalebar: bool = True,
     ):
         default_cmaps = [
             matplotlib.cm.get_cmap("viridis"),
@@ -287,7 +295,7 @@ class Raster(FieldOfView):
                 cmap = cmap * len(channels_to_plot) // len(cmap) + 1
         if isinstance(cmap, matplotlib.colors.Colormap):
             cmap = [cmap]
-        cmap = cmap[:len(channels_to_plot)]
+        cmap = cmap[: len(channels_to_plot)]
 
         if len(channels_to_plot) == 1:
             legend = False and legend
@@ -305,16 +313,12 @@ class Raster(FieldOfView):
             channel_index = self.get_channel_index_from_channel_name(channel)
             data_to_plot = self.X[:, :, channel_index]
 
-            x = (
-                data_to_plot
-                if preprocessing is None
-                else preprocessing(data_to_plot)
-            )
+            x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
             im = axs.imshow(x, cmap=cmap[idx], alpha=a)
-        title = 'background: ' if len(channels_to_plot) > 1 else ''
-        title += "{}".format( [k for k in channels_to_plot][0])
+        title = "background: " if len(channels_to_plot) > 1 else ""
+        title += "{}".format([k for k in channels_to_plot][0])
         if len(channels_to_plot) > 1:
-            title += '; overlay: {}'.format(", ".join(map(str, [k for k in channels_to_plot][1:])))
+            title += "; overlay: {}".format(", ".join(map(str, [k for k in channels_to_plot][1:])))
         if legend:
             _legend = []
             for idx, c in enumerate(cmap):
@@ -325,15 +329,22 @@ class Raster(FieldOfView):
                     )
                 )
 
-            axs.legend(handles=_legend, frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.1), ncol=len(
-                _legend))
+            axs.legend(
+                handles=_legend,
+                frameon=False,
+                loc="lower center",
+                bbox_to_anchor=(0.5, -0.1),
+                ncol=len(_legend),
+            )
         if colorbar:
             # divider = make_axes_locatable(axs)
             # cax = divider.append_axes("bottom", size="5%", pad=0.05)
-            plt.colorbar(im, orientation='horizontal', location='bottom', ax=axs, shrink=0.6, pad=0.04)
+            plt.colorbar(
+                im, orientation="horizontal", location="bottom", ax=axs, shrink=0.6, pad=0.04
+            )
         if scalebar:
             unit = self.coordinate_unit
-            scalebar = ScaleBar(self.scale, unit, box_alpha=0.8, color='white', box_color='black')
+            scalebar = ScaleBar(self.scale, unit, box_alpha=0.8, color="white", box_color="black")
             axs.add_artist(scalebar)
 
         # axs[idx].text(0, -10, channel, size=12)
@@ -354,68 +365,15 @@ class Raster(FieldOfView):
         ] = matplotlib.cm.viridis,
         ax: matplotlib.axes.Axes = None,
     ):
-        if not (isinstance(channels, list) or isinstance(channels, str)):
-            raise ValueError(
-                "'channels' must be either a single character string or a list of them."
-            )
-
-        if isinstance(channels, list) and not all(isinstance(x, str) for x in channels):
-            raise ValueError("If 'channels' is a list, all elements must be character strings.")
-
-        if isinstance(channels, list):
-            for c in channels:
-                if c not in self.var["channel_name"].tolist():
-                    raise ValueError(
-                        "'{}' not found in channels, available are: {}".format(
-                            c, ", ".join(map(str, self.var["channel_name"]))
-                        )
-                    )
-
-        if isinstance(channels, str) and channels != "all":
-            if channels not in self.var["channel_name"].tolist():
-                raise ValueError(
-                    "'{}' not found in channels, available are: {}".format(
-                        channels, ", ".join(map(str, self.var["channel_name"]))
-                    )
-                )
-
-        if channels == "all":
-            channels_to_plot = self.var["channel_name"].tolist()
-        else:
-            channels_to_plot = channels if isinstance(channels, list) else [channels]
-
-        if not (
-            isinstance(cmap, matplotlib.colors.Colormap)
-            or (
-                isinstance(cmap, list)
-                and all(isinstance(c, matplotlib.colors.Colormap) for c in cmap)
-            )
-        ):
-            raise ValueError(
-                "'cmap' must either be a single or a list of matplotlib.colors.Colormap."
-            )
-        if (isinstance(cmap, list) and len(cmap) > 1) and not (len(cmap) == len(channels_to_plot)):
-            raise ValueError(
-                "'cmap' must either be length one or the same length as the channels that will be plotted."
-            )
-
-        if not isinstance(overlap, bool):
-            raise ValueError("'overlap' must be 'True' or 'False'.")
-
-        if ax is not None:
-            overlap = True
-
-        if overlap or len(channels_to_plot) == 1:
-            self._plot_in_canvas(
-                channels_to_plot=channels_to_plot, preprocessing=preprocessing, cmap=cmap, ax=ax
-            )
-        else:
-            self._plot_in_grid(
-                channels_to_plot=channels_to_plot,
-                grid_size=grid_size,
-                preprocessing=preprocessing,
-                cmap=cmap,
-            )
+        regions_raster_plot(
+            self,
+            channels=channels,
+            grid_size=grid_size,
+            preprocessing=preprocessing,
+            overlap=overlap,
+            cmap=cmap,
+            ax=ax,
+        )
 
     def __repr__(self):
         s = self.X.shape

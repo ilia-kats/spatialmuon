@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import abc
 from collections.abc import MutableMapping
 from abc import abstractmethod
 from typing import Optional, Union
 
+import matplotlib.pyplot as plt
+import matplotlib.colors
 import numpy as np
 import h5py
 from shapely.geometry import Polygon
@@ -86,7 +89,10 @@ class Masks(BackableObject):
         else:
             o = self._obs
         write_attribute(
-            grp, "obs", o, dataset_kwargs={"compression": "gzip", "compression_opts": 9},
+            grp,
+            "obs",
+            o,
+            dataset_kwargs={"compression": "gzip", "compression_opts": 9},
         )
 
     def _set_backing(self, obj=None):
@@ -96,6 +102,10 @@ class Masks(BackableObject):
         repr_str = f"│   ├── {self.ndim}D {mask_type} with {self.n_obs} obs: {', '.join(self.obs)}"
         repr_str = "│   └──".join(repr_str.rsplit("│   ├──", 1))
         return repr_str
+
+    @abstractmethod
+    def plot(self):
+        pass
 
 
 class ShapeMasks(Masks, MutableMapping):
@@ -469,7 +479,7 @@ class RasterMasks(Masks):
     @property
     def data(self) -> Union[np.ndarray, h5py.Dataset]:
         if self.isbacked:
-            return self.backing
+            return self.backing['imagemask'][...]
         else:
             return self._mask
 
@@ -546,6 +556,73 @@ class RasterMasks(Masks):
         unique_masks = np.unique(self._mask)
         mask_df = pd.DataFrame(data=dict(original_labels=unique_masks))
         self._obs = mask_df
+
+    def plot(
+        self,
+        fill_colors: Optional[Union[str, list[str], np.ndarray, list[np.ndarray]]] = "random",
+        outline_colors: Optional[Union[str, list[str], np.ndarray, list[np.ndarray]]] = None,
+    ):
+        n = len(self._obs)
+
+        def get_color_array_rgba(color):
+            def normalize_color(x):
+                assert len(x.shape) in [0, 1]
+                x = x.flatten()
+                assert len(x) in [3, 4]
+                assert np.min(x) >= 0.0
+                assert np.max(x) <= 255.0
+                if np.max(x) > 1.0:
+                    x /= 255.0
+                if len(x) == 3:
+                    x = np.array(x.tolist() + [1.0])
+                x = x.reshape(1, -1)
+                return x
+            if color is None:
+                return np.zeros((n, 4))
+            elif type(color) == list and len(color) != n:
+                raise ValueError("number of colors must match the number of elements in obs")
+            if color == "random":
+                a = np.random.rand(n, 3)
+                b = np.ones(len(a)).reshape(-1, 1)
+                c = np.concatenate((a, b), axis=1)
+                return c
+            elif type(color) == str:
+                a = matplotlib.colors.to_rgba(color)
+                b = [a] * n
+                c = np.concatenate(b, axis=0)
+                return c
+            elif type(color) == list[str]:
+                a = [matplotlib.colors.to_rgba(cc) for cc in color]
+                b = np.concatenate(a, axis=0)
+                return b
+            elif type(color) == np.ndarray:
+                color = normalize_color(color)
+                a = [color] * n
+                b = np.concatenate(a, axis=0)
+                return b
+            elif type(color) == list[np.ndarray]:
+                a = [normalize_color(aa) for aa in color]
+                b = np.concatenate(a, axis=0)
+                return b
+            else:
+                raise ValueError(f"invalid way of specifying the color: {color}")
+
+        fill_color_array = get_color_array_rgba(fill_colors)
+        outline_colors_array = get_color_array_rgba(outline_colors)
+        labels = self.obs.to_dict()['original_labels']
+        contiguous_labels = list(labels.keys())
+        assert max(contiguous_labels) + 1 == len(contiguous_labels)
+        original_labels = list(labels.values())
+        x = self.data
+        if original_labels != contiguous_labels:
+            # probably not the most efficient, but probably also fine
+            lut = np.zeros(max(original_labels) + 1, dtype=np.int)
+            for i, o in enumerate(original_labels):
+                lut[o] = i
+            x = lut[self.data]
+        plt.figure()
+        plt.imshow(fill_color_array[x])
+        plt.show()
 
 
 if __name__ == "__main__":

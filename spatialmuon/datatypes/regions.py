@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union, Literal
+from typing import Optional, Union, Literal, Callable
 from enum import Enum, auto
 import warnings
 
@@ -11,10 +11,17 @@ import geopandas as gpd
 from shapely.geometry import Point, Polygon
 from trimesh import Trimesh
 import h5py
+import matplotlib
+import matplotlib.cm
+import matplotlib.axes
+import matplotlib.colors
+import matplotlib.patches
+import matplotlib.pyplot as plt
 from anndata import AnnData
 from anndata._io.utils import read_attribute, write_attribute
 from anndata._core.sparse_dataset import SparseDataset
 from spatialmuon._core.masks import Masks
+from spatialmuon.datatypes.utils import regions_raster_plot
 
 from .. import FieldOfView, SpatialIndex
 from ..utils import _read_hdf5_attribute, preprocess_3d_polygon_mask
@@ -41,6 +48,9 @@ class Regions(FieldOfView):
 
             self._masks = masks
             # self._index = SpatialIndex(coordinates=self._coordinates, **index_kwargs)
+
+        from spatialmuon.datatypes.raster import Raster
+
 
         super().__init__(backing, **kwargs)
 
@@ -131,6 +141,58 @@ class Regions(FieldOfView):
 
     def _write_attributes_impl(self, obj):
         pass
+
+    def _plot_in_grid(
+        self,
+        channels_to_plot: list[str],
+        grid_size: Union[int, list[int]] = 1,
+        preprocessing: Optional[Callable] = None,
+        cmap: Union[
+            matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
+        ] = matplotlib.cm.viridis,
+    ):
+        pass
+
+    def _plot_in_canvas(
+        self,
+        channels_to_plot: list[str],
+        preprocessing: Optional[Callable] = None,
+        cmap: Union[
+            matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
+        ] = matplotlib.cm.viridis,
+        ax: matplotlib.axes.Axes = None,
+        legend: bool = True,
+        colorbar: bool = True,
+        scalebar: bool = True,
+    ):
+        pass
+
+    def plot(
+        self,
+        channels: Optional[Union[str, list[str]]] = "all",
+        grid_size: Union[int, list[int]] = 1,
+        preprocessing: Optional[Callable] = None,
+        overlap: bool = False,
+        cmap: Union[
+            matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
+        ] = matplotlib.cm.viridis,
+        ax: matplotlib.axes.Axes = None,
+    ):
+        if self.var is None or len(self.var.columns) == 0:
+            print(
+                "No quantities to plot, plotting the masks with random colors instead. For more options in plotting masks use .masks.plot()"
+            )
+            self.masks.plot()
+        else:
+            regions_raster_plot(
+                self,
+                channels=channels,
+                grid_size=grid_size,
+                preprocessing=preprocessing,
+                overlap=overlap,
+                cmap=cmap,
+                ax=ax,
+            )
 
     def __repr__(self):
         repr_str = f"region fov with {self.n_var} var\n"

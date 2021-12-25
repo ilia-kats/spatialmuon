@@ -109,15 +109,34 @@ class Converter_TestClass(unittest.TestCase):
         d = spatialmuon.SpatialMuData(backing=fpath)
         masks = d["imc"]["masks"]
         masks.plot()
+        masks.masks.plot(fill_colors='random', outline_colors='w')
+        masks.masks.plot(fill_colors=None, outline_colors='random')
 
     def test_can_plot_regions_solid_color(self):
-        pass
+        d = spatialmuon.SpatialMuData(backing=fpath)
+        masks = d["imc"]["masks"]
+        masks.masks.plot(fill_colors='red')
+        masks.masks.plot(fill_colors=[0., 0., 1., 1.])
+        masks.masks.plot(fill_colors=np.array([0., 1., 0., 1.]))
+        colors = ["red", "yellow"] * len(masks.masks.obs)
+        colors = colors[: len(masks.masks.obs)]
+        colors[1] = [0., 1., 0]
+        masks.masks.plot(fill_colors=colors)
+
+    def test_can_plot_raster_and_regions_together(self):
+        d = spatialmuon.SpatialMuData(backing=fpath)
+        fig, ax = plt.subplots(1)
+        channels = d['imc']['ome'].var['channel_name'].tolist()
+        d['imc']['ome'].plot(ax=ax, channels=channels[0])
+        d['imc']['masks'].masks.plot(fill_colors=None, outline_colors='random', ax=ax)
+        plt.show()
 
     def test_can_accumulate_raster_with_raster_masks(self):
         pass
 
     def test_can_plot_regions_value(self):
         pass
+
 
 if __name__ == "__main__":
     if not DEBUGGING:
@@ -128,7 +147,9 @@ if __name__ == "__main__":
         # Converter_TestClass().test_can_plot_raster_overlapping_channels_in_ax()
         # Converter_TestClass().test_can_plot_raster_overlapping_channels()
         # Converter_TestClass().test_can_plot_raster_non_overlapping_channels()
-        Converter_TestClass().test_can_plot_regions_random_color()
-        Converter_TestClass().test_can_plot_regions_solid_color()
-        Converter_TestClass().test_can_accumulate_raster_with_raster_masks()
-        Converter_TestClass().test_can_plot_regions_value()
+
+        # Converter_TestClass().test_can_plot_regions_random_color()
+        # Converter_TestClass().test_can_plot_regions_solid_color()
+        Converter_TestClass().test_can_plot_raster_and_regions_together()
+        # Converter_TestClass().test_can_accumulate_raster_with_raster_masks()
+        # Converter_TestClass().test_can_plot_regions_value()

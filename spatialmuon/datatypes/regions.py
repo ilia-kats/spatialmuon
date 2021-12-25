@@ -182,7 +182,7 @@ class Regions(FieldOfView):
             print(
                 "No quantities to plot, plotting the masks with random colors instead. For more options in plotting masks use .masks.plot()"
             )
-            self.masks.plot()
+            self.masks.plot(ax=ax)
         else:
             regions_raster_plot(
                 self,

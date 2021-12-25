@@ -3,10 +3,11 @@ from __future__ import annotations
 import abc
 from collections.abc import MutableMapping
 from abc import abstractmethod
-from typing import Optional, Union
+from typing import Optional, Union, NewType
 
 import matplotlib.pyplot as plt
 import matplotlib.colors
+import matplotlib.axes
 import numpy as np
 import h5py
 from shapely.geometry import Polygon
@@ -14,11 +15,25 @@ from trimesh import Trimesh
 from skimage.measure import find_contours, marching_cubes
 from anndata._io.utils import read_attribute, write_attribute
 import pandas as pd
+import skimage.measure
 
 from spatialmuon._core.fieldofview import FieldOfView
 from spatialmuon._core.backing import BackableObject
 from spatialmuon.utils import _read_hdf5_attribute, UnknownEncodingException
 
+# either a color or a list of colors
+ColorsType = Optional[
+    Union[
+        str,
+        list[str],
+        np.ndarray,
+        list[np.ndarray],
+        list[int],
+        list[float],
+        list[list[int]],
+        list[list[float]],
+    ]
+]
 
 class Masks(BackableObject):
     def __new__(cls, *, backing: Optional[h5py.Group] = None, **kwargs):
@@ -479,7 +494,7 @@ class RasterMasks(Masks):
     @property
     def data(self) -> Union[np.ndarray, h5py.Dataset]:
         if self.isbacked:
-            return self.backing['imagemask'][...]
+            return self.backing["imagemask"][...]
         else:
             return self._mask
 
@@ -559,29 +574,28 @@ class RasterMasks(Masks):
 
     def plot(
         self,
-        fill_colors: Optional[Union[str, list[str], np.ndarray, list[np.ndarray]]] = "random",
-        outline_colors: Optional[Union[str, list[str], np.ndarray, list[np.ndarray]]] = None,
+        fill_colors: ColorsType = "random",
+        outline_colors: ColorsType = None,
+        background_color: Optional[Union[str, np.array]] = "black",
+        ax: matplotlib.axes.Axes=None
     ):
         n = len(self._obs)
 
+        def normalize_color(x):
+            if type(x) == tuple:
+                x = np.array(x)
+            assert len(x.shape) in [0, 1]
+            x = x.flatten()
+            assert len(x) in [3, 4]
+            if len(x) == 3:
+                x = np.array(x.tolist() + [1.0])
+            x = x.reshape(1, -1)
+            return x
+
         def get_color_array_rgba(color):
-            def normalize_color(x):
-                assert len(x.shape) in [0, 1]
-                x = x.flatten()
-                assert len(x) in [3, 4]
-                assert np.min(x) >= 0.0
-                assert np.max(x) <= 255.0
-                if np.max(x) > 1.0:
-                    x /= 255.0
-                if len(x) == 3:
-                    x = np.array(x.tolist() + [1.0])
-                x = x.reshape(1, -1)
-                return x
             if color is None:
                 return np.zeros((n, 4))
-            elif type(color) == list and len(color) != n:
-                raise ValueError("number of colors must match the number of elements in obs")
-            if color == "random":
+            elif type(color) == str and color == "random":
                 a = np.random.rand(n, 3)
                 b = np.ones(len(a)).reshape(-1, 1)
                 c = np.concatenate((a, b), axis=1)
@@ -589,27 +603,34 @@ class RasterMasks(Masks):
             elif type(color) == str:
                 a = matplotlib.colors.to_rgba(color)
                 b = [a] * n
-                c = np.concatenate(b, axis=0)
+                c = np.array(b)
                 return c
-            elif type(color) == list[str]:
-                a = [matplotlib.colors.to_rgba(cc) for cc in color]
-                b = np.concatenate(a, axis=0)
-                return b
-            elif type(color) == np.ndarray:
-                color = normalize_color(color)
-                a = [color] * n
-                b = np.concatenate(a, axis=0)
-                return b
-            elif type(color) == list[np.ndarray]:
-                a = [normalize_color(aa) for aa in color]
-                b = np.concatenate(a, axis=0)
-                return b
+            elif type(color) == list or type(color) == np.ndarray:
+                try:
+                    a = matplotlib.colors.to_rgba(color)
+                    b = [normalize_color(a)] * n
+                    c = np.concatenate(b, axis=0)
+                    return c
+                except ValueError:
+                    b = []
+                    for c in color:
+                        d = matplotlib.colors.to_rgba(c)
+                        b.append(normalize_color(d))
+                    e = np.concatenate(b, axis=0)
+                    if len(e) != n:
+                        raise ValueError("number of colors must match the number of elements in obs")
+                    return e
             else:
                 raise ValueError(f"invalid way of specifying the color: {color}")
 
         fill_color_array = get_color_array_rgba(fill_colors)
         outline_colors_array = get_color_array_rgba(outline_colors)
-        labels = self.obs.to_dict()['original_labels']
+        if background_color is not None:
+            background_color = normalize_color(matplotlib.colors.to_rgba(background_color))
+            fill_color_array[0] = background_color
+            outline_colors_array[0] = background_color
+
+        labels = self.obs.to_dict()["original_labels"]
         contiguous_labels = list(labels.keys())
         assert max(contiguous_labels) + 1 == len(contiguous_labels)
         original_labels = list(labels.values())
@@ -620,9 +641,22 @@ class RasterMasks(Masks):
             for i, o in enumerate(original_labels):
                 lut[o] = i
             x = lut[self.data]
-        plt.figure()
-        plt.imshow(fill_color_array[x])
-        plt.show()
+        if ax is None:
+            plt.figure()
+            axs = plt.gca()
+        else:
+            axs = ax
+        axs.imshow(fill_color_array[x])
+
+        if outline_colors is not None:
+            for i, c in enumerate(contiguous_labels):
+                outline_color = outline_colors_array[i]
+                boolean_mask = x == c
+                contours = skimage.measure.find_contours(boolean_mask, 0.7)
+                for contour in contours:
+                    axs.plot(contour[:, 1], contour[:, 0], linewidth=2, color=outline_color)
+        if ax is None:
+            plt.show()
 
 
 if __name__ == "__main__":

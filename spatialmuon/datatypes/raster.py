@@ -20,6 +20,7 @@ from matplotlib_scalebar.scalebar import ScaleBar
 from spatialmuon import FieldOfView
 from spatialmuon.utils import _get_hdf5_attribute
 from spatialmuon.datatypes.utils import regions_raster_plot
+from spatialmuon._core.masks import Masks
 
 
 class Raster(FieldOfView):
@@ -381,3 +382,6 @@ class Raster(FieldOfView):
         c = s[-1]
         repr_str = f"{x}x{y} pixels image with {c} channels"
         return repr_str
+
+    def accumulate_features(self, masks: 'Masks'):
+        return masks.accumulate_features(self)

@@ -132,9 +132,14 @@ class Converter_TestClass(unittest.TestCase):
         plt.show()
 
     def test_can_accumulate_raster_with_raster_masks(self):
-        pass
+        d = spatialmuon.SpatialMuData(backing=fpath)
+        accumulated = d['imc']['ome'].accumulate_features(d['imc']['masks'].masks)
+        for k, v in accumulated.items():
+            d['imc'][k] = v
+        return d
 
     def test_can_plot_regions_value(self):
+        d = self.test_can_accumulate_raster_with_raster_masks()
         pass
 
 
@@ -150,6 +155,6 @@ if __name__ == "__main__":
 
         # Converter_TestClass().test_can_plot_regions_random_color()
         # Converter_TestClass().test_can_plot_regions_solid_color()
-        Converter_TestClass().test_can_plot_raster_and_regions_together()
+        # Converter_TestClass().test_can_plot_raster_and_regions_together()
         # Converter_TestClass().test_can_accumulate_raster_with_raster_masks()
-        # Converter_TestClass().test_can_plot_regions_value()
+        Converter_TestClass().test_can_plot_regions_value()

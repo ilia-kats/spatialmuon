@@ -37,6 +37,7 @@ ColorsType = Optional[
     ]
 ]
 
+
 class Masks(BackableObject):
     def __new__(cls, *, backing: Optional[h5py.Group] = None, **kwargs):
         if backing is not None:
@@ -121,12 +122,13 @@ class Masks(BackableObject):
         return repr_str
 
     @abstractmethod
-    def plot(self):
+    def plot(self, ax=None):
         pass
 
     @abstractmethod
-    def accumulate_features(self, x: Union['Raster', 'Regions']):
+    def accumulate_features(self, x: Union["Raster", "Regions"]):
         pass
+
 
 class ShapeMasks(Masks, MutableMapping):
     def __init__(
@@ -458,15 +460,18 @@ class RasterMasks(Masks):
         super().__init__(backing=backing)
         self._mask = None
 
-        if mask is not None:
-            if self.isbacked and self.backing.size > 0:
-                raise ValueError("attempting to set masks on a non-empty backing store")
-            if mask.ndim < 2 or mask.ndim > 3:
-                raise ValueError("masks must have 2 or 3 dimensions")
-            if not np.issubdtype(mask.dtype, np.unsignedinteger):
-                raise ValueError("masks must have an unsigned integer dtype")
-            self._mask = mask
-        elif not self.isbacked:
+        if self.isbacked:
+            if mask is not None:
+                if self.backing.size > 0:
+                    raise ValueError("attempting to set masks on a non-empty backing store")
+                if mask.ndim < 2 or mask.ndim > 3:
+                    raise ValueError("masks must have 2 or 3 dimensions")
+                if not np.issubdtype(mask.dtype, np.unsignedinteger):
+                    raise ValueError("masks must have an unsigned integer dtype")
+                self._mask = mask
+            else:
+                self._mask = self.backing["imagemask"]
+        else:
             if shape is None or dtype is None:
                 raise ValueError("if masks is None shape and dtype must be given")
             if len(shape) < 2 or len(shape) > 3:
@@ -582,7 +587,7 @@ class RasterMasks(Masks):
         fill_colors: ColorsType = "random",
         outline_colors: ColorsType = None,
         background_color: Optional[Union[str, np.array]] = "black",
-        ax: matplotlib.axes.Axes=None
+        ax: matplotlib.axes.Axes = None,
     ):
         n = len(self._obs)
 
@@ -623,7 +628,9 @@ class RasterMasks(Masks):
                         b.append(normalize_color(d))
                     e = np.concatenate(b, axis=0)
                     if len(e) != n:
-                        raise ValueError("number of colors must match the number of elements in obs")
+                        raise ValueError(
+                            "number of colors must match the number of elements in obs"
+                        )
                     return e
             else:
                 raise ValueError(f"invalid way of specifying the color: {color}")
@@ -663,32 +670,40 @@ class RasterMasks(Masks):
         if ax is None:
             plt.show()
 
-    def accumulate_features(self, fov: Union['Raster', 'Regions']):
+    def accumulate_features(self, fov: Union["Raster", "Regions"]):
         from spatialmuon.datatypes.regions import Regions
-        if type(fov) == 'Regions':
+
+        if type(fov) == "Regions":
             raise NotImplementedError()
         x = fov.X
-        if type(fov) == 'Raster' and len(x.shape) != 3:
+        if type(fov) == "Raster" and len(x.shape) != 3:
             raise NotImplementedError()
         ome = np.require(x, requirements=["C"])
         vigra_ome = vigra.taggedView(ome, "xyc")
         masks = self.data
         masks = masks.astype(np.uint32)
-        features = ["Count", "Maximum", "Mean", "Sum", "Variance", "RegionCenter"]
         features = vigra.analysis.extractRegionFeatures(
-            vigra_ome, labels=masks, ignoreLabel=0, features=features
+            vigra_ome,
+            labels=masks,
+            ignoreLabel=0,
+            features=["Count", "Maximum", "Mean", "Sum", "Variance", "RegionCenter"],
         )
         features = {k: v for k, v in features.items()}
         masks_with_obs = copy.copy(self)
-        original_labels = masks_with_obs.obs['original_labels'].to_numpy()
-        if 'region_center_x' not in masks_with_obs.obs and 'region_center_y' not in masks_with_obs.obs:
-            masks_with_obs.obs['region_center_x'] = features['RegionCenter'][original_labels, 0]
-            masks_with_obs.obs['region_center_y'] = features['RegionCenter'][original_labels, 1]
-        if 'count' not in masks_with_obs.obs:
-            masks_with_obs.obs['count'] = features['Count'][original_labels]
+        original_labels = masks_with_obs.obs["original_labels"].to_numpy()
+        if (
+            "region_center_x" not in masks_with_obs.obs
+            and "region_center_y" not in masks_with_obs.obs
+        ):
+            masks_with_obs.obs["region_center_x"] = features["RegionCenter"][original_labels, 0]
+            masks_with_obs.obs["region_center_y"] = features["RegionCenter"][original_labels, 1]
+        if "count" not in masks_with_obs.obs:
+            masks_with_obs.obs["count"] = features["Count"][original_labels]
         d = {}
-        for key in ['Maximum', 'Mean', 'Sum', 'Variance']:
-            regions = Regions(backing=None, X=features[key][original_labels, :], var=fov.var, masks=masks_with_obs)
+        for key in ["Maximum", "Mean", "Sum", "Variance"]:
+            regions = Regions(
+                backing=None, X=features[key][original_labels, :], var=fov.var, masks=copy.copy(masks_with_obs)
+            )
             d[key.lower()] = regions
         return d
 

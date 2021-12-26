@@ -116,3 +116,21 @@ def angle_between(v1: np.array, v2: np.array, output: str = "degree"):
     elif output == "radians":
 
         return rotation
+
+DEFAULT_CMAPS = [
+    matplotlib.cm.get_cmap("viridis"),
+    matplotlib.cm.get_cmap("plasma"),
+    matplotlib.cm.get_cmap("inferno"),
+    matplotlib.cm.get_cmap("magma"),
+    matplotlib.cm.get_cmap("cividis"),
+    matplotlib.cm.get_cmap("Purples"),
+    matplotlib.cm.get_cmap("Blues"),
+    matplotlib.cm.get_cmap("Greens"),
+    matplotlib.cm.get_cmap("Oranges"),
+    matplotlib.cm.get_cmap("Reds"),
+    matplotlib.cm.get_cmap("spring"),
+    matplotlib.cm.get_cmap("summer"),
+    matplotlib.cm.get_cmap("autumn"),
+    matplotlib.cm.get_cmap("winter"),
+    matplotlib.cm.get_cmap("cool"),
+]

@@ -7,6 +7,7 @@ import matplotlib.cm
 import matplotlib.colors
 import matplotlib.pyplot as plt
 import numpy as np
+import copy
 from pathlib import Path
 
 DEBUGGING = False
@@ -136,11 +137,19 @@ class Converter_TestClass(unittest.TestCase):
         accumulated = d['imc']['ome'].accumulate_features(d['imc']['masks'].masks)
         for k, v in accumulated.items():
             d['imc'][k] = v
-        return d
+        for k in accumulated.keys():
+            del d['imc'][k]
 
     def test_can_plot_regions_value(self):
-        d = self.test_can_accumulate_raster_with_raster_masks()
-        pass
+        d = spatialmuon.SpatialMuData(backing=fpath)
+        accumulated = d['imc']['ome'].accumulate_features(d['imc']['masks'].masks)
+        for k, v in accumulated.items():
+            if k in d['imc']:
+                del d['imc'][k]
+            d['imc'][k] = v
+        d['imc']['mean'].plot(channels=0)
+        for k in accumulated.keys():
+            del d['imc'][k]
 
 
 if __name__ == "__main__":

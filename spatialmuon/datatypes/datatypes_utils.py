@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 def regions_raster_plot(
     instance,
-    channels: Optional[Union[str, list[str]]] = "all",
+    channels: Optional[Union[str, list[str], int, list[int]]] = "all",
     grid_size: Union[int, list[int]] = 1,
     preprocessing: Optional[Callable] = None,
     overlap: bool = False,
@@ -19,15 +19,17 @@ def regions_raster_plot(
     ] = matplotlib.cm.viridis,
     ax: matplotlib.axes.Axes = None,
 ):
-    if not (isinstance(channels, list) or isinstance(channels, str)):
-        raise ValueError("'channels' must be either a single character string or a list of them.")
+    if not (isinstance(channels, list) or isinstance(channels, str) or isinstance(channels, int)):
+        raise ValueError(
+            "'channels' must be either a single character string, an integer or a list of them."
+        )
 
-    if isinstance(channels, list) and not all(isinstance(x, str) for x in channels):
-        raise ValueError("If 'channels' is a list, all elements must be character strings.")
+    if isinstance(channels, list) and not all(isinstance(x, str) or isinstance(x, int) for x in channels):
+        raise ValueError("If 'channels' is a list, all elements must be either character strings or integers.")
 
     if isinstance(channels, list):
         for c in channels:
-            if c not in instance.var["channel_name"].tolist():
+            if not isinstance(c, int) and c not in instance.var["channel_name"].tolist():
                 raise ValueError(
                     "'{}' not found in channels, available are: {}".format(
                         c, ", ".join(map(str, instance.var["channel_name"]))
@@ -44,7 +46,19 @@ def regions_raster_plot(
     if channels == "all":
         channels_to_plot = instance.var["channel_name"].tolist()
     else:
-        channels_to_plot = channels if isinstance(channels, list) else [channels]
+        if isinstance(channels, int):
+            channels_to_plot = [instance.var['channel_name'][channels]]
+        elif isinstance(channels, str):
+            channels_to_plot = [channels]
+        else:
+            assert isinstance(channels, list)
+            channels_to_plot = []
+            for c in channels:
+                if isinstance(c, int):
+                    channels_to_plot.append(instance.var['channel_name'][c])
+                else:
+                    assert isinstance(c, str)
+                    channels_to_plot.append(c)
 
     if not (
         isinstance(cmap, matplotlib.colors.Colormap)

@@ -20,8 +20,9 @@ import matplotlib.pyplot as plt
 from anndata import AnnData
 from anndata._io.utils import read_attribute, write_attribute
 from anndata._core.sparse_dataset import SparseDataset
+import spatialmuon
 from spatialmuon._core.masks import Masks
-from spatialmuon.datatypes.utils import regions_raster_plot
+from spatialmuon.datatypes.datatypes_utils import regions_raster_plot
 
 from .. import FieldOfView, SpatialIndex
 from ..utils import _read_hdf5_attribute, preprocess_3d_polygon_mask
@@ -41,18 +42,32 @@ class Regions(FieldOfView):
             # self._index = SpatialIndex(
             #     backing=backing["index"], dimension=backing["coordinates"].shape[1], **index_kwargs
             # )
-            self._masks = Masks(backing=backing["masks"])
+            self.masks = Masks(backing=backing["masks"])
             attrs = backing.attrs
         else:
             self._X = X
 
-            self._masks = masks
+            self.masks = masks
             # self._index = SpatialIndex(coordinates=self._coordinates, **index_kwargs)
 
-        from spatialmuon.datatypes.raster import Raster
+            # for key, mask in self.backing["masks"].items():
+            # self.masks[key] = spatialmuon._core.masks.Masks(backing=mask)
 
+        # we don't want to validate stuff coming from HDF5, this may break I/O
+        # but mostly we can't validate for a half-initalized object
+        self.masks.validatefun = self.__validate_mask
 
+        # init with validation
+        # this requires that subclasses call this constructor at the end of their init method
+        # because validation requires information from subclasses, e.g. ndim
         super().__init__(backing, **kwargs)
+
+    @staticmethod
+    def __validate_mask(fov, key, mask):
+        if mask.ndim is not None and mask.ndim != fov.ndim:
+            return f"mask with {mask.ndim} dimensions is being added to field of view with {fov.ndim} dimensions"
+        mask.parentdataset = fov
+        return None
 
     @property
     def X(self) -> Union[np.ndarray, spmatrix, h5py.Dataset, SparseDataset]:
@@ -122,14 +137,18 @@ class Regions(FieldOfView):
             self._write_data(obj)
             # self._index.set_backing(obj, "index")
             # self._X = None
-            self._masks.set_backing(obj, "masks")
+            self.masks.set_backing(obj, "masks")
         else:
             self._X = read_attribute(obj, "X")
             # self._index.set_backing(None)
-            self._masks.set_backing(None)
+            self.masks.set_backing(None)
+
 
     def _write(self, grp):
         super()._write(grp)
+        for maskname, mask in self.masks.items():
+            mask.write(grp, f"masks/{maskname}")
+
         self._write_data(grp)
         self._index.write(grp, "index")
 
@@ -151,7 +170,7 @@ class Regions(FieldOfView):
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
     ):
-        pass
+        raise NotImplementedError()
 
     def _plot_in_canvas(
         self,
@@ -169,7 +188,7 @@ class Regions(FieldOfView):
 
     def plot(
         self,
-        channels: Optional[Union[str, list[str]]] = "all",
+        channels: Optional[Union[str, list[str], int, list[int]]] = "all",
         grid_size: Union[int, list[int]] = 1,
         preprocessing: Optional[Callable] = None,
         overlap: bool = False,
@@ -196,5 +215,5 @@ class Regions(FieldOfView):
 
     def __repr__(self):
         repr_str = f"region fov with {self.n_var} var\n"
-        repr_str += str(self._masks)
+        repr_str += str(self.masks)
         return repr_str

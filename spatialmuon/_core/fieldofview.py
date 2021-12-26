@@ -13,7 +13,7 @@ from anndata._io.utils import read_attribute, write_attribute
 from anndata.utils import make_index_unique
 import pandas as pd
 
-from .backing import BackableObject, BackedDictProxy
+from spatialmuon._core.backing import BackableObject
 
 # from .image import Image
 import spatialmuon
@@ -43,13 +43,6 @@ class FieldOfView(BackableObject):
         else:
             return super().__new__(cls)
 
-    @staticmethod
-    def __validate_mask(fov, key, mask):
-        if mask.ndim is not None and mask.ndim != fov.ndim:
-            return f"mask with {mask.ndim} dimensions is being added to field of view with {fov.ndim} dimensions"
-        mask.parentdataset = fov
-        return None
-
     # flake8: noqa: C901
     def __init__(
         self,
@@ -59,7 +52,6 @@ class FieldOfView(BackableObject):
         rotation: Optional[np.ndarray] = None,
         translation: Optional[np.ndarray] = None,
         var: Optional[pd.DataFrame] = None,
-        masks: Optional[dict] = None,
         uns: Optional[dict] = None,
         coordinate_unit: Optional[str] = None,
     ):
@@ -77,12 +69,6 @@ class FieldOfView(BackableObject):
             self.coordinate_unit = _get_hdf5_attribute(self.backing.attrs, "coordinate_unit", None)
         else:
             self.coordinate_unit = coordinate_unit
-
-        self.masks = BackedDictProxy(self, key="masks")
-        if self.isbacked and "masks" in self.backing:
-            self.masks = spatialmuon._core.masks.Masks(backing=self.backing["masks"])
-            # for key, mask in self.backing["masks"].items():
-            # self.masks[key] = spatialmuon._core.masks.Masks(backing=mask)
 
         if self.isbacked and "var" in self.backing:
             self._var = read_attribute(backing["var"])
@@ -106,21 +92,8 @@ class FieldOfView(BackableObject):
         else:
             self.uns = {}
 
-        # we don't want to validate stuff coming from HDF5, this may break I/O
-        # but mostly we can't validate for a half-initalized object
-        self.masks.validatefun = self.__validate_mask
-
-        # init with validation
-        # this requires that subclasses call this constructor at the end of their init method
-        # because validation requires information from subclasses, e.g. ndim
-        if not self.isbacked:
-            if masks is not None:
-                self.masks.update(masks)
-
     def _set_backing(self, obj):
         super()._set_backing(obj)
-        for mask in self.masks:
-            mask.set_backing(obj)
 
     @property
     @abstractmethod
@@ -203,9 +176,6 @@ class FieldOfView(BackableObject):
             obj.attrs["coordinate_unit"] = self.coordinate_unit
 
     def _write(self, obj: h5py.Group):
-        for maskname, mask in self.masks.items():
-            mask.write(obj, f"masks/{maskname}")
-
         write_attribute(
             obj, "var", self._var, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
         )

@@ -7,7 +7,16 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import h5py
 
+##
+fpath = "/data/l989o/deployed/spatialmuon/tests/data/small_imc.h5smu"
+f5 = h5py.File(fpath, 'r+')
+print(f5['mod']['imc'].keys())
+del f5['mod/imc/maximum']
+del f5['mod/imc/mean']
+f5.close()
+##
 f = "/data/l989o/deployed/a/data/spatial_uzh_processed/a/spatialmuon/BaselTMA_SP41_15.475kx12.665ky_10000x8500_5_20170905_107_114_X13Y4_219_a0_full.h5smu"
 d = smu.SpatialMuData(backing=f)
 ome = d['imc']['ome'].X[...]

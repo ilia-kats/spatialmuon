@@ -59,7 +59,7 @@ class SpatialModality_creation(unittest.TestCase):
         modality[fovname] = cfov
 
         assert smudata["Visium"][fovname].n_var == D
-        assert smudata["Visium"][fovname]._masks.n_obs == N
+        assert smudata["Visium"][fovname].masks.n_obs == N
 
 
 if __name__ == "__main__":

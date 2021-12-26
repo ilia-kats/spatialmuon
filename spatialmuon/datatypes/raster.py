@@ -18,8 +18,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib_scalebar.scalebar import ScaleBar
 
 from spatialmuon import FieldOfView
-from spatialmuon.utils import _get_hdf5_attribute
-from spatialmuon.datatypes.utils import regions_raster_plot
+from spatialmuon.utils import _get_hdf5_attribute, DEFAULT_CMAPS
+from spatialmuon.datatypes.datatypes_utils import regions_raster_plot
 from spatialmuon._core.masks import Masks
 
 
@@ -269,25 +269,8 @@ class Raster(FieldOfView):
         colorbar: bool = True,
         scalebar: bool = True,
     ):
-        default_cmaps = [
-            matplotlib.cm.get_cmap("viridis"),
-            matplotlib.cm.get_cmap("plasma"),
-            matplotlib.cm.get_cmap("inferno"),
-            matplotlib.cm.get_cmap("magma"),
-            matplotlib.cm.get_cmap("cividis"),
-            matplotlib.cm.get_cmap("Purples"),
-            matplotlib.cm.get_cmap("Blues"),
-            matplotlib.cm.get_cmap("Greens"),
-            matplotlib.cm.get_cmap("Oranges"),
-            matplotlib.cm.get_cmap("Reds"),
-            matplotlib.cm.get_cmap("spring"),
-            matplotlib.cm.get_cmap("summer"),
-            matplotlib.cm.get_cmap("autumn"),
-            matplotlib.cm.get_cmap("winter"),
-            matplotlib.cm.get_cmap("cool"),
-        ]
         if isinstance(cmap, matplotlib.colors.Colormap) and len(channels_to_plot) > 1:
-            cmap = default_cmaps
+            cmap = DEFAULT_CMAPS
         if len(channels_to_plot) > 1:
             if len(channels_to_plot) > len(cmap):
                 warnings.warn(
@@ -357,7 +340,7 @@ class Raster(FieldOfView):
 
     def plot(
         self,
-        channels: Optional[Union[str, list[str]]] = "all",
+        channels: Optional[Union[str, list[str], int, list[int]]] = "all",
         grid_size: Union[int, list[int]] = 1,
         preprocessing: Optional[Callable] = None,
         overlap: bool = False,

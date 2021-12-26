@@ -80,6 +80,11 @@ class Regions(FieldOfView):
         else:
             return self._X
 
+    @property
+    def obs(self) -> pd.DataFrame:
+        if self.masks is not None:
+            return self.masks.obs
+
     def _getitem(
         self,
         mask: Optional[Union[Polygon, Trimesh]] = None,

@@ -5,6 +5,7 @@ import pandas as pd
 import tifffile
 import spatialmuon
 from xml.etree import ElementTree
+import anndata
 
 
 class Converter:
@@ -33,3 +34,11 @@ class Converter:
         res = spatialmuon.RasterMasks(mask=masks)
 
         return res
+
+    def regions_to_anndata(self, regions: spatialmuon.datatypes.regions.Regions) -> anndata.AnnData:
+        adata = anndata.AnnData(X=regions.X)
+        coords = regions.masks.obs[["region_center_y", "region_center_x"]].to_numpy()
+        adata.obsm["spatial"] = coords
+        adata.var.index = regions.var
+        adata.var.reset_index(drop=True, inplace=True)
+        return adata

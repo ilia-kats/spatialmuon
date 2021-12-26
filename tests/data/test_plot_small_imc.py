@@ -136,6 +136,8 @@ class Converter_TestClass(unittest.TestCase):
         d = spatialmuon.SpatialMuData(backing=fpath)
         accumulated = d['imc']['ome'].accumulate_features(d['imc']['masks'].masks)
         for k, v in accumulated.items():
+            if k in d['imc']:
+                del d['imc'][k]
             d['imc'][k] = v
         for k in accumulated.keys():
             del d['imc'][k]
@@ -147,7 +149,11 @@ class Converter_TestClass(unittest.TestCase):
             if k in d['imc']:
                 del d['imc'][k]
             d['imc'][k] = v
-        d['imc']['mean'].plot(channels=0)
+        feature = 'mean'
+        fig, ax = plt.subplots(1)
+        d['imc'][feature].plot(channels=0, preprocessing=np.arcsinh, suptitle=feature, ax=ax)
+        d['imc']['masks'].masks.plot(fill_colors=None, outline_colors='k', ax=ax)
+        plt.show()
         for k in accumulated.keys():
             del d['imc'][k]
 
@@ -161,7 +167,7 @@ if __name__ == "__main__":
         # Converter_TestClass().test_can_plot_raster_overlapping_channels_in_ax()
         # Converter_TestClass().test_can_plot_raster_overlapping_channels()
         # Converter_TestClass().test_can_plot_raster_non_overlapping_channels()
-
+        # #
         # Converter_TestClass().test_can_plot_regions_random_color()
         # Converter_TestClass().test_can_plot_regions_solid_color()
         # Converter_TestClass().test_can_plot_raster_and_regions_together()

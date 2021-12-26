@@ -22,7 +22,7 @@ from anndata._io.utils import read_attribute, write_attribute
 from anndata._core.sparse_dataset import SparseDataset
 import spatialmuon
 from spatialmuon._core.masks import Masks
-from spatialmuon.datatypes.datatypes_utils import regions_raster_plot
+from spatialmuon.datatypes.datatypes_utils import regions_raster_plot, get_channel_index_from_channel_name
 
 from .. import FieldOfView, SpatialIndex
 from ..utils import _read_hdf5_attribute, preprocess_3d_polygon_mask
@@ -75,6 +75,8 @@ class Regions(FieldOfView):
             X = self.backing["X"]
             if isinstance(X, h5py.Group):
                 return SparseDataset(X)
+            else:
+                return X
         else:
             return self._X
 
@@ -169,7 +171,10 @@ class Regions(FieldOfView):
         cmap: Union[
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
+        suptitle: Optional[str] = None
     ):
+        if suptitle is not None:
+            plt.suptitle(suptitle)
         raise NotImplementedError()
 
     def _plot_in_canvas(
@@ -180,11 +185,29 @@ class Regions(FieldOfView):
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
         ax: matplotlib.axes.Axes = None,
-        legend: bool = True,
-        colorbar: bool = True,
-        scalebar: bool = True,
     ):
-        pass
+        for idx, channel in enumerate(channels_to_plot):
+            a = 1 / (max(len(channels_to_plot) - 1, 2)) if idx > 0 else 1
+            channel_index = get_channel_index_from_channel_name(self.var, channel)
+            data_to_plot = self.X[:, channel_index]
+            x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
+            assert len(cmap) == 1
+            cmap = cmap[0]
+            print('TODO: obtain colors and build a scalar mappable')
+            cnorm = matplotlib.colors.Normalize(vmin=np.min(x), vmax=np.max(x))
+            sm = matplotlib.cm.ScalarMappable(norm=cnorm, cmap=cmap)
+            # instead of calling imshow passing cnorm and cmap we are using the plotting function defined for
+            # masks and passing already the appropriate colors. We compute the colors manually
+            def normalizer(e):
+                return (e - x.min()) / (x.max() - x.min())
+            colors = cmap(normalizer(x))
+            self.masks.plot(fill_colors=colors, outline_colors=None, ax=ax, alpha=a)
+            # im = ax.imshow(x, cmap=cmap[idx], alpha=a)
+        # code explained in raster.py
+        if len(channels_to_plot) == 1:
+            return sm
+        else:
+            return None
 
     def plot(
         self,
@@ -196,6 +219,10 @@ class Regions(FieldOfView):
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
         ax: matplotlib.axes.Axes = None,
+        legend: bool = True,
+        colorbar: bool = True,
+        scalebar: bool = True,
+        suptitle: Optional[str] = None
     ):
         if self.var is None or len(self.var.columns) == 0:
             print(
@@ -211,6 +238,10 @@ class Regions(FieldOfView):
                 overlap=overlap,
                 cmap=cmap,
                 ax=ax,
+                legend=legend,
+                colorbar=colorbar,
+                scalebar=scalebar,
+                suptitle=suptitle
             )
 
     def __repr__(self):

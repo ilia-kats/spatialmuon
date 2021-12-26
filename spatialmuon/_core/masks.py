@@ -122,7 +122,14 @@ class Masks(BackableObject):
         return repr_str
 
     @abstractmethod
-    def plot(self, ax=None):
+    def plot(
+        self,
+        fill_colors: ColorsType,
+        outline_colors: ColorsType,
+        background_color: ColorsType,
+        ax: matplotlib.axes.Axes,
+        alpha: float,
+    ):
         pass
 
     @abstractmethod
@@ -472,13 +479,16 @@ class RasterMasks(Masks):
             else:
                 self._mask = self.backing["imagemask"]
         else:
-            if shape is None or dtype is None:
-                raise ValueError("if masks is None shape and dtype must be given")
-            if len(shape) < 2 or len(shape) > 3:
-                raise ValueError("shape must have 2 or 3 dimensions")
-            if not np.issubdtype(dtype, np.unsignedinteger):
-                raise ValueError("dtype must be an unsigned integer type")
-            self._mask = np.zeros(shape=shape, dtype=dtype)
+            if mask is not None:
+                self._mask = mask
+            else:
+                if shape is None or dtype is None:
+                    raise ValueError("if masks is None shape and dtype must be given")
+                if len(shape) < 2 or len(shape) > 3:
+                    raise ValueError("shape must have 2 or 3 dimensions")
+                if not np.issubdtype(dtype, np.unsignedinteger):
+                    raise ValueError("dtype must be an unsigned integer type")
+                self._mask = np.zeros(shape=shape, dtype=dtype)
 
     @property
     def ndim(self):
@@ -570,6 +580,7 @@ class RasterMasks(Masks):
     def __repr__(self):
         return super().__repr__(mask_type="raster masks")
 
+    # 0 is used as background label
     def update_obs_from_masks(self):
         # if the dataframe is not empty
         if self._obs is not None and len(self._obs.columns) != 0:
@@ -578,7 +589,11 @@ class RasterMasks(Masks):
             )
         if self._mask is None:
             raise ValueError("no mask data has been specified")
-        unique_masks = np.unique(self._mask)
+        m = self._mask[...]
+        assert np.all(m >= 0)
+        unique_masks = np.unique(m).tolist()
+        # remove eventual background label
+        unique_masks = [u for u in unique_masks if u != 0]
         mask_df = pd.DataFrame(data=dict(original_labels=unique_masks))
         self._obs = mask_df
 
@@ -586,46 +601,53 @@ class RasterMasks(Masks):
         self,
         fill_colors: ColorsType = "random",
         outline_colors: ColorsType = None,
-        background_color: Optional[Union[str, np.array]] = "black",
+        background_color: Optional[Union[str, np.array]] = (0., 0., 0., 0.),
         ax: matplotlib.axes.Axes = None,
+        alpha: float = 1.0,
     ):
-        n = len(self._obs)
+        # adding the background
+        n = len(self._obs) + 1
 
-        def normalize_color(x):
+        def normalize_color_and_apply_alpha(x):
             if type(x) == tuple:
                 x = np.array(x)
             assert len(x.shape) in [0, 1]
             x = x.flatten()
             assert len(x) in [3, 4]
             if len(x) == 3:
-                x = np.array(x.tolist() + [1.0])
+                x = np.array(x.tolist() + [alpha])
+            else:
+                x[3] = alpha
             x = x.reshape(1, -1)
             return x
 
+        # return a tensor of length n, then the first element (the background color), will be replaced with
+        # background_color
         def get_color_array_rgba(color):
             if color is None:
                 return np.zeros((n, 4))
             elif type(color) == str and color == "random":
                 a = np.random.rand(n, 3)
-                b = np.ones(len(a)).reshape(-1, 1)
+                b = np.ones(len(a)).reshape(-1, 1) * alpha
                 c = np.concatenate((a, b), axis=1)
                 return c
             elif type(color) == str:
                 a = matplotlib.colors.to_rgba(color)
-                b = [a] * n
-                c = np.array(b)
-                return c
+                a = normalize_color_and_apply_alpha(a)
+                b = np.tile(a, (n, 1))
+                return b
             elif type(color) == list or type(color) == np.ndarray:
                 try:
                     a = matplotlib.colors.to_rgba(color)
-                    b = [normalize_color(a)] * n
+                    b = [normalize_color_and_apply_alpha(a)] * n
                     c = np.concatenate(b, axis=0)
                     return c
                 except ValueError:
-                    b = []
+                    # it will be replaced with the background color
+                    b = [normalize_color_and_apply_alpha((0., 0., 0., 0.))]
                     for c in color:
                         d = matplotlib.colors.to_rgba(c)
-                        b.append(normalize_color(d))
+                        b.append(normalize_color_and_apply_alpha(d))
                     e = np.concatenate(b, axis=0)
                     if len(e) != n:
                         raise ValueError(
@@ -637,17 +659,17 @@ class RasterMasks(Masks):
 
         fill_color_array = get_color_array_rgba(fill_colors)
         outline_colors_array = get_color_array_rgba(outline_colors)
-        if background_color is not None:
-            background_color = normalize_color(matplotlib.colors.to_rgba(background_color))
-            fill_color_array[0] = background_color
-            outline_colors_array[0] = background_color
+        background_color = normalize_color_and_apply_alpha(
+            matplotlib.colors.to_rgba(background_color)
+        )
+        fill_color_array[0] = background_color
+        outline_colors_array[0] = background_color
 
-        labels = self.obs.to_dict()["original_labels"]
-        contiguous_labels = list(labels.keys())
-        assert max(contiguous_labels) + 1 == len(contiguous_labels)
-        original_labels = list(labels.values())
+        original_labels = self.obs["original_labels"].to_numpy()
+        original_labels = np.insert(original_labels, 0, 0)
+        contiguous_labels = np.arange(len(original_labels))
         x = self.data
-        if original_labels != contiguous_labels:
+        if not np.all(original_labels == contiguous_labels):
             # probably not the most efficient, but probably also fine
             lut = np.zeros(max(original_labels) + 1, dtype=np.int)
             for i, o in enumerate(original_labels):
@@ -702,7 +724,11 @@ class RasterMasks(Masks):
         d = {}
         for key in ["Maximum", "Mean", "Sum", "Variance"]:
             regions = Regions(
-                backing=None, X=features[key][original_labels, :], var=fov.var, masks=copy.copy(masks_with_obs)
+                backing=None,
+                X=features[key][original_labels, :],
+                var=fov.var,
+                masks=copy.copy(masks_with_obs),
+                coordinate_unit=fov.coordinate_unit
             )
             d[key.lower()] = regions
         return d

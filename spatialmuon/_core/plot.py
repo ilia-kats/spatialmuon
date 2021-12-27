@@ -19,7 +19,6 @@ from scipy import ndimage
 import numpy as np
 
 
-
 def plot_channel_raster(
     fov: FieldOfView,
     ax: matplotlib.axes.Axes,
@@ -120,6 +119,7 @@ def plot_channel_array(
     collection.set_alpha(alpha)
     ax.add_collection(collection, autolim=False)
     return scalar_mappable
+
 
 def image_to_rgb(x: np.ndarray):
     assert len(x.shape) == 3

@@ -60,6 +60,27 @@ class SquidpyExternal_TestClass(unittest.TestCase):
         scanpy.tl.umap(adata)
         return adata
 
+    def test_cluster_with_scanpy_and_plot_with_spatialmuon(self):
+        d = spatialmuon.SpatialMuData(backing=fpath)
+        accumulated = d['imc']['ome'].accumulate_features(d['imc']['masks'].masks)
+        e = accumulated['mean']
+        se = SquidpyExternal()
+        adata = se.get_data_rerepsentation(e, raster_images=d['imc']['ome'])
+        adata.X = np.arcsinh(adata.X)
+        scanpy.pp.neighbors(adata)
+        # the higher the resolution, the more the clusters
+        scanpy.tl.louvain(adata, resolution=1.1)
+        louvain = adata.obs['louvain']
+        masks = copy.copy(e.masks)
+        louvain.index = masks.obs.index
+        masks.obs['louvain'] = louvain
+        clustered = spatialmuon.Regions(backing=None, X=None, index_kwargs={}, masks=masks)
+        fig, ax = plt.subplots(1, figsize=(5, 5))
+        d['imc']['ome'].plot(channels=0, ax=ax, cmap=matplotlib.cm.get_cmap('Greys_r'), show_title=False)
+        clustered.masks.plot(fill_colors=None, outline_colors='louvain', background_color=(0., 0., 0., 0.5), ax=ax)
+        plt.tight_layout()
+        plt.show()
+
     def test_neighbors_enrichment_analysis(self):
         adata = self.get_louvain_clustered_data()
         scanpy.pl.umap(adata, color='louvain')
@@ -73,12 +94,12 @@ class SquidpyExternal_TestClass(unittest.TestCase):
         se.view_with_napari(adata)
 
 
-
 if __name__ == "__main__":
     if not DEBUGGING:
         unittest.main()
     else:
-        SquidpyExternal_TestClass().test_can_get_squidpy_data_representation()
+        # SquidpyExternal_TestClass().test_can_get_squidpy_data_representation()
         # SquidpyExternal_TestClass().test_can_compute_spatial_neighbors()
+        SquidpyExternal_TestClass().test_cluster_with_scanpy_and_plot_with_spatialmuon()
         # SquidpyExternal_TestClass().test_neighbors_enrichment_analysis()
-        SquidpyExternal_TestClass().test_view_with_napari()
+        # SquidpyExternal_TestClass().test_view_with_napari()

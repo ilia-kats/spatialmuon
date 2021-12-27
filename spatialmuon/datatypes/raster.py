@@ -242,18 +242,18 @@ class Raster(FieldOfView):
                 #     preprocessing=preprocessing,
                 #     cmap=cmap,
                 #     ax=axs[idx],
-                #     legend=False,
-                #     colorbar=False,
-                #     scalebar=idx == 0,
+                #     show_legend=False,
+                #     show_colorbar=False,
+                #     show_scalebar=idx == 0,
                 # )
                 self.plot(
                     channels=channel,
                     preprocessing=preprocessing,
                     cmap=cmap,
                     ax=axs[idx],
-                    legend=False,
-                    colorbar=False,
-                    scalebar=idx == 0,
+                    show_legend=False,
+                    show_colorbar=False,
+                    show_scalebar=idx == 0,
                 )
         for idx in range(n_tiles, n_x * n_y):
             axs[idx].set_axis_off()
@@ -279,8 +279,8 @@ class Raster(FieldOfView):
 
             x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
             im = ax.imshow(x, cmap=cmap[idx], alpha=a)
-        # im is used in the calling function in datatypes_utils.py to draw the colorbar, but we are not displaying a
-        # colorbar when we have more than one channel, so let's return a nonsense value
+        # im is used in the calling function in datatypes_utils.py to draw the show_colorbar, but we are not displaying a
+        # show_colorbar when we have more than one channel, so let's return a nonsense value
         if len(channels_to_plot) == 1:
             return im
         else:
@@ -298,9 +298,10 @@ class Raster(FieldOfView):
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
         ax: matplotlib.axes.Axes = None,
-        legend: bool = True,
-        colorbar: bool = True,
-        scalebar: bool = True,
+        show_title: bool = True,
+        show_legend: bool = True,
+        show_colorbar: bool = True,
+        show_scalebar: bool = True,
         suptitle: Optional[str] = None
     ):
         regions_raster_plot(
@@ -311,9 +312,10 @@ class Raster(FieldOfView):
             overlap=overlap,
             cmap=cmap,
             ax=ax,
-            legend=legend,
-            colorbar=colorbar,
-            scalebar=scalebar,
+            show_title=show_title,
+            show_legend=show_legend,
+            show_colorbar=show_colorbar,
+            show_scalebar=show_scalebar,
             suptitle=suptitle
         )
 

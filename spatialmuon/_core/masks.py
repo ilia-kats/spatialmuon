@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import warnings
 from collections.abc import MutableMapping
 from abc import abstractmethod
 from typing import Optional, Union, NewType
@@ -8,6 +9,7 @@ from typing import Optional, Union, NewType
 import matplotlib.pyplot as plt
 import matplotlib.colors
 import matplotlib.axes
+import matplotlib.cm
 import numpy as np
 import h5py
 import copy
@@ -124,11 +126,12 @@ class Masks(BackableObject):
     @abstractmethod
     def plot(
         self,
-        fill_colors: ColorsType,
-        outline_colors: ColorsType,
-        background_color: ColorsType,
-        ax: matplotlib.axes.Axes,
-        alpha: float,
+        **kwargs
+        # fill_colors: ColorsType = None,
+        # outline_colors: ColorsType = None,
+        # background_color: ColorsType = None,
+        # ax: Optional[matplotlib.axes.Axes] = None,
+        # alpha: Optional[float] = None,
     ):
         pass
 
@@ -601,53 +604,85 @@ class RasterMasks(Masks):
         self,
         fill_colors: ColorsType = "random",
         outline_colors: ColorsType = None,
-        background_color: Optional[Union[str, np.array]] = (0., 0., 0., 0.),
+        background_color: Optional[Union[str, np.array]] = (0.0, 0.0, 0.0, 0.0),
         ax: matplotlib.axes.Axes = None,
         alpha: float = 1.0,
+        show_title: bool = True,
+        show_legend: bool = True,
     ):
         # adding the background
         n = len(self._obs) + 1
+        plotting_a_category = False
+        title = None
+        _legend = None
 
-        def normalize_color_and_apply_alpha(x):
+        def normalize_color(x):
             if type(x) == tuple:
                 x = np.array(x)
             assert len(x.shape) in [0, 1]
             x = x.flatten()
             assert len(x) in [3, 4]
             if len(x) == 3:
-                x = np.array(x.tolist() + [alpha])
+                x = np.array(x.tolist() + [1.])
             else:
-                x[3] = alpha
+                x[3] = 1.
             x = x.reshape(1, -1)
             return x
+
+        def apply_alpha(x):
+            assert len(x.shape) == 2
+            assert x.shape[1] == 4
+            x[:, 3] *= alpha
 
         # return a tensor of length n, then the first element (the background color), will be replaced with
         # background_color
         def get_color_array_rgba(color):
             if color is None:
                 return np.zeros((n, 4))
+            elif type(color) == str and color in self.obs.columns:
+                nonlocal plotting_a_category
+                nonlocal title
+                nonlocal _legend
+                plotting_a_category = True
+                title = color
+                cmap = matplotlib.cm.get_cmap("tab10")
+                categories = self.obs[color].cat.categories.values.tolist()
+                d = dict(zip(categories, cmap.colors))
+                levels = self.obs[color].tolist()
+                # it will be replaced with the background color
+                colors = [normalize_color((0.0, 0.0, 0.0, 0.0))]
+                colors += [normalize_color(d[ll]) for ll in levels]
+                c = np.concatenate(colors, axis=0)
+                _legend = []
+                for cat, col in zip(categories, cmap.colors):
+                    _legend.append(
+                        matplotlib.patches.Patch(
+                            facecolor=col, edgecolor=col, label=cat
+                        )
+                    )
+                return c
             elif type(color) == str and color == "random":
                 a = np.random.rand(n, 3)
-                b = np.ones(len(a)).reshape(-1, 1) * alpha
+                b = np.ones(len(a)).reshape(-1, 1) * 1.
                 c = np.concatenate((a, b), axis=1)
                 return c
             elif type(color) == str:
                 a = matplotlib.colors.to_rgba(color)
-                a = normalize_color_and_apply_alpha(a)
+                a = normalize_color(a)
                 b = np.tile(a, (n, 1))
                 return b
             elif type(color) == list or type(color) == np.ndarray:
                 try:
                     a = matplotlib.colors.to_rgba(color)
-                    b = [normalize_color_and_apply_alpha(a)] * n
+                    b = [normalize_color(a)] * n
                     c = np.concatenate(b, axis=0)
                     return c
                 except ValueError:
                     # it will be replaced with the background color
-                    b = [normalize_color_and_apply_alpha((0., 0., 0., 0.))]
+                    b = [normalize_color((0.0, 0.0, 0.0, 0.0))]
                     for c in color:
                         d = matplotlib.colors.to_rgba(c)
-                        b.append(normalize_color_and_apply_alpha(d))
+                        b.append(normalize_color(d))
                     e = np.concatenate(b, axis=0)
                     if len(e) != n:
                         raise ValueError(
@@ -659,11 +694,13 @@ class RasterMasks(Masks):
 
         fill_color_array = get_color_array_rgba(fill_colors)
         outline_colors_array = get_color_array_rgba(outline_colors)
-        background_color = normalize_color_and_apply_alpha(
+        background_color = normalize_color(
             matplotlib.colors.to_rgba(background_color)
         )
         fill_color_array[0] = background_color
         outline_colors_array[0] = background_color
+        for a in [fill_color_array, outline_colors_array]:
+            apply_alpha(a)
 
         original_labels = self.obs["original_labels"].to_numpy()
         original_labels = np.insert(original_labels, 0, 0)
@@ -689,6 +726,17 @@ class RasterMasks(Masks):
                 contours = skimage.measure.find_contours(boolean_mask, 0.7)
                 for contour in contours:
                     axs.plot(contour[:, 1], contour[:, 0], linewidth=2, color=outline_color)
+        if plotting_a_category:
+            if show_title:
+                ax.set_title(title)
+            if show_legend:
+                axs.legend(
+                    handles=_legend,
+                    frameon=False,
+                    loc="lower center",
+                    bbox_to_anchor=(0.5, -0.1),
+                    ncol=len(_legend),
+                )
         if ax is None:
             plt.show()
 
@@ -728,7 +776,7 @@ class RasterMasks(Masks):
                 X=features[key][original_labels, :],
                 var=fov.var,
                 masks=copy.copy(masks_with_obs),
-                coordinate_unit=fov.coordinate_unit
+                coordinate_unit=fov.coordinate_unit,
             )
             d[key.lower()] = regions
         return d

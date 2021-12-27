@@ -25,4 +25,4 @@ dependencies:
   - louvain
   - pip:
  	  - squidpy
-      - matplotlib-scalebar
+      - matplotlib-show_scalebar

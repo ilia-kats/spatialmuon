@@ -16,6 +16,7 @@ def get_channel_index_from_channel_name(var, channel_name):
     return channel_idx
 
 
+# flake8: noqa: C901
 def regions_raster_plot(
     instance,
     channels: Optional[Union[str, list[str], int, list[int]]] = "all",
@@ -26,10 +27,11 @@ def regions_raster_plot(
         matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
     ] = matplotlib.cm.viridis,
     ax: matplotlib.axes.Axes = None,
-    legend: bool = True,
-    colorbar: bool = True,
-    scalebar: bool = True,
-    suptitle: Optional[str] = None
+    show_title: bool = True,
+    show_legend: bool = True,
+    show_colorbar: bool = True,
+    show_scalebar: bool = True,
+    suptitle: Optional[str] = None,
 ):
     if not (isinstance(channels, list) or isinstance(channels, str) or isinstance(channels, int)):
         raise ValueError(
@@ -123,25 +125,29 @@ def regions_raster_plot(
         cmap = cmap[: len(channels_to_plot)]
 
         if len(channels_to_plot) == 1:
-            legend = False and legend
-            colorbar = True and colorbar
+            show_legend = False and show_legend
+            show_colorbar = True and show_colorbar
         else:
-            legend = True and legend
-            colorbar = False and colorbar
+            show_legend = True and show_legend
+            show_colorbar = False and show_colorbar
 
         if ax is None:
             fig, axs = plt.subplots(1, 1)
         else:
             axs = ax
-        ########## going back to the calling class ##########
+        # ######### going back to the calling class ########## #
         im = instance._plot_in_canvas(
             channels_to_plot=channels_to_plot, preprocessing=preprocessing, cmap=cmap, ax=axs
         )
-        title = "background: " if len(channels_to_plot) > 1 else ""
-        title += "{}".format([k for k in channels_to_plot][0])
-        if len(channels_to_plot) > 1:
-            title += "; overlay: {}".format(", ".join(map(str, [k for k in channels_to_plot][1:])))
-        if legend:
+        if show_title:
+            title = "background: " if len(channels_to_plot) > 1 else ""
+            title += "{}".format([k for k in channels_to_plot][0])
+            if len(channels_to_plot) > 1:
+                title += "; overlay: {}".format(
+                    ", ".join(map(str, [k for k in channels_to_plot][1:]))
+                )
+                axs.set_title(title)
+        if show_legend:
             _legend = []
             for idx, c in enumerate(cmap):
                 rgba = c(255)
@@ -158,32 +164,33 @@ def regions_raster_plot(
                 bbox_to_anchor=(0.5, -0.1),
                 ncol=len(_legend),
             )
-        if len(channels_to_plot) == 1 and colorbar:
+        if len(channels_to_plot) == 1 and show_colorbar:
             # divider = make_axes_locatable(axs)
             # cax = divider.append_axes("bottom", size="5%", pad=0.05)
             plt.colorbar(
-                im, orientation="horizontal", location="bottom", ax=axs, shrink=0.6, pad=0.04
+                im, orientation="horizontal", location="bottom", ax=axs, shrink=0.6, pad=0.055
             )
-        if scalebar:
+        if show_scalebar:
             unit = instance.coordinate_unit
             if unit is not None:
-                scalebar = ScaleBar(instance.scale, unit, box_alpha=0.8, color="white", box_color="black")
+                scalebar = ScaleBar(
+                    instance.scale, unit, box_alpha=0.8, color="white", box_color="black"
+                )
                 axs.add_artist(scalebar)
 
         # axs[idx].text(0, -10, channel, size=12)
         if suptitle is not None:
             plt.suptitle(suptitle)
-        axs.set_title(title)
         axs.set_axis_off()
         if ax is None:
             plt.tight_layout()
             plt.show()
     else:
-        ########## going back to the calling class ##########
+        # ######### going back to the calling class ########## #
         instance._plot_in_grid(
             channels_to_plot=channels_to_plot,
             grid_size=grid_size,
             preprocessing=preprocessing,
             cmap=cmap,
-            suptitle=suptitle
+            suptitle=suptitle,
         )

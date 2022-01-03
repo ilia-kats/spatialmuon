@@ -240,8 +240,15 @@ class Raster(FieldOfView):
 
         for idx, channel in enumerate(channels_to_plot):
             if idx < n_tiles:
-                self._plot_in_canvas(channels_to_plot=[channel], preprocessing=preprocessing, cmap=cmap,
-                                     ax=axs[idx], legend=False, colorbar=False, scalebar=idx == 0)
+                self._plot_in_canvas(
+                    channels_to_plot=[channel],
+                    preprocessing=preprocessing,
+                    cmap=cmap,
+                    ax=axs[idx],
+                    legend=False,
+                    colorbar=False,
+                    scalebar=idx == 0,
+                )
         for idx in range(n_tiles, n_x * n_y):
             axs[idx].set_axis_off()
         plt.subplots_adjust()
@@ -258,7 +265,7 @@ class Raster(FieldOfView):
         ax: matplotlib.axes.Axes = None,
         legend: bool = True,
         colorbar: bool = True,
-        scalebar: bool = True
+        scalebar: bool = True,
     ):
         default_cmaps = [
             matplotlib.cm.get_cmap("viridis"),
@@ -287,7 +294,7 @@ class Raster(FieldOfView):
                 cmap = cmap * len(channels_to_plot) // len(cmap) + 1
         if isinstance(cmap, matplotlib.colors.Colormap):
             cmap = [cmap]
-        cmap = cmap[:len(channels_to_plot)]
+        cmap = cmap[: len(channels_to_plot)]
 
         if len(channels_to_plot) == 1:
             legend = False and legend
@@ -305,16 +312,12 @@ class Raster(FieldOfView):
             channel_index = self.get_channel_index_from_channel_name(channel)
             data_to_plot = self.X[:, :, channel_index]
 
-            x = (
-                data_to_plot
-                if preprocessing is None
-                else preprocessing(data_to_plot)
-            )
+            x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
             im = axs.imshow(x, cmap=cmap[idx], alpha=a)
-        title = 'background: ' if len(channels_to_plot) > 1 else ''
-        title += "{}".format( [k for k in channels_to_plot][0])
+        title = "background: " if len(channels_to_plot) > 1 else ""
+        title += "{}".format([k for k in channels_to_plot][0])
         if len(channels_to_plot) > 1:
-            title += '; overlay: {}'.format(", ".join(map(str, [k for k in channels_to_plot][1:])))
+            title += "; overlay: {}".format(", ".join(map(str, [k for k in channels_to_plot][1:])))
         if legend:
             _legend = []
             for idx, c in enumerate(cmap):
@@ -325,15 +328,22 @@ class Raster(FieldOfView):
                     )
                 )
 
-            axs.legend(handles=_legend, frameon=False, loc="lower center", bbox_to_anchor=(0.5, -0.1), ncol=len(
-                _legend))
+            axs.legend(
+                handles=_legend,
+                frameon=False,
+                loc="lower center",
+                bbox_to_anchor=(0.5, -0.1),
+                ncol=len(_legend),
+            )
         if colorbar:
             # divider = make_axes_locatable(axs)
             # cax = divider.append_axes("bottom", size="5%", pad=0.05)
-            plt.colorbar(im, orientation='horizontal', location='bottom', ax=axs, shrink=0.6, pad=0.04)
+            plt.colorbar(
+                im, orientation="horizontal", location="bottom", ax=axs, shrink=0.6, pad=0.04
+            )
         if scalebar:
             unit = self.coordinate_unit
-            scalebar = ScaleBar(self.scale, unit, box_alpha=0.8, color='white', box_color='black')
+            scalebar = ScaleBar(self.scale, unit, box_alpha=0.8, color="white", box_color="black")
             axs.add_artist(scalebar)
 
         # axs[idx].text(0, -10, channel, size=12)

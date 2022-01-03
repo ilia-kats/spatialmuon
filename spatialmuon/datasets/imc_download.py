@@ -336,10 +336,12 @@ def create_muon_spatial_object(f_ome, f_masks, outfile):
         os.unlink(outfile)
     smudata = spatialmuon.SpatialMuData(outfile)
     smudata["imc"] = modality = spatialmuon.SpatialModality()
-    modality["ome"] = spatialmuon.Raster(X=np.moveaxis(ome.asarray(), 0, -1), var=var, coordinate_unit='um')
+    modality["ome"] = spatialmuon.Raster(
+        X=np.moveaxis(ome.asarray(), 0, -1), var=var, coordinate_unit="um"
+    )
     raster_masks = spatialmuon.RasterMasks(mask=masks)
     raster_masks.update_obs_from_masks()
-    regions = spatialmuon.Regions(masks=raster_masks, coordinate_unit='um')
+    regions = spatialmuon.Regions(masks=raster_masks, coordinate_unit="um")
     modality["masks"] = regions
     print(smudata)
     pass

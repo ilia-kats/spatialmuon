@@ -54,7 +54,12 @@ class SpatialModality_creation(unittest.TestCase):
         spots_dict = {o: ((x, y), radius) for (o, (x, y)) in zip(obs.index.tolist(), coords)}
         masks = spatialmuon.ShapeMasks(masks_dict=spots_dict, obs=obs)
         cfov = spatialmuon.Regions(
-            X=X, var=var, translation=[0, 0, fovidx * 10], scale=1.23, masks=masks, coordinate_unit="px"
+            X=X,
+            var=var,
+            translation=[0, 0, fovidx * 10],
+            scale=1.23,
+            masks=masks,
+            coordinate_unit="px",
         )
         modality[fovname] = cfov
 

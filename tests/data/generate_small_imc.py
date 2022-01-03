@@ -12,15 +12,15 @@ outfile = fpath
 
 f = "/data/l989o/deployed/a/data/spatial_uzh_processed/a/spatialmuon/BaselTMA_SP41_15.475kx12.665ky_10000x8500_5_20170905_107_114_X13Y4_219_a0_full.h5smu"
 d = smu.SpatialMuData(backing=f)
-ome = d['imc']['ome'].X[...]
-raster_masks = d['imc']['masks'].masks._backing['imagemask'][...]
+ome = d["imc"]["ome"].X[...]
+raster_masks = d["imc"]["masks"].masks._backing["imagemask"][...]
 new_shape = (40, 60, 10)
-new_ome = ome[:new_shape[0], :new_shape[1], :new_shape[2]]
-new_raster_masks = raster_masks[:new_shape[0], :new_shape[1]]
+new_ome = ome[: new_shape[0], : new_shape[1], : new_shape[2]]
+new_raster_masks = raster_masks[: new_shape[0], : new_shape[1]]
 
 
 print(outfile)
-new_var = d['imc']['ome'].var[:new_shape[2]]
+new_var = d["imc"]["ome"].var[: new_shape[2]]
 
 if os.path.isfile(outfile):
     os.unlink(outfile)

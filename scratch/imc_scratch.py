@@ -10,15 +10,15 @@ import matplotlib.gridspec as gridspec
 
 f = "/data/l989o/deployed/a/data/spatial_uzh_processed/a/spatialmuon/BaselTMA_SP41_15.475kx12.665ky_10000x8500_5_20170905_107_114_X13Y4_219_a0_full.h5smu"
 d = smu.SpatialMuData(backing=f)
-ome = d['imc']['ome'].X[...]
+ome = d["imc"]["ome"].X[...]
 ome.shape
-raster_masks = d['imc']['masks'].masks._backing['imagemask'][...]
+raster_masks = d["imc"]["masks"].masks._backing["imagemask"][...]
 raster_masks.shape
 new_shape = (40, 60, 10)
-new_ome = ome[:new_shape[0], :new_shape[1], :new_shape[2]]
-new_raster_masks = raster_masks[:new_shape[0], :new_shape[1]]
-outfile = 'tests/data/small_imc.h5smu'
-new_var = d['imc']['ome'].var[:new_shape[2]]
+new_ome = ome[: new_shape[0], : new_shape[1], : new_shape[2]]
+new_raster_masks = raster_masks[: new_shape[0], : new_shape[1]]
+outfile = "tests/data/small_imc.h5smu"
+new_var = d["imc"]["ome"].var[: new_shape[2]]
 ##
 if os.path.isfile(outfile):
     os.unlink(outfile)
@@ -31,20 +31,20 @@ regions = smu.Regions(masks=raster_masks)
 modality["masks"] = regions
 print(new_smu)
 ##
-x = d['imc']['masks'].masks._backing['imagemask'][...]
+x = d["imc"]["masks"].masks._backing["imagemask"][...]
 x.shape
 new_shape = (40, 60)
-new_x = x[:new_shape[0], :new_shape[1]]
+new_x = x[: new_shape[0], : new_shape[1]]
 new_x.shape
-d['imc']['masks'].masks._backing['imagemasks'] = new_x
-d['imc']['masks'].masks._obs = None
-d['imc']['masks'].masks.update_obs_from_masks()
-d['imc']['masks']
+d["imc"]["masks"].masks._backing["imagemasks"] = new_x
+d["imc"]["masks"].masks._obs = None
+d["imc"]["masks"].masks.update_obs_from_masks()
+d["imc"]["masks"]
 ##
 d["imc"]["ome"].plot(preprocessing=np.arcsinh)
 ##
 ##
-d['imc']['masks'].plot()
+d["imc"]["masks"].plot()
 
 ##
 os._exit(0)
@@ -54,7 +54,7 @@ x.shape[-1]
 
 plt.figure(figsize=(30, 20))
 gs = gridspec.GridSpec(11, 5)
-gs.update(wspace=0., hspace=0.)  # set the spacing between axes.
+gs.update(wspace=0.0, hspace=0.0)  # set the spacing between axes.
 for i in range(52):
     ax = plt.subplot(gs[i])
     ax.imshow(x[:, :, i])

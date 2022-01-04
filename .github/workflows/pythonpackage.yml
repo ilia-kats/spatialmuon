@@ -33,6 +33,7 @@ jobs:
         $CONDA/bin/conda install -c anaconda conda-build
         $CONDA/bin/conda develop .
         $CONDA/bin/conda install -c conda-forge vigra
+        $CONDA/bin/conda install -c anaconda h5py
         $CONDA/bin/conda install -c conda-forge rtree
         $CONDA/bin/conda install -c anaconda pytest
         $CONDA/bin/conda install -c conda-forge matplotlib

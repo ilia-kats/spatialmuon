@@ -37,6 +37,7 @@ jobs:
         $CONDA/bin/conda install -c conda-forge rtree
         $CONDA/bin/conda install -c anaconda pandas
         $CONDA/bin/conda install -c conda-forge shapely
+        $CONDA/bin/conda install -c conda-forge tifffile
         $CONDA/bin/conda install -c conda-forge anndata
         $CONDA/bin/conda install -c conda-forge trimesh
         $CONDA/bin/conda install -c anaconda pytest

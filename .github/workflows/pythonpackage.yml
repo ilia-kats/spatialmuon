@@ -32,7 +32,6 @@ jobs:
         sudo apt install -y hdf5-tools
         $CONDA/bin/conda install -c conda-forge vigra
         pip install pytest
-        pip install vigra
         pip install matplotlib
         pip install matplotlib_scalebar
         pytest --verbose --color=yes

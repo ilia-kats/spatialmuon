@@ -30,8 +30,7 @@ jobs:
     - name: Test with pytest
       run: |
         sudo apt install -y hdf5-tools
-        sudo apt-get update
-        sudo apt-get install -y python-vigra
+        $CONDA/bin/conda install -c conda-forge vigra
         pip install pytest
         pip install vigra
         pip install matplotlib

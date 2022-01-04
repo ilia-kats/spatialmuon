@@ -30,6 +30,7 @@ jobs:
     - name: Test with pytest
       run: |
         sudo apt install -y hdf5-tools
+        sudo apt install -y python-vigra
         pip install pytest
         pip install vigra
         pip install matplotlib

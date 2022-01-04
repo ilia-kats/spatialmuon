@@ -31,6 +31,6 @@ jobs:
       run: |
         sudo apt install -y hdf5-tools
         $CONDA/bin/conda install -c conda-forge mamba
-        $CONDA/bin/mamba env update --file pytest_env --name base
+        $CONDA/bin/mamba env update --file pytest_env.yml --name base
         $CONDA/bin/mamba develop .
         $CONDA/bin/pytest --verbose --color=yes

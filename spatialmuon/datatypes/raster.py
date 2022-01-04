@@ -130,6 +130,8 @@ class Raster(FieldOfView):
             data = self.X
 
         if genes is not None:
+            if not hasattr(self, "channel_names"):
+                self.channel_names = self.var["channel_name"]
             if self.channel_names is None:
                 data = data[..., genes]
             else:
@@ -341,7 +343,7 @@ class Raster(FieldOfView):
             plt.colorbar(
                 im, orientation="horizontal", location="bottom", ax=axs, shrink=0.6, pad=0.04
             )
-        if scalebar:
+        if scalebar and self.coordinate_unit is not None:
             unit = self.coordinate_unit
             scalebar = ScaleBar(self.scale, unit, box_alpha=0.8, color="white", box_color="black")
             axs.add_artist(scalebar)

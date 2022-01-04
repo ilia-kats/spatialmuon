@@ -68,7 +68,7 @@ class Masks(BackableObject):
     def __len__(self):
         pass
 
-    @abstractmethod
+    # @abstractmethod
     def update_obs_from_masks(self):
         pass
 
@@ -476,6 +476,7 @@ class RasterMasks(Masks):
     def __len__(self):
         return np.max(self.data)
 
+    # flake8: noqa: C901
     def __getitem__(self, key):
         if not np.issubdtype(type(key), np.integer):
             raise TypeError("key must be an integer")
@@ -536,7 +537,7 @@ class RasterMasks(Masks):
 
     def update_obs_from_masks(self):
         # if the dataframe is not empty
-        if len(self._obs.columns) != 0:
+        if self._obs is not None and len(self._obs.columns) != 0:
             raise ValueError(
                 "replacing the old obs is only performed when obs is an empty DataFrame or it is None"
             )

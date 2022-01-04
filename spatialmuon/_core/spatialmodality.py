@@ -1,10 +1,10 @@
 from typing import Optional, Union, Callable
 import warnings
 import matplotlib
-from .backing import BackableObject, BackedDictProxy
-from .fieldofview import FieldOfView, UnknownEncodingException
-from .plot import plot_preview_grid
-from ..utils import _read_hdf5_attribute, _get_hdf5_attribute
+import matplotlib.cm
+from spatialmuon._core.backing import BackableObject, BackedDictProxy
+from spatialmuon._core.fieldofview import FieldOfView, UnknownEncodingException
+from spatialmuon.utils import _read_hdf5_attribute, _get_hdf5_attribute
 
 import h5py
 
@@ -14,7 +14,6 @@ class SpatialModality(BackableObject, BackedDictProxy):
         self,
         backing: Optional[h5py.Group] = None,
         fovs: Optional[dict] = None,
-        coordinate_unit: Optional[str] = None,
     ):
         super().__init__(backing)
         if self.isbacked:
@@ -23,11 +22,9 @@ class SpatialModality(BackableObject, BackedDictProxy):
                     self[f] = FieldOfView(backing=fov)
                 except UnknownEncodingException as e:
                     warnings.warn(f"Unknown field of view type {e.encoding}")
-            self.coordinate_unit = _get_hdf5_attribute(self.backing.attrs, "coordinate_unit", None)
         else:
             if fovs is not None:
                 self.update(fovs)
-            self.coordinate_unit = coordinate_unit
 
     @staticmethod
     def _encodingtype():
@@ -48,13 +45,13 @@ class SpatialModality(BackableObject, BackedDictProxy):
                 fov.set_backing(None)
 
     def _write_attributes_impl(self, grp: h5py.Group):
-        if self.coordinate_unit is not None:
-            grp.attrs["coordinate_unit"] = self.coordinate_unit
+        pass
 
     def _write(self, grp):
         for f, fov in self.items():
             fov.write(grp, f)
 
+    # flake8: noqa: C901
     def plot(
         self,
         channels: Optional[Union[str, list[str]]] = "all",

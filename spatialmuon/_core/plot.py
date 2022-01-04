@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from spatialmuon.utils import angle_between
-from typing import Union, Optional, Callable
+from typing import Union, Optional, Callable, List
 import spatialmuon.datatypes
 import matplotlib.pyplot as plt
 import matplotlib.axes
@@ -15,12 +15,14 @@ import math
 import warnings
 
 from scipy import ndimage
+
 # import matplotlib.font_manager as fm)
 # from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from matplotlib_scalebar.scalebar import ScaleBar
 import numpy as np
 
 
+# flake8: noqa: C901
 def plot_channel(
     sm: SpatialModality,
     fov_name: str,
@@ -36,9 +38,7 @@ def plot_channel(
     **kwargs,
 ) -> Optional[matplotlib.cm.ScalarMappable]:
     if fov_name not in sm:
-        raise ValueError(
-            f"{fov_name} is not a FieldOfView of the considered SpatialModality"
-        )
+        raise ValueError(f"{fov_name} is not a FieldOfView of the considered SpatialModality")
     else:
         fov = sm[fov_name]
 
@@ -166,9 +166,7 @@ def plot_channel_array(
     if preprocessing is not None:
         x = preprocessing(x)
     if fov._spot_shape != spatialmuon.datatypes.array.SpotShape.circle:
-        raise NotImplementedError(
-            "preliminary implementation for Visium-like data only"
-        )
+        raise NotImplementedError("preliminary implementation for Visium-like data only")
     points = fov.obs["geometry"].tolist()
     coords = np.array([[p.x, p.y] for p in points])
     radius = fov._spot_size
@@ -223,9 +221,7 @@ def plot_image(
     **kwargs,
 ):
     if fov_name not in sm:
-        raise ValueError(
-            f"{fov_name} is not a FieldOfView of the considered SpatialModality"
-        )
+        raise ValueError(f"{fov_name} is not a FieldOfView of the considered SpatialModality")
     else:
         fov = sm[fov_name]
     if type(fov) == spatialmuon.datatypes.raster.Raster:
@@ -277,136 +273,3 @@ def plot_image_raster(
         x = preprocessing(x)
     im = ax.imshow(x, **kwargs)
     return im
-
-
-def plot_preview_grid(
-    data_to_plot: dict = None,
-    grid_size: Union[int, list[int]] = 1,
-    preprocessing: Optional[Callable] = None,
-    overlap: bool = False,
-    cmap: Union[
-        matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
-    ] = matplotlib.cm.get_cmap("viridis"),
-):
-    plt.style.use("dark_background")
-    default_cmaps = [
-        matplotlib.cm.get_cmap("viridis"),
-        matplotlib.cm.get_cmap("plasma"),
-        matplotlib.cm.get_cmap("inferno"),
-        matplotlib.cm.get_cmap("magma"),
-        matplotlib.cm.get_cmap("cividis"),
-        matplotlib.cm.get_cmap("Purples"),
-        matplotlib.cm.get_cmap("Blues"),
-        matplotlib.cm.get_cmap("Greens"),
-        matplotlib.cm.get_cmap("Oranges"),
-        matplotlib.cm.get_cmap("Reds"),
-        matplotlib.cm.get_cmap("spring"),
-        matplotlib.cm.get_cmap("summer"),
-        matplotlib.cm.get_cmap("autumn"),
-        matplotlib.cm.get_cmap("winter"),
-        matplotlib.cm.get_cmap("cool"),
-    ]
-    upper_limit_tiles = 50
-
-    if (
-        isinstance(grid_size, list)
-        and len(grid_size) == 2
-        and all(isinstance(x, int) for x in grid_size)
-    ):
-        n_tiles = grid_size[0] * grid_size[1]
-    elif grid_size == 1 and len(data_to_plot) != 1:
-        n_tiles = len(data_to_plot)
-    elif isinstance(grid_size, int):
-        n_tiles = grid_size**2
-    else:
-        raise ValueError("'grid_size' must either be a single integer or a list of two integers.")
-
-    if not isinstance(overlap, bool):
-        raise ValueError("'overlap' must be 'True' or 'False'.")
-
-    if not (
-        isinstance(cmap, matplotlib.colors.Colormap)
-        or (isinstance(cmap, list) and all(isinstance(c, matplotlib.colors.Colormap) for c in cmap))
-    ):
-        raise ValueError("'cmap' must either be a single or a list of matplotlib.colors.Colormap.")
-    if (isinstance(cmap, list) and len(cmap) > 1) and not (len(cmap) == len(data_to_plot.keys())):
-        raise ValueError(
-            "'cmap' must either be length one or the same length as the channels that will be plotted."
-        )
-
-    if n_tiles > upper_limit_tiles:
-        warnings.warn(
-            "The generated plot will be very large. Consider plotting it outside of spatialmuon."
-        )
-
-    if len(data_to_plot) > n_tiles:
-        msg = "More channels available than covered by 'grid_size'. Only the first {} channels will be plotted".format(
-            n_tiles
-        )
-        warnings.warn(msg)
-    if isinstance(cmap, matplotlib.colors.Colormap) and len(data_to_plot.keys()) > 1:
-        cmap = default_cmaps
-
-    if overlap is False:
-
-        # Calcualte grid layout
-        if not isinstance(grid_size, list):
-            n_x = math.ceil(n_tiles ** 0.5)
-            n_y = math.floor(n_tiles ** 0.5)
-            if n_x * n_y < n_tiles:
-                n_y += 1
-        else:
-            n_x = grid_size[0]
-            n_y = grid_size[1]
-
-        fig, axs = plt.subplots(n_y, n_x)
-        if len(data_to_plot) > 1:
-            axs = axs.flatten()
-
-        for idx, channel in enumerate(data_to_plot):
-            if idx < n_tiles:
-                x = (
-                    data_to_plot[channel]
-                    if preprocessing is None
-                    else preprocessing(data_to_plot[channel])
-                )
-                if len(data_to_plot) > 1:
-                    axs[idx].matshow(x, cmap=cmap[idx])
-                    axs[idx].text(0, -10, channel, size=12)
-                    for ax in axs.flat:
-                        ax.set_axis_off()
-                else:
-                    axs.matshow(x, cmap=cmap)
-                    axs.set_title(channel)
-                    axs.set_axis_off()
-    elif overlap is True:
-        fig, axs = plt.subplots(1, 1)
-        for idx, channel in enumerate(data_to_plot):
-            a = 1 / (len(data_to_plot.keys()) - 1) if idx > 0 else 1
-            x = (
-                data_to_plot[channel]
-                if preprocessing is None
-                else preprocessing(data_to_plot[channel])
-            )
-            axs.matshow(x, cmap=cmap[idx], alpha=a)
-        title = "background: {}; overlay: {}".format(
-            [k for k in data_to_plot.keys()][0],
-            ", ".join(map(str, [k for k in data_to_plot.keys()][1:])),
-        )
-        legend = []
-        for idx, c in enumerate(cmap):
-            rgba = c(0.5)
-            legend.append(
-                matplotlib.patches.Patch(
-                    facecolor=rgba, edgecolor=rgba, label=[k for k in data_to_plot.keys()][idx]
-                )
-            )
-
-        axs.legend(handles=legend, frameon=False, loc="center left", bbox_to_anchor=(1, 0.5))
-        axs.set_title(title)
-        axs.set_axis_off()
-
-    fig.tight_layout()
-    fig.show()
-
-    plt.style.use("default")

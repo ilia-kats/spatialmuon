@@ -29,7 +29,7 @@ class SpatialMuData(BackableObject, BackedDictProxy):
                             == "Unable to open file (file is already open for write/SWMR write (may use <h5clear "
                             "file> to clear file consistency flags))"
                         ):
-                            cmd = "h5clear -s " + backing
+                            cmd = f"h5clear -s {backing}"
                             system(cmd)
                             backing = h5py.File(backing, backingmode)
                         else:

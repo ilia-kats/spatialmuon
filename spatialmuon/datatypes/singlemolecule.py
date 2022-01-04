@@ -52,6 +52,7 @@ class SingleMolecule(FieldOfView):
     def data(self):
         return self._data_subset()
 
+    # flake8: noqa: C901
     def _data_subset(self, yidx=None, genes=None):
         # only works with list[int] and 1D arrays at the moment
         if self.isbacked:

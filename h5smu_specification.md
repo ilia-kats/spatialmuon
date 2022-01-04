@@ -16,9 +16,7 @@ contains one sub-group per modality
 - **attributes**
     - `encoding-type`: `spatialmodality`
     - `encoding-version`: 0.1.0
-    - `coordinate_unit`: Optional. String, unit of the coordinates for this modality (e.g. `µm`).
 
-    the assumption is that all FOVs in a modality have the same scale factor
 - **groups**
 
     one subgroup per field of view
@@ -31,6 +29,7 @@ contains one sub-group per modality
         - `fov-raster` for IMC data, where expression data are on a regular grid and are stored as images
     - `encoding-version`: version of the format
     - `scale`: Positive float, scale factor of this modality, default to 1.
+    - `coordinate_unit`: Optional. String, unit of the coordinates for this FOV (e.g. `µm`).
     - `rotation`: rotation matrix to align this FOV with the other FOVs. Can be 2D or 3D. Optional, if missing assumed to be the identity matrix. It needs to have determinant with module 1.
     - `center_of_rotation`: , reference point for rotation, default (0, 0, ...), primarily used for spm.Raster()
     - `translation`: 2 or 3 element translation vector to align this FOV with the other FOVs.

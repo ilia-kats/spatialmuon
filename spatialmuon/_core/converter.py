@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional, Union, List
 import numpy as np
 import pandas as pd
 import tifffile

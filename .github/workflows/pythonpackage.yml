@@ -35,6 +35,7 @@ jobs:
         $CONDA/bin/conda install -c conda-forge vigra
         $CONDA/bin/conda install -c anaconda h5py
         $CONDA/bin/conda install -c conda-forge rtree
+        $CONDA/bin/conda install -c anaconda pandas
         $CONDA/bin/conda install -c anaconda pytest
         $CONDA/bin/conda install -c conda-forge matplotlib
         $CONDA/bin/conda install -c conda-forge matplotlib-scalebar

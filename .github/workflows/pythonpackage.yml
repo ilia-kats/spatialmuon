@@ -31,6 +31,7 @@ jobs:
       run: |
         sudo apt install -y hdf5-tools
         pip install pytest
+        pip install vigra
         pip install matplotlib
         pip install matplotlib_scalebar
         pytest --verbose --color=yes

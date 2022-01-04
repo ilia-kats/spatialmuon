@@ -30,6 +30,7 @@ jobs:
     - name: Test with pytest
       run: |
         sudo apt install -y hdf5-tools
+        $CONDA/bin/conda develop .
         $CONDA/bin/conda install -c conda-forge vigra
         $CONDA/bin/conda install -c anaconda pytest
         $CONDA/bin/conda install -c conda-forge matplotlib

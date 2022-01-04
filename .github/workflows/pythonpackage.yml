@@ -30,22 +30,7 @@ jobs:
     - name: Test with pytest
       run: |
         sudo apt install -y hdf5-tools
-        $CONDA/bin/conda install -c anaconda conda-build
-        $CONDA/bin/conda develop .
-        $CONDA/bin/conda install -c anaconda pip
-        $CONDA/bin/pip install squidpy
-        $CONDA/bin/conda install -c conda-forge vigra
-        $CONDA/bin/conda install -c anaconda h5py
-        $CONDA/bin/conda install -c conda-forge rtree
-        $CONDA/bin/conda install -c anaconda pandas
-        $CONDA/bin/conda install -c conda-forge shapely
-        $CONDA/bin/conda install -c bioconda ncls
-        $CONDA/bin/conda install -c conda-forge scikit-image
-        $CONDA/bin/conda install -c conda-forge tifffile
-        $CONDA/bin/conda install -c conda-forge geopandas
-        $CONDA/bin/conda install -c conda-forge anndata
-        $CONDA/bin/conda install -c conda-forge trimesh
-        $CONDA/bin/conda install -c anaconda pytest
-        $CONDA/bin/conda install -c conda-forge matplotlib
-        $CONDA/bin/conda install -c conda-forge matplotlib-scalebar
+        $CONDA/bin/conda install -c conda-forge mamba
+        $CONDA/bin/mamba env update --file pytest_env --name base
+        $CONDA/bin/mamba develop .
         $CONDA/bin/pytest --verbose --color=yes

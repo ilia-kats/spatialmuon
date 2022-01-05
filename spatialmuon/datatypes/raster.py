@@ -39,10 +39,12 @@ class Raster(FieldOfView):
             self._px_distance = _get_hdf5_attribute(backing.attrs, "px_distance")
             self._px_dimensions = _get_hdf5_attribute(backing.attrs, "px_dimensions")
             if _get_hdf5_attribute(backing.attrs, "anchors") is None:
-                self._anchors = {"origin": (
-                    [0] + ([0] * (self._ndim-1)), # anchor
-                    [1] + ([0] * (self._ndim-1))  # vector
-                )}
+                self._anchors = {
+                    "origin": (
+                        [0] + ([0] * (self._ndim - 1)),  # anchor
+                        [1] + ([0] * (self._ndim - 1)),  # vector
+                    )
+                }
             else:
                 self._anchors = _get_hdf5_attribute(backing.attrs, "anchors")
             self._X = None
@@ -53,10 +55,12 @@ class Raster(FieldOfView):
             self._ndim = X.ndim if X.ndim == 2 else X.ndim - 1
             if self._ndim < 2 or self._ndim > 3:
                 raise ValueError("image dimensionality not supported")
-            self._anchors = {"origin": (
-                [0] + ([0] * (self._ndim-1)), # anchor
-                [1] + ([0] * (self._ndim-1))  # vector
-            )}
+            self._anchors = {
+                "origin": (
+                    [0] + ([0] * (self._ndim - 1)),  # anchor
+                    [1] + ([0] * (self._ndim - 1)),  # vector
+                )
+            }
             self._px_dimensions = px_dimensions
             self._px_distance = px_distance
             if self._px_dimensions is not None:
@@ -97,30 +101,27 @@ class Raster(FieldOfView):
     @property
     def anchors(self) -> dict:
         """A dict of anchor/vector pairs for alignment.
-        
         Spatial information can be aligned to eachother in a m:n fashion. This
         is implemented in spatialmuon on the basis of an anchor point from which
         a vector extends. Based on this information, translation, rotation and
-        scaling can then be calculated.  
-        
-        """        
+        scaling can then be calculated.
+
+        """
         if self._anchors is None:
             return self.anchors
         else:
             return self._anchors
-        
     @anchors.setter
-    def anchors(self, anchordict: dict): 
+    def anchors(self, anchordict: dict):
         """Updates the dict of anchor/vector pairs."""
         if not isinstance(anchordict, dict):
             raise TypeError("Only dictionaries can be saved.")
-        if len(anchordict.keys()) == 0:   
-            raise ValueError("Won't assign empty dictionary.") 
-        if "origin" not in anchordict.keys():   
-            raise ValueError("Dictionary must contain an 'origin' key.") 
-        
+        if len(anchordict.keys()) == 0:
+            raise ValueError("Won't assign empty dictionary.")
+        if "origin" not in anchordict.keys():
+            raise ValueError("Dictionary must contain an 'origin' key.")
+
         self._anchors = anchordict
-        
     # flake8: noqa: C901
     def _getitem(
         self,

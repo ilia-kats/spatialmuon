@@ -111,6 +111,7 @@ class Raster(FieldOfView):
             return self.anchors
         else:
             return self._anchors
+
     @anchors.setter
     def anchors(self, anchordict: dict):
         """Updates the dict of anchor/vector pairs."""
@@ -122,6 +123,7 @@ class Raster(FieldOfView):
             raise ValueError("Dictionary must contain an 'origin' key.")
 
         self._anchors = anchordict
+
     # flake8: noqa: C901
     def _getitem(
         self,

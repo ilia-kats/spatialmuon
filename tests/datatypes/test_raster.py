@@ -12,6 +12,7 @@ class Raster_TestClass(unittest.TestCase):
         c = spatialmuon.Converter()
         ome_raster = c.raster_from_tiff(fpath_ome)
         self.assertTrue(isinstance(ome_raster.anchors, dict))
+
     def test_anchor_dict_contains_origin(self):
         c = spatialmuon.Converter()
         ome_raster = c.raster_from_tiff(fpath_ome)

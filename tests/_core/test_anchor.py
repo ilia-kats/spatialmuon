@@ -1,5 +1,6 @@
 import unittest
 import spatialmuon
+from pathlib import Path
 
 # Get current file and pre-generate paths and names
 this_dir = Path(__file__).parent

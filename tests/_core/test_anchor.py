@@ -17,32 +17,24 @@ class Anchor_TestClass(unittest.TestCase):
         c = spatialmuon.Converter()
         ome_raster = c.raster_from_tiff(fpath_ome)
         self.assertTrue(isinstance(ome_raster.anchor, spatialmuon.Anchor))
-        
     def test_Anchor_contains_ndim(self):
         a = spatialmuon.Anchor(3)
         self.assertTrue(hasattr(a, "ndim"))
-        
     def test_Anchor_contains_origin(self):
         a = spatialmuon.Anchor(3)
         self.assertTrue(hasattr(a, "origin"))
-        
     def test_Anchor_contains_vector(self):
         a = spatialmuon.Anchor(3)
         self.assertTrue(hasattr(a, "vector"))
-        
     def test_move_origin(self):
         a = spatialmuon.Anchor(2)
         a.move_origin("x", 2)
         self.assertTrue(np.alltrue(a.origin == np.array([2, 0])))
-        
     def test_rotate_vector(self):
         a = spatialmuon.Anchor(2)
         a.rotate_vector(45)
-        self.assertEqual(
-            [np.round(x, 5) for x in a.vector], 
-            [0.70711, 0.70711]
-        )
-        
+        self.assertEqual([np.round(x, 5) for x in a.vector], [0.70711, 0.70711])
+
     def test_scale_vector(self):
         a = spatialmuon.Anchor(2)
         a.scale_vector(2)

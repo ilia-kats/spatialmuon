@@ -21,10 +21,7 @@ class Anchor:
     """
 
     def __init__(
-        self, 
-        ndim: int, 
-        origin: Optional[np.ndarray] = None, 
-        vector: Optional[np.ndarray] = None
+        self, ndim: int, origin: Optional[np.ndarray] = None, vector: Optional[np.ndarray] = None
     ):
         if origin is None:
             self._origin = np.array([0] * ndim)

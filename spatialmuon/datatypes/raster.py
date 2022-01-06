@@ -91,7 +91,6 @@ class Raster(FieldOfView):
     @property
     def anchor(self) -> Anchor:
         """A np.ndarray with an anchor/vector pair for alignment.
-        
         Spatial information can be aligned to eachother in a m:n fashion. This
         is implemented in spatialmuon on the basis of an anchor point from which
         a vector extends that is aligned in a global coordinate system. All data

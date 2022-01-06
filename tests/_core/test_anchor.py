@@ -35,6 +35,7 @@ class Anchor_TestClass(unittest.TestCase):
         a.move_origin("x", 2)
         self.assertTrue(np.alltrue(a.origin == np.array([2, 0])))
         
+
     def test_rotate_vector(self):
         a = spatialmuon.Anchor(2)
         a.rotate_vector(45)

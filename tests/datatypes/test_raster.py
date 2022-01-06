@@ -8,15 +8,17 @@ fpath_ome = this_dir / "../data/ome_example.tiff"
 
 
 class Raster_TestClass(unittest.TestCase):
-    def test_is_created_with_anchor_dict(self):
+    def test_can_create_from_tiff(self):
         c = spatialmuon.Converter()
         ome_raster = c.raster_from_tiff(fpath_ome)
-        self.assertTrue(isinstance(ome_raster.anchors, dict))
+        self.assertTrue(isinstance(ome_raster, spatialmuon.Raster))
 
-    def test_anchor_dict_contains_origin(self):
+    def test_can_assign_to_SpatialModality(self):
         c = spatialmuon.Converter()
         ome_raster = c.raster_from_tiff(fpath_ome)
-        self.assertTrue("origin" in ome_raster.anchors.keys())
+        mod = spatialmuon.SpatialModality()
+        mod["ome"] = ome_raster
+        self.assertTrue(isinstance(mod["ome"], spatialmuon.Raster))
 
 
 if __name__ == "__main__":

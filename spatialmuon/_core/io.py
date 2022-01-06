@@ -12,6 +12,7 @@ from ..utils import _read_hdf5_attribute, _get_hdf5_attribute, is_h5smu
 
 
 def _read_modality(grp: h5py.Group):
+    raise ValueError('legacy code, not tested')
     attrs = grp.attrs
     scale = _get_hdf5_attribute(attrs, "scale", None)
     unit = _get_hdf5_attribute(attrs, "coordinate_unit", None)

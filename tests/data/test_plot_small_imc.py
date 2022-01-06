@@ -143,7 +143,7 @@ class PlotSmallImc_TestClass(unittest.TestCase):
         for k in accumulated.keys():
             del d['imc'][k]
 
-    def test_can_plot_regions_value(self):
+    def test_can_plot_accumulated_regions_value(self):
         d = spatialmuon.SpatialMuData(backing=fpath)
         accumulated = d['imc']['ome'].accumulate_features(d['imc']['masks'].masks)
         for k, v in accumulated.items():
@@ -163,6 +163,9 @@ if __name__ == "__main__":
     if not DEBUGGING:
         unittest.main()
     else:
+        PlotSmallImc_TestClass().test_can_load_smu_file()
+        PlotSmallImc_TestClass().test_can_pretty_print()
+        #
         PlotSmallImc_TestClass().test_can_plot_raster_single_channel_in_ax()
         PlotSmallImc_TestClass().test_can_plot_raster_single_channel()
         PlotSmallImc_TestClass().test_can_plot_raster_overlapping_channels_in_ax()
@@ -173,4 +176,4 @@ if __name__ == "__main__":
         PlotSmallImc_TestClass().test_can_plot_regions_solid_color()
         PlotSmallImc_TestClass().test_can_plot_raster_and_regions_together()
         PlotSmallImc_TestClass().test_can_accumulate_raster_with_raster_masks()
-        PlotSmallImc_TestClass().test_can_plot_regions_value()
+        PlotSmallImc_TestClass().test_can_plot_accumulated_regions_value()

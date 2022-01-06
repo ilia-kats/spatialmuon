@@ -21,17 +21,18 @@ import h5py
 import spatialmuon
 from spatialmuon.datasets._utils import download, unzip, md5
 
+
 # DEBUG = False
 DEBUG = True
 
-DOWNLOAD = True
+DOWNLOAD = False
 if DEBUG:
     DOWNLOAD = False
 
 if len(sys.argv) > 1:
     outfname = sys.argv[1]
 else:
-    outfname = "visium.h5smu"
+    outfname = "/data/spatialmuon/datasets/visium_mousebrain/smu/visium.h5smu"
 
 with tempfile.TemporaryDirectory() as tmpdir:
     if not DOWNLOAD:
@@ -51,7 +52,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
         os.unlink(outfname)
 
     smudata = spatialmuon.SpatialMuData(outfname)
-    smudata["Visium"] = modality = spatialmuon.SpatialModality(coordinate_unit="px")
+    smudata["Visium"] = modality = spatialmuon.SpatialModality()
 
     fovdir = os.path.join(tmpdir, "mouse_brain_visium_wo_cloupe_data", "rawdata")
     fovs = [f for f in os.listdir(fovdir) if not f.startswith(".")]
@@ -103,10 +104,11 @@ with tempfile.TemporaryDirectory() as tmpdir:
             # the samples are offset by 10 μm in the Z axis according to the paper
             # I have no idea how much that is in pixels
             # So just do 10 px
-            spots_dict = {o: ((x, y), radius) for (o, (x, y)) in zip(obs.index.tolist(), coords)}
-            masks = ShapeMasks(masks_dict=spots_dict, obs=obs)
+            labels = obs.index.tolist()
+            masks = ShapeMasks(masks_shape='circle', masks_centers=coords, masks_radii=radius, masks_labels=labels)
             cfov = spatialmuon.Regions(
-                X=X, var=var, translation=[0, 0, fovidx * 10], scale=6.698431978755106, masks=masks
+                X=X, var=var, translation=[0, 0, fovidx * 10], scale=6.698431978755106, masks=masks,
+                coordinate_unit='um'
             )
             modality[fovname] = cfov
 
@@ -118,6 +120,5 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
             pbar.update()
             if DEBUG:
-                if fovidx > 1:
-                    print("debugging: stopping at the first slide")
-                    break
+                print("debugging: stopping at the first slide")
+                break

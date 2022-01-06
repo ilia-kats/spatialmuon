@@ -45,6 +45,10 @@ class BackableObject(ABC):
         self._set_backing(obj)
         if obj is None and self._backing is not None and self._backing.name == "/":
             self._backing.close()
+        # at this point self._backing can be either None, in that case we just set it to obj, or it can be referring
+        # to a portion of an hdf5 file, like when we have (say) some RasterMasks from a Region and we copy them to
+        # another Region object. In that case, the following line is what makes the new Region have a RasterMask
+        # object that is pointing to the new portion of the hdf5 file
         self._backing = obj
 
     @abstractmethod
@@ -60,6 +64,8 @@ class BackableObject(ABC):
         if self.isbacked:
             if self.backing.file != obj.file or self.backing.name != obj.name:
                 obj.parent.copy(self.backing, os.path.basename(obj.name))
+            else:
+                print('to study the code')
         else:
             self._write_attributes(obj)
             self._write(obj)
@@ -111,6 +117,8 @@ class BackedDictProxy(UserDict):
             self._initgrp()
             if key in self._grp and value.backing != self._grp[key] or key not in self._grp:
                 value.set_backing(self._grp, key)
+        else:
+            print('to set a breakpoint and study the code')
         super().__setitem__(key, value)
 
     def __delitem__(self, key: str):

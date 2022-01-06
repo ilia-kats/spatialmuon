@@ -20,10 +20,11 @@ from anndata._io.utils import read_attribute, write_attribute
 import pandas as pd
 import skimage.measure
 import vigra
+from enum import Enum, auto
 
 from spatialmuon._core.fieldofview import FieldOfView
 from spatialmuon._core.backing import BackableObject
-from spatialmuon.utils import _read_hdf5_attribute, UnknownEncodingException
+from spatialmuon.utils import _read_hdf5_attribute, UnknownEncodingException, _get_hdf5_attribute
 
 # either a color or a list of colors
 ColorsType = Optional[
@@ -40,6 +41,14 @@ ColorsType = Optional[
 ]
 
 
+class SpotShape(Enum):
+    circle = auto()
+    rectangle = auto()
+
+    def __str__(self):
+        return str(self.name)
+
+
 class Masks(BackableObject):
     def __new__(cls, *, backing: Optional[h5py.Group] = None, **kwargs):
         if backing is not None:
@@ -50,6 +59,8 @@ class Masks(BackableObject):
                 return super(cls, RasterMasks).__new__(RasterMasks)
             elif masktype == "masks-mesh":
                 return super(cls, MeshMasks).__new__(MeshMasks)
+            elif masktype == "masks-shape":
+                return super(cls, ShapeMasks).__new__(ShapeMasks)
             else:
                 raise UnknownEncodingException(masktype)
         else:
@@ -91,7 +102,7 @@ class Masks(BackableObject):
     def __len__(self):
         pass
 
-    # @abstractmethod
+    @abstractmethod
     def update_obs_from_masks(self):
         pass
 
@@ -115,8 +126,8 @@ class Masks(BackableObject):
             dataset_kwargs={"compression": "gzip", "compression_opts": 9},
         )
 
-    def _set_backing(self, obj=None):
-        self._write_data(obj)
+    def _set_backing(self, grp: Optional[h5py.Group] = None):
+        self._write_data(grp)
 
     def __repr__(self, mask_type="masks"):
         repr_str = f"│   ├── {self.ndim}D {mask_type} with {self.n_obs} obs: {', '.join(self.obs)}"
@@ -144,72 +155,140 @@ class ShapeMasks(Masks, MutableMapping):
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,
-        masks_dict: Optional[dict[str, tuple[tuple[float], float]]] = None,
-        obs: Optional[pd.DataFrame] = None,
+        masks_centers: Optional[np.array] = None,
+        masks_radii: Optional[Union[float, np.array]] = None,
+        masks_shape: Optional[str] = None,
+        masks_labels: Optional[list[str]] = None,
     ):
-        super().__init__(obs, backing)
+        super().__init__(backing=backing)
 
-        self._data = {}
-        self._ndim = None
+        self._masks_centers: Optional[np.ndarray] = None
+        self._masks_radii: Optional[np.ndarray] = None
+        self._masks_shape: Optional[SpotShape] = None
+        self._masks_labels: Optional[list[str]] = None
 
-        if masks_dict is not None:
-            if self.isbacked and len(self.backing) > 0:
-                raise ValueError("trying to set masks on a non-empty backing store")
-            for key, mask in masks_dict.items():
-                ndim = len(mask[0])
-                if self.ndim is None:
-                    self._ndim = ndim
-                if ndim != self.ndim:
-                    raise ValueError("all masks must have the same dimensionality")
+        # radius is either one number, either a 1d vector either the same shape as the centers
 
-            if self.isbacked:
-                self[key] = mask
+        if self.isbacked:
+            if (
+                masks_centers is not None
+                or masks_radii is not None
+                or masks_shape is not None
+                or masks_labels is not None
+            ):
+                raise ValueError("attempting to specify masks for a non-empty backing store")
             else:
-                self._data[key] = mask
+                self._masks_centers = backing['masks_centers']
+                self._masks_radii = backing['masks_radii']
+                assert self._masks_centers.shape == self._masks_radii.shape
+                s = _get_hdf5_attribute(backing.attrs, 'masks_shape')
+                self._masks_shape = SpotShape(value=s)
+        else:
+            if masks_shape is not None or masks_radii is not None:
+                assert masks_centers is not None and masks_radii is not None
+                # setting self._masks_shape
+                if masks_shape is None:
+                    masks_shape = SpotShape.circle
+                self._masks_shape = masks_shape
+
+                # setting self._masks_centers
+                assert masks_centers is not None and masks_radii is not None
+                assert len(masks_centers.shape) == 2
+                n = masks_centers.shape[0]
+                d = masks_centers.shape[1]
+                assert d in [2, 3]
+                self._masks_centers = masks_centers
+
+                # setting self._masks.radii
+                if isinstance(masks_radii, float):
+                    self._masks_radii = np.ones_like(self._masks_centers) * masks_radii
+                else:
+                    assert isinstance(masks_radii, np.ndarray)
+                    assert len(masks_radii) == n
+                    if len(masks_radii.shape) in [0, 1]:
+                        x = masks_radii.reshape((-1, 1))
+                        self._masks_radii = np.tile(x, (1, d))
+                    elif len(masks_radii.shape) == 2:
+                        self._masks_radii = masks_radii
+                    else:
+                        raise ValueError()
+                assert self._masks_radii.shape == self._masks_centers.shape
+
+                # setting self._masks_labels
+                if masks_labels is not None:
+                    assert len(masks_labels) == n
+                    self._masks_labels = masks_labels
+            else:
+                self._masks_shape = SpotShape.circle
+                self._masks_centers = np.zeros([[]])
+                self._masks_radii = np.zeros([[]])
+
+    def update_obs_from_masks(self):
+        # if the dataframe is not empty
+        if self._obs is not None and len(self._obs.columns) != 0:
+            raise ValueError(
+                "replacing the old obs is only performed when obs is an empty DataFrame or it is None"
+            )
+        if self._masks_centers is None:
+            raise ValueError("no mask data has been specified")
+        if self._masks_labels is not None:
+            mask_df = pd.DataFrame(data=dict(original_labels=self._masks_labels))
+        else:
+            mask_df = pd.DataFrame(index=range(len(self._masks_centers)))
+        self._obs = mask_df
 
     @property
     def ndim(self):
-        return self._ndim
+        assert self._masks_centers is not None
+        assert len(self._masks_centers.shape) == 2
+        return self._masks_centers.shape[1]
 
     def __getitem__(self, key) -> Polygon:
-        if self.isbacked:
-            return (self.backing[key]["center"], self.backing[key]["radius"])
-        else:
-            return self._data[key]
+        raise NotImplementedError()
+        # if self.isbacked:
+        #     return (self.backing[key]["center"], self.backing[key]["radius"])
+        # else:
+        #     return self._data[key]
 
     def __setitem__(self, key: str, value: tuple[tuple[float], float]):
-        if self.ndim is not None and self.ndim != len(value[0]):
-            raise ValueError(f"value must have dimensionality {self.ndim}, but has {len(value[0])}")
-        if self.isbacked:
-            grp = self.backing.create_group(key)
-            grp.create_dataset("center", data=value[0])
-            grp.create_dataset("radius", data=np.array([value[1]]))
-        else:
-            self._data[key] = value
+        raise NotImplementedError()
+        # if self.ndim is not None and self.ndim != len(value[0]):
+        #     raise ValueError(f"value must have dimensionality {self.ndim}, but has {len(value[0])}")
+        # if self.isbacked:
+        #     grp = self.backing.create_group(key)
+        #     grp.create_dataset("center", data=value[0])
+        #     grp.create_dataset("radius", data=np.array([value[1]]))
+        # else:
+        #     self._data[key] = value
 
     def __delitem__(self, key: str):
-        if self.isbacked:
-            del self.backing[key]
-        else:
-            del self._data[key]
+        raise NotImplementedError()
+        # if self.isbacked:
+        #     del self.backing[key]
+        # else:
+        #     del self._data[key]
 
     def __len__(self):
-        if self.isbacked:
-            return len(self.backing)
-        else:
-            return len(self._data)
+        assert self._masks_centers is not None
+        return len(self._masks_centers)
+        # if self.isbacked:
+        #     return len(self.backing)
+        # else:
+        #     return len(self._data)
 
     def __contains__(self, item):
-        if self.isbacked:
-            return item in self.backing
-        else:
-            return item in self._data
+        raise NotImplementedError()
+        # if self.isbacked:
+        #     return item in self.backing
+        # else:
+        #     return item in self._data
 
     def __iter__(self):
-        if self.isbacked:
-            return iter(self.backing)
-        else:
-            return iter(self._data)
+        raise NotImplementedError()
+        # if self.isbacked:
+        #     return iter(self.backing)
+        # else:
+        #     return iter(self._data)
 
     def items(self):
         raise NotImplementedError()
@@ -225,20 +304,45 @@ class ShapeMasks(Masks, MutableMapping):
     def _encodingversion():
         return "0.1.0"
 
-    def _set_backing(self, value: h5py.Group):
-        super()._set_backing(value)
-        if value is None and self.backed:
-            for k, v in self.backing.items():
-                self._data[k] = (self.backing["center"][:], self.backing["radius"][:])
-        elif value is not None:
-            self._write(value)
-            self._data.clear()
+    def _set_backing(self, grp: Optional[h5py.Group]):
+        super()._set_backing(grp)
+        if grp is not None:
+            assert isinstance(grp, h5py.Group)
+            # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
+            # but to be safe let's set it to None explicity here
+            self._backing = None
+            self._write(grp)
+        else:
+            print('who is calling me?')
+            assert self.isbacked
 
-    def _write(self, obj: h5py.Group):
-        for k, v in self._data.items():
-            grp = obj.create_group(k)
-            grp.create_dataset("center", v[0])
-            grp.create_dataset("radius", np.array([v[1]]))
+    def _write(self, grp: h5py.Group):
+        super()._write(grp)
+        grp.create_dataset('masks_centers', data=self._masks_centers)
+        grp.create_dataset('masks_radii', data=self._masks_radii)
+
+    def _write_attributes_impl(self, grp: h5py.Group):
+        grp.attrs['masks_shape'] = self._masks_shape
+
+    def accumulate_features(self, x: Union["Raster", "Regions"]):
+        # TODO:
+        raise NotImplementedError()
+
+    def plot(
+        self,
+        fill_colors: ColorsType = "random",
+        outline_colors: ColorsType = None,
+        background_color: Optional[Union[str, np.array]] = (0.0, 0.0, 0.0, 0.0),
+        ax: matplotlib.axes.Axes = None,
+        alpha: float = 1.0,
+        show_title: bool = True,
+        show_legend: bool = True,
+    ):
+        # TODO:
+        raise NotImplementedError()
+
+    def __repr__(self):
+        return super().__repr__(mask_type="shape masks")
 
 
 class PolygonMasks(Masks, MutableMapping):
@@ -246,80 +350,98 @@ class PolygonMasks(Masks, MutableMapping):
         self,
         backing: Optional[h5py.Group] = None,
         masks: Optional[dict[str, Union[np.ndarray, Polygon]]] = None,
+        masks_labels: Optional[list[str]] = None,
     ):
         super().__init__(backing)
 
         self._data = {}
-        self._ndim = None
-        if masks is not None:
-            if self.isbacked and len(self.backing) > 0:
-                raise ValueError("trying to set masks on a non-empty backing store")
-            for key, mask in masks:
-                if isinstance(mask, Polygon):
-                    ndim = 3 if mask.has_z else 2
-                else:
-                    ndim = mask.ndim
-                if self.ndim is None:
-                    self.ndim = ndim
-                if ndim != self.ndim:
-                    raise ValueError("all masks must have the same dimensionality")
 
-                self[key] = mask
+        # TODO: define private variables
+        # TODO: check lenghts are ok
+
+        if self.isbacked:
+            if masks is not None or masks_labels is not None:
+                raise ValueError("attempting to specify masks for a non-empty backing storage")
+            else:
+                # TODO: get stuff from the storage
+                pass
+        else:
+            # TODO: save stuff to instance variables, if those are empty, specify a set of default empty masks
+            pass
+
+        # if masks is not None:
+        #     if self.isbacked and len(self.backing) > 0:
+        #         raise ValueError("trying to set masks on a non-empty backing store")
+        #     for key, mask in masks:
+        #         if isinstance(mask, Polygon):
+        #             ndim = 3 if mask.has_z else 2
+        #         else:
+        #             ndim = mask.ndim
+        #         if self.ndim is None:
+        #             self.ndim = ndim
+        #         if ndim != self.ndim:
+        #             raise ValueError("all masks must have the same dimensionality")
+        #
+        #         self[key] = mask
 
     @property
     def ndim(self):
-        return self._ndim
+        # TODO:
+        raise NotImplementedError()
 
     def __getitem__(self, key) -> Polygon:
-        if self.isbacked:
-            return Polygon(self.backing[key][:])
-        else:
-            return self._data[key]
+        raise NotImplementedError()
+        # if self.isbacked:
+        #     return Polygon(self.backing[key][:])
+        # else:
+        #     return self._data[key]
 
     def __setitem__(self, key: str, value: Union[np.ndarray, Polygon]):
-        if self.isbacked:
-            if isinstance(value, Polygon):
-                value = np.asarray(value.exterior.coords)
-            else:
-                value = np.asarray(value)
-            if self.ndim is not None and self.ndim != value.ndim:
-                raise ValueError(
-                    f"value must have dimensionality {self.ndim}, but has {value.ndim}"
-                )
-            self.backing.create_dataset(key, data=value, compression="gzip", compression_opts=9)
-        else:
-            if not isinstance(value, Polygon):
-                ndim = value.ndim
-                value = Polygon(value)
-            else:
-                ndim = 3 if value.has_z else 2
-            if self.ndim is not None and self.ndim != ndim:
-                raise ValueError(f"value must have dimensionality {self.ndim}, but has {ndim}")
-            self._data[key] = value
+        raise NotImplementedError()
+        # if self.isbacked:
+        #     if isinstance(value, Polygon):
+        #         value = np.asarray(value.exterior.coords)
+        #     else:
+        #         value = np.asarray(value)
+        #     if self.ndim is not None and self.ndim != value.ndim:
+        #         raise ValueError(
+        #             f"value must have dimensionality {self.ndim}, but has {value.ndim}"
+        #         )
+        #     self.backing.create_dataset(key, data=value, compression="gzip", compression_opts=9)
+        # else:
+        #     if not isinstance(value, Polygon):
+        #         ndim = value.ndim
+        #         value = Polygon(value)
+        #     else:
+        #         ndim = 3 if value.has_z else 2
+        #     if self.ndim is not None and self.ndim != ndim:
+        #         raise ValueError(f"value must have dimensionality {self.ndim}, but has {ndim}")
+        #     self._data[key] = value
 
     def __delitem__(self, key: str):
-        if self.isbacked:
-            del self.backing[key]
-        else:
-            del self._data[key]
+        raise NotImplementedError()
+        # if self.isbacked:
+        #     del self.backing[key]
+        # else:
+        #     del self._data[key]
 
     def __len__(self):
-        if self.isbacked:
-            return len(self.backing)
-        else:
-            return len(self._data)
+        # TODO:
+        raise NotImplementedError()
 
     def __contains__(self, item):
-        if self.isbacked:
-            return item in self.backing
-        else:
-            return item in self._data
+        raise NotImplementedError()
+        # if self.isbacked:
+        #     return item in self.backing
+        # else:
+        #     return item in self._data
 
     def __iter__(self):
-        if self.isbacked:
-            return iter(self.backing)
-        else:
-            return iter(self._data)
+        raise NotImplementedError()
+        # if self.isbacked:
+        #     return iter(self.backing)
+        # else:
+        #     return iter(self._data)
 
     def items(self):
         raise NotImplementedError()
@@ -336,17 +458,21 @@ class PolygonMasks(Masks, MutableMapping):
         return "0.1.0"
 
     def _set_backing(self, value: h5py.Group):
-        super()._set_backing(value)
-        if value is None and self.backed:
-            for k, v in self.backing.items():
-                self._data[k] = Polygon(v[:])
-        elif value is not None:
-            self._write(value)
-            self._data.clear()
+        # TODO:
+        raise NotImplementedError()
+        # super()._set_backing(value)
+        # if value is None and self.backed:
+        #     for k, v in self.backing.items():
+        #         self._data[k] = Polygon(v[:])
+        # elif value is not None:
+        #     self._write(value)
+        #     self._data.clear()
 
     def _write(self, obj: h5py.Group):
-        for k, v in self._data.items():
-            obj.create_dataset(k, data=v.exterior.coords, compression="gzip", compression_opts=9)
+        # TODO:
+        raise NotImplementedError()
+        # for k, v in self._data.items():
+        #     obj.create_dataset(k, data=v.exterior.coords, compression="gzip", compression_opts=9)
 
 
 class MeshMasks(Masks, MutableMapping):
@@ -526,40 +652,41 @@ class RasterMasks(Masks):
 
     # flake8: noqa: C901
     def __getitem__(self, key):
-        if not np.issubdtype(type(key), np.integer):
-            raise TypeError("key must be an integer")
-        if key >= 0:
-            coords = np.where(self.data[()] == key + 1)
-            if any(c.size == 0 for c in coords):
-                raise KeyError(key)
-            boundaries = []
-            for i, c in enumerate(coords):
-                min, max = np.min(c), np.max(c) + 1
-                if min > 0:
-                    min -= 1
-                if max <= self.data.shape[i]:
-                    max += 1
-                boundaries.append(slice(min, max))
-            cmask = self.data[tuple(boundaries)]
-            cmask[cmask != key + 1] = 0
-            if self.ndim == 2:
-                contour = find_contours(cmask, fully_connected="high")
-                for c in contour:
-                    for d in range(self.ndim):
-                        c[:, d] += boundaries[d].start
-                return (
-                    Polygon(contour[0][:, ::-1])
-                    if len(contour) == 1
-                    else [Polygon(c[:, ::-1]) for c in contour]
-                )
-                # TODO: scale by px_size and px_distance from parentdataset
-            else:
-                vertices, faces, normals, _ = marching_cubes(cmask, allow_degenerate=False)
-                for d in range(self.ndim):
-                    vertices[:, d] += boundaries[d].start
-                    faces[:, d] += boundaries[d].start
-                return Trimesh(vertices=vertices, faces=faces, vertex_normals=normals)
-                # TODO: scale by px_size and px_distance from parentdataset
+        raise NotImplementedError()
+        # if not np.issubdtype(type(key), np.integer):
+        #     raise TypeError("key must be an integer")
+        # if key >= 0:
+        #     coords = np.where(self.data[()] == key + 1)
+        #     if any(c.size == 0 for c in coords):
+        #         raise KeyError(key)
+        #     boundaries = []
+        #     for i, c in enumerate(coords):
+        #         min, max = np.min(c), np.max(c) + 1
+        #         if min > 0:
+        #             min -= 1
+        #         if max <= self.data.shape[i]:
+        #             max += 1
+        #         boundaries.append(slice(min, max))
+        #     cmask = self.data[tuple(boundaries)]
+        #     cmask[cmask != key + 1] = 0
+        #     if self.ndim == 2:
+        #         contour = find_contours(cmask, fully_connected="high")
+        #         for c in contour:
+        #             for d in range(self.ndim):
+        #                 c[:, d] += boundaries[d].start
+        #         return (
+        #             Polygon(contour[0][:, ::-1])
+        #             if len(contour) == 1
+        #             else [Polygon(c[:, ::-1]) for c in contour]
+        #         )
+        #         # TODO: scale by px_size and px_distance from parentdataset
+        #     else:
+        #         vertices, faces, normals, _ = marching_cubes(cmask, allow_degenerate=False)
+        #         for d in range(self.ndim):
+        #             vertices[:, d] += boundaries[d].start
+        #             faces[:, d] += boundaries[d].start
+        #         return Trimesh(vertices=vertices, faces=faces, vertex_normals=normals)
+        #         # TODO: scale by px_size and px_distance from parentdataset
 
     @staticmethod
     def _encodingtype():
@@ -569,16 +696,21 @@ class RasterMasks(Masks):
     def _encodingversion():
         return "0.1.0"
 
-    def _set_backing(self, value: h5py.Group):
-        super()._set_backing(value)
-        if value is None and self.backed:
-            self._mask = self.backing["imagemask"]
-        elif value is not None:
-            self._write(value)
-            self._mask = None
+    def _set_backing(self, grp: Optional[h5py.Group]):
+        super()._set_backing(grp)
+        if grp is not None:
+            assert isinstance(grp, h5py.Group)
+            # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
+            # but to be safe let's set it to None explicity here
+            self._backing = None
+            self._write(grp)
+            # self._mask = None
+        else:
+            print('who is calling me?')
+            assert self.isbacked
 
-    def _write(self, obj: h5py.Group):
-        obj.create_dataset("imagemask", data=self._mask, compression="gzip", compression_opts=9)
+    def _write(self, grp: h5py.Group):
+        grp.create_dataset("imagemask", data=self._mask, compression="gzip", compression_opts=9)
 
     def __repr__(self):
         return super().__repr__(mask_type="raster masks")
@@ -623,9 +755,9 @@ class RasterMasks(Masks):
             x = x.flatten()
             assert len(x) in [3, 4]
             if len(x) == 3:
-                x = np.array(x.tolist() + [1.])
+                x = np.array(x.tolist() + [1.0])
             else:
-                x[3] = 1.
+                x[3] = 1.0
             x = x.reshape(1, -1)
             return x
 
@@ -656,14 +788,12 @@ class RasterMasks(Masks):
                 _legend = []
                 for cat, col in zip(categories, cmap.colors):
                     _legend.append(
-                        matplotlib.patches.Patch(
-                            facecolor=col, edgecolor=col, label=cat
-                        )
+                        matplotlib.patches.Patch(facecolor=col, edgecolor=col, label=cat)
                     )
                 return c
             elif type(color) == str and color == "random":
                 a = np.random.rand(n, 3)
-                b = np.ones(len(a)).reshape(-1, 1) * 1.
+                b = np.ones(len(a)).reshape(-1, 1) * 1.0
                 c = np.concatenate((a, b), axis=1)
                 return c
             elif type(color) == str:
@@ -694,9 +824,7 @@ class RasterMasks(Masks):
 
         fill_color_array = get_color_array_rgba(fill_colors)
         outline_colors_array = get_color_array_rgba(outline_colors)
-        background_color = normalize_color(
-            matplotlib.colors.to_rgba(background_color)
-        )
+        background_color = normalize_color(matplotlib.colors.to_rgba(background_color))
         fill_color_array[0] = background_color
         outline_colors_array[0] = background_color
         for a in [fill_color_array, outline_colors_array]:

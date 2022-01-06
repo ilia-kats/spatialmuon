@@ -23,6 +23,7 @@ from anndata._core.sparse_dataset import SparseDataset
 import spatialmuon
 from spatialmuon._core.masks import Masks
 from spatialmuon.datatypes.datatypes_utils import regions_raster_plot, get_channel_index_from_channel_name
+import warnings
 
 from .. import FieldOfView, SpatialIndex
 from ..utils import _read_hdf5_attribute, preprocess_3d_polygon_mask
@@ -91,37 +92,38 @@ class Regions(FieldOfView):
             genes: Optional[Union[str, list[str]]] = None,
             polygon_method: Literal["project", "discard"] = "discard",
     ) -> AnnData:
-        if mask is not None:
-            if self.ndim == 2:
-                if not isinstance(mask, Polygon):
-                    raise TypeError("Only polygon masks can be applied to 2D FOVs")
-                idx = sorted(self._index.intersection(mask.bounds))
-                obs = self.obs.iloc[idx, :].intersection(mask)
-                X = self.X[idx, :][~obs.is_empty, :]
-                obs = self.obs[~obs.is_empty]
-                coords = np.vstack(obs.geometry)
-                obs.drop(obs.geometry.name, axis=1, inplace=True)
-            else:
-                if isinstance(mask, Polygon):
-                    bounds = preprocess_3d_polygon_mask(mask, self._coordinates, polygon_method)
-                    idx = sorted(self._index.intersection(bounds))
-                    sub = self._obs.iloc[idx, :].intersection(mask)
-                    nemptyidx = ~sub.is_empty
-                elif isinstance(mask, Trimesh):
-                    idx = sorted(self._index.intersection(mask.bounds.reshape(-1)))
-                    sub = self._obs.iloc[idx, :]
-                    nemptyidx = mask.contains(np.vstack(sub.geometry))
-                else:
-                    raise TypeError("unknown masks type")
-                X = (self.X[idx, :][nemptyidx, :],)
-                obs = sub.iloc[nemptyidx, :]
-        else:
-            X = self.X[()]
-            obs = self.obs
-        ad = AnnData(X=X, obs=obs, var=self.var)
-        if genes is not None:
-            ad = ad[:, genes]
-        return ad
+        raise NotImplementedError()
+        # if mask is not None:
+        #     if self.ndim == 2:
+        #         if not isinstance(mask, Polygon):
+        #             raise TypeError("Only polygon masks can be applied to 2D FOVs")
+        #         idx = sorted(self._index.intersection(mask.bounds))
+        #         obs = self.obs.iloc[idx, :].intersection(mask)
+        #         X = self.X[idx, :][~obs.is_empty, :]
+        #         obs = self.obs[~obs.is_empty]
+        #         coords = np.vstack(obs.geometry)
+        #         obs.drop(obs.geometry.name, axis=1, inplace=True)
+        #     else:
+        #         if isinstance(mask, Polygon):
+        #             bounds = preprocess_3d_polygon_mask(mask, self._coordinates, polygon_method)
+        #             idx = sorted(self._index.intersection(bounds))
+        #             sub = self._obs.iloc[idx, :].intersection(mask)
+        #             nemptyidx = ~sub.is_empty
+        #         elif isinstance(mask, Trimesh):
+        #             idx = sorted(self._index.intersection(mask.bounds.reshape(-1)))
+        #             sub = self._obs.iloc[idx, :]
+        #             nemptyidx = mask.contains(np.vstack(sub.geometry))
+        #         else:
+        #             raise TypeError("unknown masks type")
+        #         X = (self.X[idx, :][nemptyidx, :],)
+        #         obs = sub.iloc[nemptyidx, :]
+        # else:
+        #     X = self.X[()]
+        #     obs = self.obs
+        # ad = AnnData(X=X, obs=obs, var=self.var)
+        # if genes is not None:
+        #     ad = ad[:, genes]
+        # return ad
 
     @property
     def ndim(self):
@@ -138,19 +140,25 @@ class Regions(FieldOfView):
     def _encodingversion() -> str:
         return "0.1.0"
 
-    def _set_backing(self, obj):
-        super()._set_backing(obj)
-        if obj is not None:
-            self._write_data(obj)
-            # self._index.set_backing(obj, "index")
+    def _set_backing(self, grp: Optional[h5py.Group]):
+        super()._set_backing(grp)
+        if grp is not None:
+            assert isinstance(grp, h5py.Group)
+            # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
+            # but to be safe let's set it to None explicity here
+            self._backing = None
+            self._write_data(grp)
+            self.masks.set_backing(grp, "masks")
             # self._X = None
-            self.masks.set_backing(obj, "masks")
+            # self._index.set_backing(grp, "index")
         else:
-            self._X = read_attribute(obj, "X")
+            print('who is calling me?')
+            assert self.isbacked
+            # self._X = read_attribute(grp, "X")
             # self._index.set_backing(None)
-            self.masks.set_backing(None)
+            # self.masks.set_backing(None)
 
-    def _write(self, grp):
+    def _write(self, grp: h5py.Group):
         super()._write(grp)
         for maskname, mask in self.masks.items():
             mask.write(grp, f"masks/{maskname}")
@@ -197,7 +205,6 @@ class Regions(FieldOfView):
             x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
             assert len(cmap) == 1
             cmap = cmap[0]
-            print('TODO: obtain colors and build a scalar mappable')
             cnorm = matplotlib.colors.Normalize(vmin=np.min(x), vmax=np.max(x))
             sm = matplotlib.cm.ScalarMappable(norm=cnorm, cmap=cmap)
 
@@ -232,7 +239,7 @@ class Regions(FieldOfView):
             suptitle: Optional[str] = None
     ):
         if self.var is None or len(self.var.columns) == 0:
-            print(
+            warnings.warn(
                 "No quantities to plot, plotting the masks with random colors instead. For more options in plotting masks use .masks.plot()"
             )
             self.masks.plot(ax=ax)

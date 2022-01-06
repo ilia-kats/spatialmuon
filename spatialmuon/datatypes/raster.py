@@ -17,7 +17,10 @@ import matplotlib.pyplot as plt
 
 from spatialmuon import FieldOfView
 from spatialmuon.utils import _get_hdf5_attribute
-from spatialmuon.datatypes.datatypes_utils import regions_raster_plot, get_channel_index_from_channel_name
+from spatialmuon.datatypes.datatypes_utils import (
+    regions_raster_plot,
+    get_channel_index_from_channel_name,
+)
 from spatialmuon._core.masks import Masks
 
 
@@ -89,68 +92,69 @@ class Raster(FieldOfView):
         genes: Optional[Union[str, list[str]]] = None,
         polygon_method: Literal["project", "discard"] = "discard",
     ):
-        if mask is not None:
-            if self.ndim == 3:
-                if isinstance(mask, Polygon):
-                    if polygon_method == "project":
-                        warnings.warn(
-                            "Method `project` not possible with raster FOVs. Using `discard`."
-                        )
-                elif isinstance(mask, Trimesh):
-                    lb, ub = np.floor(mask.bounds[0, :]), np.ceil(mask.bounds[1, :])
-                    data = self.X[lb[0] : ub[0], lb[1] : ub[1], lb[2] : ub[2], ...]
-                    coords = np.stack(
-                        np.meshgrid(
-                            range(ub[0] - lb[0] + 2),
-                            range(ub[1] - lb[1] + 2),
-                            range(ub[2] - lb[2] + 2),
-                        ),
-                        axis=1,
-                    )
-                    coords = coords[mask.contains(coords), :]
-                    return data[coords[:, 1], coords[:, 0], coords[:, 2], ...]
-            if not isinstance(mask, Polygon):
-                raise TypeError("Only polygon masks can be applied to 2D FOVs")
-            bounds = mask.bounds
-            bounds = np.asarray(
-                (np.floor(bounds[0]), np.floor(bounds[1]), np.ceil(bounds[2]), np.ceil(bounds[3]))
-            ).astype(np.uint16)
-            data = self.X[bounds[1] : bounds[3], bounds[0] : bounds[2], ...]
-            coords = np.stack(
-                np.meshgrid(range(bounds[0], bounds[2] + 1), range(bounds[1], bounds[3] + 1)),
-                axis=-1,
-            ).reshape((-1, 2))
-            mp = MultiPoint(coords) if coords.shape[0] > 1 else Point(coords)
-            inters = np.asarray(mask.intersection(mp)).astype(np.uint16)
-            if inters.size == 0:
-                return inters
-            else:
-                data = data[inters[:, 1] - bounds[1], inters[:, 0] - bounds[0], ...]
-        else:
-            data = self.X
-
-        if genes is not None:
-            if self.channel_names is None:
-                data = data[..., genes]
-            else:
-                idx = np.argsort(self.channel_names)
-                sorted_names = self.channel_names[idx]
-                sorted_idx = np.searchsorted(sorted_names, genes)
-                try:
-                    yidx = idx[sorted_idx]
-                except IndexError:
-                    raise KeyError(
-                        "elements {} not found".format(
-                            [
-                                genes[i]
-                                for i in np.where(np.isin(genes, self.channel_names, invert=True))[
-                                    0
-                                ]
-                            ]
-                        )
-                    )
-                data = data[..., yidx]
-        return data
+        raise NotImplementedError()
+        # if mask is not None:
+        #     if self.ndim == 3:
+        #         if isinstance(mask, Polygon):
+        #             if polygon_method == "project":
+        #                 warnings.warn(
+        #                     "Method `project` not possible with raster FOVs. Using `discard`."
+        #                 )
+        #         elif isinstance(mask, Trimesh):
+        #             lb, ub = np.floor(mask.bounds[0, :]), np.ceil(mask.bounds[1, :])
+        #             data = self.X[lb[0] : ub[0], lb[1] : ub[1], lb[2] : ub[2], ...]
+        #             coords = np.stack(
+        #                 np.meshgrid(
+        #                     range(ub[0] - lb[0] + 2),
+        #                     range(ub[1] - lb[1] + 2),
+        #                     range(ub[2] - lb[2] + 2),
+        #                 ),
+        #                 axis=1,
+        #             )
+        #             coords = coords[mask.contains(coords), :]
+        #             return data[coords[:, 1], coords[:, 0], coords[:, 2], ...]
+        #     if not isinstance(mask, Polygon):
+        #         raise TypeError("Only polygon masks can be applied to 2D FOVs")
+        #     bounds = mask.bounds
+        #     bounds = np.asarray(
+        #         (np.floor(bounds[0]), np.floor(bounds[1]), np.ceil(bounds[2]), np.ceil(bounds[3]))
+        #     ).astype(np.uint16)
+        #     data = self.X[bounds[1] : bounds[3], bounds[0] : bounds[2], ...]
+        #     coords = np.stack(
+        #         np.meshgrid(range(bounds[0], bounds[2] + 1), range(bounds[1], bounds[3] + 1)),
+        #         axis=-1,
+        #     ).reshape((-1, 2))
+        #     mp = MultiPoint(coords) if coords.shape[0] > 1 else Point(coords)
+        #     inters = np.asarray(mask.intersection(mp)).astype(np.uint16)
+        #     if inters.size == 0:
+        #         return inters
+        #     else:
+        #         data = data[inters[:, 1] - bounds[1], inters[:, 0] - bounds[0], ...]
+        # else:
+        #     data = self.X
+        #
+        # if genes is not None:
+        #     if self.channel_names is None:
+        #         data = data[..., genes]
+        #     else:
+        #         idx = np.argsort(self.channel_names)
+        #         sorted_names = self.channel_names[idx]
+        #         sorted_idx = np.searchsorted(sorted_names, genes)
+        #         try:
+        #             yidx = idx[sorted_idx]
+        #         except IndexError:
+        #             raise KeyError(
+        #                 "elements {} not found".format(
+        #                     [
+        #                         genes[i]
+        #                         for i in np.where(np.isin(genes, self.channel_names, invert=True))[
+        #                             0
+        #                         ]
+        #                     ]
+        #                 )
+        #              )
+        #         data = data[..., yidx]
+        # return data
 
     @staticmethod
     def _encodingtype():
@@ -160,13 +164,18 @@ class Raster(FieldOfView):
     def _encodingversion():
         return "0.1.0"
 
-    def _set_backing(self, obj):
-        super()._set_backing(obj)
-        if obj is not None:
-            self._write(obj)
-            self._X = None
+    def _set_backing(self, grp: Optional[h5py.Group]):
+        super()._set_backing(grp)
+        if grp is not None:
+            assert isinstance(grp, h5py.Group)
+            # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
+            # but to be safe let's set it to None explicity here
+            self._backing = None
+            self._write(grp)
+            # self._X = None
         else:
-            self._X = self.X
+            print('who is calling me?')
+            assert self.isbacked
 
     def _write(self, grp):
         super()._write(grp)
@@ -188,7 +197,7 @@ class Raster(FieldOfView):
         cmap: Union[
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
-        suptitle: Optional[str] = None
+        suptitle: Optional[str] = None,
     ):
         upper_limit_tiles = 50
 
@@ -286,8 +295,6 @@ class Raster(FieldOfView):
         else:
             return None
 
-
-
     def plot(
         self,
         channels: Optional[Union[str, list[str], int, list[int]]] = "all",
@@ -302,7 +309,7 @@ class Raster(FieldOfView):
         show_legend: bool = True,
         show_colorbar: bool = True,
         show_scalebar: bool = True,
-        suptitle: Optional[str] = None
+        suptitle: Optional[str] = None,
     ):
         regions_raster_plot(
             self,
@@ -316,7 +323,7 @@ class Raster(FieldOfView):
             show_legend=show_legend,
             show_colorbar=show_colorbar,
             show_scalebar=show_scalebar,
-            suptitle=suptitle
+            suptitle=suptitle,
         )
 
     def __repr__(self):

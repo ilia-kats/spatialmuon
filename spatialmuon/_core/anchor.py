@@ -235,7 +235,7 @@ class Anchor:
         if not isinstance(factor, float):
             try:
                 factor = float(factor)
-            except:
-                raise TypeError("Please specify a float for 'factor'.")
+            except ValueError:
+                raise ValueError("Please specify a float for 'factor'.")
 
         self._vector = np.array([i * factor for i in self.vector])

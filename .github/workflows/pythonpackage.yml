@@ -30,7 +30,7 @@ jobs:
     - name: Test with pytest
       run: |
         sudo apt install -y hdf5-tools
-        pip install pytest
-        pip install matplotlib
-        pip install matplotlib_scalebar
-        pytest --verbose --color=yes
+        $CONDA/bin/conda install -c conda-forge mamba
+        $CONDA/bin/mamba env update --file pytest_env.yml --name base
+        $CONDA/bin/mamba develop .
+        $CONDA/bin/pytest --verbose --color=yes

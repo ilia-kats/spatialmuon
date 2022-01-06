@@ -18,15 +18,15 @@ class Anchor_TestClass(unittest.TestCase):
         
     def test_Anchor_contains_ndim(self):
         a = spatialmuon.Anchor(3)
-        self.assertTrue(if hasattr(a, "ndim"))
+        self.assertTrue(hasattr(a, "ndim"))
         
     def test_Anchor_contains_origin(self):
         a = spatialmuon.Anchor(3)
-        self.assertTrue(if hasattr(a, "origin"))
+        self.assertTrue(hasattr(a, "origin"))
         
     def test_Anchor_contains_vector(self):
         a = spatialmuon.Anchor(3)
-        self.assertTrue(if hasattr(a, "vector"))
+        self.assertTrue(hasattr(a, "vector"))
         
     def test_move_origin(self):
         a = spatialmuon.Anchor(2)

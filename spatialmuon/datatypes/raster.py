@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib_scalebar.scalebar import ScaleBar
 
-from spatialmuon import FieldOfView
+from spatialmuon import FieldOfView, Anchor
 from spatialmuon.utils import _get_hdf5_attribute
 
 
@@ -29,7 +29,7 @@ class Raster(FieldOfView):
         X: Optional[np.ndarray] = None,
         px_dimensions: Optional[np.ndarray] = None,
         px_distance: Optional[np.ndarray] = None,
-        anchors: Optional[dict] = None,
+        anchor: Optional[Anchor] = None,
         **kwargs,
     ):
         if backing is not None:
@@ -38,15 +38,10 @@ class Raster(FieldOfView):
                 self._ndim = 2
             self._px_distance = _get_hdf5_attribute(backing.attrs, "px_distance")
             self._px_dimensions = _get_hdf5_attribute(backing.attrs, "px_dimensions")
-            if _get_hdf5_attribute(backing.attrs, "anchors") is None:
-                self._anchors = {
-                    "origin": (
-                        [0] + ([0] * (self._ndim - 1)),  # anchor
-                        [1] + ([0] * (self._ndim - 1)),  # vector
-                    )
-                }
+            if _get_hdf5_attribute(backing.attrs, "anchor") is None:
+                self._anchor = Anchor(self.ndim)
             else:
-                self._anchors = _get_hdf5_attribute(backing.attrs, "anchors")
+                self._anchor = _get_hdf5_attribute(backing.attrs, "anchor")
             self._X = None
         else:
             if X is None:
@@ -55,12 +50,10 @@ class Raster(FieldOfView):
             self._ndim = X.ndim if X.ndim == 2 else X.ndim - 1
             if self._ndim < 2 or self._ndim > 3:
                 raise ValueError("image dimensionality not supported")
-            self._anchors = {
-                "origin": (
-                    [0] + ([0] * (self._ndim - 1)),  # anchor
-                    [1] + ([0] * (self._ndim - 1)),  # vector
-                )
-            }
+            self._anchor = np.array([
+                [0] + ([0] * (self._ndim - 1)),  # anchor
+                [1] + ([0] * (self._ndim - 1)),  # vector
+            ])
             self._px_dimensions = px_dimensions
             self._px_distance = px_distance
             if self._px_dimensions is not None:
@@ -99,30 +92,19 @@ class Raster(FieldOfView):
             return self._px_distance
 
     @property
-    def anchors(self) -> dict:
-        """A dict of anchor/vector pairs for alignment.
+    def anchor(self) -> Anchor:
+        """A np.ndarray with an anchor/vector pair for alignment.
+        
         Spatial information can be aligned to eachother in a m:n fashion. This
         is implemented in spatialmuon on the basis of an anchor point from which
-        a vector extends. Based on this information, translation, rotation and
-        scaling can then be calculated.
+        a vector extends that is aligned in a global coordinate system. All data
+        shares this global coordinate system and aligns to eachother in it.
 
         """
-        if self._anchors is None:
-            return self.anchors
+        if self._anchor is None:
+            return self.anchor
         else:
-            return self._anchors
-
-    @anchors.setter
-    def anchors(self, anchordict: dict):
-        """Updates the dict of anchor/vector pairs."""
-        if not isinstance(anchordict, dict):
-            raise TypeError("Only dictionaries can be saved.")
-        if len(anchordict.keys()) == 0:
-            raise ValueError("Won't assign empty dictionary.")
-        if "origin" not in anchordict.keys():
-            raise ValueError("Dictionary must contain an 'origin' key.")
-
-        self._anchors = anchordict
+            return self._anchor
 
     # flake8: noqa: C901
     def _getitem(

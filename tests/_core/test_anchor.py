@@ -33,7 +33,7 @@ class Anchor_TestClass(unittest.TestCase):
     def test_move_origin(self):
         a = spatialmuon.Anchor(2)
         a.move_origin("x", 2)
-        self.assertEqual(a.origin, np.array([2, 0]))
+        self.assertTrue(np.alltrue(a.origin == np.array([2, 0])))
         
     def test_rotate_vector(self):
         a = spatialmuon.Anchor(2)
@@ -46,7 +46,7 @@ class Anchor_TestClass(unittest.TestCase):
     def test_scale_vector(self):
         a = spatialmuon.Anchor(2)
         a.scale_vector(2)
-        self.assertEqual(a.vector, np.array([2, 0]))
+        self.assertTrue(np.alltrue(a.vector == np.array([2, 0])))
 
 
 if __name__ == "__main__":

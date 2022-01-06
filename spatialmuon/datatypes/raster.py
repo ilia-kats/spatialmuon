@@ -50,10 +50,7 @@ class Raster(FieldOfView):
             self._ndim = X.ndim if X.ndim == 2 else X.ndim - 1
             if self._ndim < 2 or self._ndim > 3:
                 raise ValueError("image dimensionality not supported")
-            self._anchor = np.array([
-                [0] + ([0] * (self._ndim - 1)),  # anchor
-                [1] + ([0] * (self._ndim - 1)),  # vector
-            ])
+            self._anchor = Anchor(self.ndim)
             self._px_dimensions = px_dimensions
             self._px_distance = px_distance
             if self._px_dimensions is not None:

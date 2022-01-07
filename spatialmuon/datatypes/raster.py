@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib_scalebar.scalebar import ScaleBar
 
-from spatialmuon import FieldOfView
+from spatialmuon import FieldOfView, Anchor
 from spatialmuon.utils import _get_hdf5_attribute
 
 
@@ -29,6 +29,7 @@ class Raster(FieldOfView):
         X: Optional[np.ndarray] = None,
         px_dimensions: Optional[np.ndarray] = None,
         px_distance: Optional[np.ndarray] = None,
+        anchor: Optional[Anchor] = None,
         **kwargs,
     ):
         if backing is not None:
@@ -37,6 +38,10 @@ class Raster(FieldOfView):
                 self._ndim = 2
             self._px_distance = _get_hdf5_attribute(backing.attrs, "px_distance")
             self._px_dimensions = _get_hdf5_attribute(backing.attrs, "px_dimensions")
+            if _get_hdf5_attribute(backing.attrs, "anchor") is None:
+                self._anchor = Anchor(self.ndim)
+            else:
+                self._anchor = _get_hdf5_attribute(backing.attrs, "anchor")
             self._X = None
         else:
             if X is None:
@@ -45,6 +50,7 @@ class Raster(FieldOfView):
             self._ndim = X.ndim if X.ndim == 2 else X.ndim - 1
             if self._ndim < 2 or self._ndim > 3:
                 raise ValueError("image dimensionality not supported")
+            self._anchor = Anchor(self.ndim)
             self._px_dimensions = px_dimensions
             self._px_distance = px_distance
             if self._px_dimensions is not None:
@@ -81,6 +87,20 @@ class Raster(FieldOfView):
             return self.px_dimensions
         else:
             return self._px_distance
+
+    @property
+    def anchor(self) -> Anchor:
+        """A np.ndarray with an anchor/vector pair for alignment.
+        Spatial information can be aligned to eachother in a m:n fashion. This
+        is implemented in spatialmuon on the basis of an anchor point from which
+        a vector extends that is aligned in a global coordinate system. All data
+        shares this global coordinate system and aligns to eachother in it.
+
+        """
+        if self._anchor is None:
+            return self.anchor
+        else:
+            return self._anchor
 
     # flake8: noqa: C901
     def _getitem(

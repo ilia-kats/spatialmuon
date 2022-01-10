@@ -12,7 +12,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def get_channel_index_from_channel_name(var, channel_name):
-    channel_idx = var.query("channel_name == '{}'".format(channel_name)).index.tolist()[0]
+    channel_idx = var.query("channel_name == @channel_name").index.tolist()[0]
     return channel_idx
 
 
@@ -23,6 +23,7 @@ def regions_raster_plot(
     grid_size: Union[int, list[int]] = 1,
     preprocessing: Optional[Callable] = None,
     overlap: bool = False,
+    channels_as_rgba: bool = True,
     cmap: Union[
         matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
     ] = matplotlib.cm.viridis,
@@ -93,6 +94,9 @@ def regions_raster_plot(
 
     if ax is not None:
         overlap = True
+
+    # if overlap == False:
+
 
     if overlap or len(channels_to_plot) == 1:
         DEFAULT_CMAPS = [

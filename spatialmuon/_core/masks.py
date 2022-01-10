@@ -4,7 +4,7 @@ import abc
 import warnings
 from collections.abc import MutableMapping
 from abc import abstractmethod
-from typing import Optional, Union, NewType
+from typing import Optional, Union, Literal
 
 import matplotlib.pyplot as plt
 import matplotlib.colors
@@ -157,7 +157,7 @@ class ShapeMasks(Masks, MutableMapping):
         backing: Optional[h5py.Group] = None,
         masks_centers: Optional[np.array] = None,
         masks_radii: Optional[Union[float, np.array]] = None,
-        masks_shape: Optional[str] = None,
+        masks_shape: Optional[Literal['circle', 'square']] = None,
         masks_labels: Optional[list[str]] = None,
     ):
         super().__init__(backing=backing)
@@ -182,14 +182,15 @@ class ShapeMasks(Masks, MutableMapping):
                 self._masks_radii = backing['masks_radii']
                 assert self._masks_centers.shape == self._masks_radii.shape
                 s = _get_hdf5_attribute(backing.attrs, 'masks_shape')
-                self._masks_shape = SpotShape(value=s)
+                self._masks_shape = SpotShape[s]
         else:
             if masks_shape is not None or masks_radii is not None:
                 assert masks_centers is not None and masks_radii is not None
                 # setting self._masks_shape
                 if masks_shape is None:
-                    masks_shape = SpotShape.circle
-                self._masks_shape = masks_shape
+                    self._masks_shape = SpotShape.circle
+                else:
+                    self._masks_shape = SpotShape[masks_shape]
 
                 # setting self._masks_centers
                 assert masks_centers is not None and masks_radii is not None
@@ -222,6 +223,7 @@ class ShapeMasks(Masks, MutableMapping):
                 self._masks_shape = SpotShape.circle
                 self._masks_centers = np.zeros([[]])
                 self._masks_radii = np.zeros([[]])
+            self.update_obs_from_masks()
 
     def update_obs_from_masks(self):
         # if the dataframe is not empty
@@ -322,7 +324,7 @@ class ShapeMasks(Masks, MutableMapping):
         grp.create_dataset('masks_radii', data=self._masks_radii)
 
     def _write_attributes_impl(self, grp: h5py.Group):
-        grp.attrs['masks_shape'] = self._masks_shape
+        grp.attrs['masks_shape'] = self._masks_shape.name
 
     def accumulate_features(self, x: Union["Raster", "Regions"]):
         # TODO:
@@ -618,6 +620,7 @@ class RasterMasks(Masks):
                 if not np.issubdtype(dtype, np.unsignedinteger):
                     raise ValueError("dtype must be an unsigned integer type")
                 self._mask = np.zeros(shape=shape, dtype=dtype)
+            self.update_obs_from_masks()
 
     @property
     def ndim(self):

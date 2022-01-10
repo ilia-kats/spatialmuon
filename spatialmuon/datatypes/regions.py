@@ -22,7 +22,10 @@ from anndata._io.utils import read_attribute, write_attribute
 from anndata._core.sparse_dataset import SparseDataset
 import spatialmuon
 from spatialmuon._core.masks import Masks
-from spatialmuon.datatypes.datatypes_utils import regions_raster_plot, get_channel_index_from_channel_name
+from spatialmuon.datatypes.datatypes_utils import (
+    regions_raster_plot,
+    get_channel_index_from_channel_name,
+)
 import warnings
 
 from .. import FieldOfView, SpatialIndex
@@ -31,13 +34,13 @@ from ..utils import _read_hdf5_attribute, preprocess_3d_polygon_mask
 
 class Regions(FieldOfView):
     def __init__(
-            self,
-            backing: Optional[h5py.Group] = None,
-            *,
-            X: Optional[Union[np.ndarray, spmatrix]] = None,
-            index_kwargs: dict = {},
-            masks: Optional[Masks] = None,
-            **kwargs,
+        self,
+        backing: Optional[h5py.Group] = None,
+        *,
+        X: Optional[Union[np.ndarray, spmatrix]] = None,
+        index_kwargs: dict = {},
+        masks: Optional[Masks] = None,
+        **kwargs,
     ):
         if backing is not None:
             # self._index = SpatialIndex(
@@ -87,10 +90,10 @@ class Regions(FieldOfView):
             return self.masks.obs
 
     def _getitem(
-            self,
-            mask: Optional[Union[Polygon, Trimesh]] = None,
-            genes: Optional[Union[str, list[str]]] = None,
-            polygon_method: Literal["project", "discard"] = "discard",
+        self,
+        mask: Optional[Union[Polygon, Trimesh]] = None,
+        genes: Optional[Union[str, list[str]]] = None,
+        polygon_method: Literal["project", "discard"] = "discard",
     ) -> AnnData:
         raise NotImplementedError()
         # if mask is not None:
@@ -147,12 +150,12 @@ class Regions(FieldOfView):
             # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
             # but to be safe let's set it to None explicity here
             self._backing = None
-            self._write_data(grp)
+            self._write(grp)
             self.masks.set_backing(grp, "masks")
             # self._X = None
             # self._index.set_backing(grp, "index")
         else:
-            print('who is calling me?')
+            print("who is calling me?")
             assert self.isbacked
             # self._X = read_attribute(grp, "X")
             # self._index.set_backing(None)
@@ -160,43 +163,43 @@ class Regions(FieldOfView):
 
     def _write(self, grp: h5py.Group):
         super()._write(grp)
-        for maskname, mask in self.masks.items():
-            mask.write(grp, f"masks/{maskname}")
-
-        self._write_data(grp)
-        self._index.write(grp, "index")
-
-    def _write_data(self, grp):
         if self._X is not None:
-            write_attribute(
-                grp, "X", self._X, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
-            )
+            # write_attribute(
+            #     grp, "X", self._X, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
+            # )
+            # for debugging (waaay faster, but more space on disk), for the future let's maybe make the compression
+            # optional
+            # grp.create_dataset('X', data=self._X)
+            write_attribute(grp, "X", self._X)
+
+        # self._index.write(grp, "index")
+
 
     def _write_attributes_impl(self, obj):
         pass
 
     def _plot_in_grid(
-            self,
-            channels_to_plot: list[str],
-            grid_size: Union[int, list[int]] = 1,
-            preprocessing: Optional[Callable] = None,
-            cmap: Union[
-                matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
-            ] = matplotlib.cm.viridis,
-            suptitle: Optional[str] = None
+        self,
+        channels_to_plot: list[str],
+        grid_size: Union[int, list[int]] = 1,
+        preprocessing: Optional[Callable] = None,
+        cmap: Union[
+            matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
+        ] = matplotlib.cm.viridis,
+        suptitle: Optional[str] = None,
     ):
         if suptitle is not None:
             plt.suptitle(suptitle)
         raise NotImplementedError()
 
     def _plot_in_canvas(
-            self,
-            channels_to_plot: list[str],
-            preprocessing: Optional[Callable] = None,
-            cmap: Union[
-                matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
-            ] = matplotlib.cm.viridis,
-            ax: matplotlib.axes.Axes = None,
+        self,
+        channels_to_plot: list[str],
+        preprocessing: Optional[Callable] = None,
+        cmap: Union[
+            matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
+        ] = matplotlib.cm.viridis,
+        ax: matplotlib.axes.Axes = None,
     ):
         for idx, channel in enumerate(channels_to_plot):
             a = 1 / (max(len(channels_to_plot) - 1, 2)) if idx > 0 else 1
@@ -223,20 +226,21 @@ class Regions(FieldOfView):
             return None
 
     def plot(
-            self,
-            channels: Optional[Union[str, list[str], int, list[int]]] = "all",
-            grid_size: Union[int, list[int]] = 1,
-            preprocessing: Optional[Callable] = None,
-            overlap: bool = False,
-            cmap: Union[
-                matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
-            ] = matplotlib.cm.viridis,
-            ax: matplotlib.axes.Axes = None,
-            show_title: bool = True,
-            show_legend: bool = True,
-            show_colorbar: bool = True,
-            show_scalebar: bool = True,
-            suptitle: Optional[str] = None
+        self,
+        channels: Optional[Union[str, list[str], int, list[int]]] = "all",
+        grid_size: Union[int, list[int]] = 1,
+        preprocessing: Optional[Callable] = None,
+        overlap: bool = False,
+        channels_as_rgba: bool = True,
+        cmap: Union[
+            matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
+        ] = matplotlib.cm.viridis,
+        ax: matplotlib.axes.Axes = None,
+        show_title: bool = True,
+        show_legend: bool = True,
+        show_colorbar: bool = True,
+        show_scalebar: bool = True,
+        suptitle: Optional[str] = None,
     ):
         if self.var is None or len(self.var.columns) == 0:
             warnings.warn(
@@ -250,13 +254,14 @@ class Regions(FieldOfView):
                 grid_size=grid_size,
                 preprocessing=preprocessing,
                 overlap=overlap,
+                channels_as_rgba=channels_as_rgba,
                 cmap=cmap,
                 ax=ax,
                 show_title=show_title,
                 show_legend=show_legend,
                 show_colorbar=show_colorbar,
                 show_scalebar=show_scalebar,
-                suptitle=suptitle
+                suptitle=suptitle,
             )
 
     def __repr__(self):

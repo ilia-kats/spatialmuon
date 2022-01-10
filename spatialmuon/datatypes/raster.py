@@ -14,6 +14,7 @@ import matplotlib.axes
 import matplotlib.colors
 import matplotlib.patches
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from spatialmuon import FieldOfView
 from spatialmuon.utils import _get_hdf5_attribute
@@ -41,6 +42,7 @@ class Raster(FieldOfView):
             self._px_distance = _get_hdf5_attribute(backing.attrs, "px_distance")
             self._px_dimensions = _get_hdf5_attribute(backing.attrs, "px_dimensions")
             self._X = None
+            n_channels = backing['X'].shape[-1]
         else:
             if X is None:
                 raise ValueError("no data and no backing store given")
@@ -58,6 +60,10 @@ class Raster(FieldOfView):
                 self._px_distance = np.asarray(self._px_distance).squeeze()
                 if self._px_distance.shape[0] != self._ndim or self._px_distance.ndim != 1:
                     raise ValueError("pixel_distance dimensionality is inconsistent with X")
+            n_channels = self._X.shape[-1]
+        if backing is None and 'var' not in kwargs:
+            var = pd.DataFrame(dict(channel_name=range(n_channels)))
+            kwargs['var'] = var
         super().__init__(backing, **kwargs)
 
     @property
@@ -301,6 +307,7 @@ class Raster(FieldOfView):
         grid_size: Union[int, list[int]] = 1,
         preprocessing: Optional[Callable] = None,
         overlap: bool = False,
+        channels_as_rgba: bool = True,
         cmap: Union[
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
@@ -317,6 +324,7 @@ class Raster(FieldOfView):
             grid_size=grid_size,
             preprocessing=preprocessing,
             overlap=overlap,
+            channels_as_rgba=channels_as_rgba,
             cmap=cmap,
             ax=ax,
             show_title=show_title,

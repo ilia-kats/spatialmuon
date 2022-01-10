@@ -51,7 +51,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
     if os.path.isfile(outfname):
         os.unlink(outfname)
 
-    smudata = spatialmuon.SpatialMuData(outfname)
+    smudata = spatialmuon.SpatialMuData(outfname, backingmode='w')
     smudata["Visium"] = modality = spatialmuon.SpatialModality()
 
     fovdir = os.path.join(tmpdir, "mouse_brain_visium_wo_cloupe_data", "rawdata")

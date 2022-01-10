@@ -92,8 +92,17 @@ class FieldOfView(BackableObject):
         else:
             self.uns = {}
 
-    def _set_backing(self, obj):
-        super()._set_backing(obj)
+    def _set_backing(self, grp):
+        super()._set_backing(grp)
+        # if grp is not None:
+        #     assert isinstance(grp, h5py.Group)
+        #     # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
+        #     # but to be safe let's set it to None explicity here
+        #     self._backing = None
+        #     self._write(grp)
+        # else:
+        #     print('who is calling me?')
+        #     assert self.isbacked
 
     @property
     @abstractmethod

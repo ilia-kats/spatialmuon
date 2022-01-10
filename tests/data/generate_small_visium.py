@@ -3,6 +3,7 @@
 import spatialmuon as smu
 import os
 from pathlib import Path
+# this file is cumbersome because at the moment subsetting and copy constructors are not yet implemented
 
 this_dir = Path(__file__).parent
 fpath = this_dir / "../data/small_visium.h5smu"
@@ -13,23 +14,27 @@ outfile = fpath
 f = "/data/spatialmuon/datasets/visium_mousebrain/smu/visium.h5smu"
 d = smu.SpatialMuData(backing=f)
 print(d)
-ome = d["imc"]["ome"].X[...]
-raster_masks = d["imc"]["masks"].masks._backing["imagemask"][...]
-new_shape = (40, 60, 10)
-new_ome = ome[: new_shape[0], : new_shape[1], : new_shape[2]]
-new_raster_masks = raster_masks[: new_shape[0], : new_shape[1]]
+a0 = d['Visium']['ST8059049']
+a1 = d['Visium']['ST8059049H&E']
 
+import copy
+d0 = copy.copy(a0)
+new_X = d0.X[:100, :]
+d0._X = new_X
+new_obs = d0.masks.obs[:100]
+d0.masks._obs = new_obs
+d0.masks._masks_centers = d0.masks._masks_centers[:100]
+d0.masks._masks_radii = d0.masks._masks_centers[:100]
+
+img = a1.X[...]
+new_img = img[:400, :300, :]
+d1 = smu.Raster(X=new_img)
 
 print(outfile)
-new_var = d["imc"]["ome"].var[: new_shape[2]]
-
 if os.path.isfile(outfile):
     os.unlink(outfile)
 new_smu = smu.SpatialMuData(outfile)
-new_smu["imc"] = modality = smu.SpatialModality()
-modality["ome"] = smu.Raster(X=new_ome, var=new_var, coordinate_unit="um")
-raster_masks = smu.RasterMasks(mask=new_raster_masks)
-raster_masks.update_obs_from_masks()
-regions = smu.Regions(masks=raster_masks, coordinate_unit="um")
-modality["masks"] = regions
+new_smu["visium"] = modality = smu.SpatialModality()
+modality["expression"] = d0
+modality["image"] = d1
 print(new_smu)

@@ -46,6 +46,12 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
         pass
         ##
 
+    def test_can_plot_image(self):
+        d = spatialmuon.SpatialMuData(backing=fpath)
+        img = d['visium']['image']
+        img.plot(overlap=True)
+        pass
+
     def test_can_plot_regions_single_channel(self):
         # d = spatialmuon.SpatialMuData(backing=fpath)
         # ome = d["imc"]["ome"]
@@ -123,6 +129,8 @@ if __name__ == "__main__":
     else:
         PlotSmallVisium_TestClass().test_can_load_smu_file()
         PlotSmallVisium_TestClass().test_can_pretty_print()
+        #
+        PlotSmallVisium_TestClass().test_can_plot_image()
         #
         PlotSmallVisium_TestClass().test_can_plot_regions_single_channel()
         PlotSmallVisium_TestClass().test_can_plot_regions_non_overlapping_channels()

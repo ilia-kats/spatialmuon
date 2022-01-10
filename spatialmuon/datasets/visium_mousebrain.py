@@ -69,7 +69,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
                 barcodes = matrix["barcodes"].asstr()[()]
 
-                var = pd.DataFrame(index=matrix["features/name"].asstr()[()])
+                var = pd.DataFrame(dict(channel_name=matrix["features/name"].asstr()[()]))
                 var["id"] = matrix["features/id"].asstr()[()]
                 for fname in matrix["features/_all_tag_keys"].asstr()[()]:
                     feat = matrix[f"features/{fname}"]

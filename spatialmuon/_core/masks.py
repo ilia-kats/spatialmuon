@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import matplotlib.colors
 import matplotlib.axes
 import matplotlib.cm
+import matplotlib.patches
+import matplotlib.collections
 import numpy as np
 import h5py
 import copy
@@ -135,20 +137,143 @@ class Masks(BackableObject):
         return repr_str
 
     @abstractmethod
-    def plot(
+    def accumulate_features(self, x: Union["Raster", "Regions"]):
+        pass
+
+    @staticmethod
+    def normalize_color(x):
+        if type(x) == tuple:
+            x = np.array(x)
+        assert len(x.shape) in [0, 1]
+        x = x.flatten()
+        assert len(x) in [3, 4]
+        if len(x) == 3:
+            x = np.array(x.tolist() + [1.0])
+        else:
+            x[3] = 1.0
+        x = x.reshape(1, -1)
+        return x
+
+    @staticmethod
+    def apply_alpha(x, alpha):
+        assert len(x.shape) == 2
+        assert x.shape[1] == 4
+        x[:, 3] *= alpha
+
+    @abstractmethod
+    def _plot(
         self,
-        **kwargs
-        # fill_colors: ColorsType = None,
-        # outline_colors: ColorsType = None,
-        # background_color: ColorsType = None,
-        # ax: Optional[matplotlib.axes.Axes] = None,
-        # alpha: Optional[float] = None,
+        fill_color_array: np.ndarray,
+        outline_colors_array: Optional[np.ndarray],
+        ax: matplotlib.axes.Axes,
     ):
         pass
 
-    @abstractmethod
-    def accumulate_features(self, x: Union["Raster", "Regions"]):
-        pass
+    def plot(
+        self,
+        fill_colors: ColorsType = "random",
+        outline_colors: ColorsType = None,
+        background_color: Optional[Union[str, np.array]] = (0.0, 0.0, 0.0, 0.0),
+        ax: matplotlib.axes.Axes = None,
+        alpha: float = 1.0,
+        show_title: bool = True,
+        show_legend: bool = True,
+    ):
+        # adding the background
+        n = len(self._obs) + 1
+        plotting_a_category = False
+        title = None
+        _legend = None
+
+        # return a tensor of length n, then the first element (the background color), will be replaced with
+        # background_color
+        def get_color_array_rgba(color):
+            if color is None:
+                return np.zeros((n, 4))
+            elif type(color) == str and color in self.obs.columns:
+                nonlocal plotting_a_category
+                nonlocal title
+                nonlocal _legend
+                plotting_a_category = True
+                title = color
+                cmap = matplotlib.cm.get_cmap("tab10")
+                categories = self.obs[color].cat.categories.values.tolist()
+                d = dict(zip(categories, cmap.colors))
+                levels = self.obs[color].tolist()
+                # it will be replaced with the background color
+                colors = [Masks.normalize_color((0.0, 0.0, 0.0, 0.0))]
+                colors += [Masks.normalize_color(d[ll]) for ll in levels]
+                c = np.concatenate(colors, axis=0)
+                _legend = []
+                for cat, col in zip(categories, cmap.colors):
+                    _legend.append(
+                        matplotlib.patches.Patch(facecolor=col, edgecolor=col, label=cat)
+                    )
+                return c
+            elif type(color) == str and color == "random":
+                a = np.random.rand(n, 3)
+                b = np.ones(len(a)).reshape(-1, 1) * 1.0
+                c = np.concatenate((a, b), axis=1)
+                return c
+            elif type(color) == str:
+                a = matplotlib.colors.to_rgba(color)
+                a = Masks.normalize_color(a)
+                b = np.tile(a, (n, 1))
+                return b
+            elif type(color) == list or type(color) == np.ndarray:
+                try:
+                    a = matplotlib.colors.to_rgba(color)
+                    b = [Masks.normalize_color(a)] * n
+                    c = np.concatenate(b, axis=0)
+                    return c
+                except ValueError:
+                    # it will be replaced with the background color
+                    b = [Masks.normalize_color((0.0, 0.0, 0.0, 0.0))]
+                    for c in color:
+                        d = matplotlib.colors.to_rgba(c)
+                        b.append(Masks.normalize_color(d))
+                    e = np.concatenate(b, axis=0)
+                    if len(e) != n:
+                        raise ValueError(
+                            "number of colors must match the number of elements in obs"
+                        )
+                    return e
+            else:
+                raise ValueError(f"invalid way of specifying the color: {color}")
+
+        fill_color_array = get_color_array_rgba(fill_colors)
+        outline_colors_array = get_color_array_rgba(outline_colors)
+        background_color = Masks.normalize_color(matplotlib.colors.to_rgba(background_color))
+        fill_color_array[0] = background_color
+        outline_colors_array[0] = background_color
+        for a in [fill_color_array, outline_colors_array]:
+            Masks.apply_alpha(a, alpha=alpha)
+
+        if ax is None:
+            plt.figure()
+            axs = plt.gca()
+        else:
+            axs = ax
+        ############# calling back the plotting function
+        self._plot(
+            fill_color_array=fill_color_array,
+            outline_colors_array=None if outline_colors is None else outline_colors_array,
+            ax=axs,
+        )
+
+        if plotting_a_category:
+            if show_title:
+                ax.set_title(title)
+            if show_legend:
+                axs.legend(
+                    handles=_legend,
+                    frameon=False,
+                    loc="lower center",
+                    bbox_to_anchor=(0.5, -0.1),
+                    ncol=len(_legend),
+                )
+        if ax is None:
+            plt.show()
 
 
 class ShapeMasks(Masks, MutableMapping):
@@ -157,7 +282,7 @@ class ShapeMasks(Masks, MutableMapping):
         backing: Optional[h5py.Group] = None,
         masks_centers: Optional[np.array] = None,
         masks_radii: Optional[Union[float, np.array]] = None,
-        masks_shape: Optional[Literal['circle', 'square']] = None,
+        masks_shape: Optional[Literal["circle", "square"]] = None,
         masks_labels: Optional[list[str]] = None,
     ):
         super().__init__(backing=backing)
@@ -178,10 +303,10 @@ class ShapeMasks(Masks, MutableMapping):
             ):
                 raise ValueError("attempting to specify masks for a non-empty backing store")
             else:
-                self._masks_centers = backing['masks_centers']
-                self._masks_radii = backing['masks_radii']
+                self._masks_centers = backing["masks_centers"]
+                self._masks_radii = backing["masks_radii"]
                 assert self._masks_centers.shape == self._masks_radii.shape
-                s = _get_hdf5_attribute(backing.attrs, 'masks_shape')
+                s = _get_hdf5_attribute(backing.attrs, "masks_shape")
                 self._masks_shape = SpotShape[s]
         else:
             if masks_shape is not None or masks_radii is not None:
@@ -315,33 +440,82 @@ class ShapeMasks(Masks, MutableMapping):
             self._backing = None
             self._write(grp)
         else:
-            print('who is calling me?')
+            print("who is calling me?")
             assert self.isbacked
 
     def _write(self, grp: h5py.Group):
         super()._write(grp)
-        grp.create_dataset('masks_centers', data=self._masks_centers)
-        grp.create_dataset('masks_radii', data=self._masks_radii)
+        grp.create_dataset("masks_centers", data=self._masks_centers)
+        grp.create_dataset("masks_radii", data=self._masks_radii)
+        pass
 
     def _write_attributes_impl(self, grp: h5py.Group):
-        grp.attrs['masks_shape'] = self._masks_shape.name
+        grp.attrs["masks_shape"] = self._masks_shape.name
 
     def accumulate_features(self, x: Union["Raster", "Regions"]):
         # TODO:
         raise NotImplementedError()
 
-    def plot(
+    def _plot(
         self,
-        fill_colors: ColorsType = "random",
-        outline_colors: ColorsType = None,
-        background_color: Optional[Union[str, np.array]] = (0.0, 0.0, 0.0, 0.0),
-        ax: matplotlib.axes.Axes = None,
-        alpha: float = 1.0,
-        show_title: bool = True,
-        show_legend: bool = True,
+        fill_color_array: np.ndarray,
+        outline_colors_array: Optional[np.ndarray],
+        ax: matplotlib.axes.Axes,
     ):
-        # TODO:
-        raise NotImplementedError()
+        if self._masks_shape != SpotShape.circle:
+            raise NotImplementedError()
+        patches = []
+        for i in range(len(self)):
+            xy = self._masks_centers[i]
+            radius = self._masks_radii[i]
+            patch = matplotlib.patches.Ellipse(xy, width=radius[0], height=radius[1])
+            patches.append(patch)
+        collection = matplotlib.collections.PatchCollection(patches)
+        collection.set_color(np.random.rand(len(self), 3))
+
+        # TODO: consider bounding boxes
+        extended_coords = np.concatenate(
+            [self._masks_centers[...] + self._masks_radii[...], self._masks_centers[...] - self._masks_radii[...]],
+            axis=0,
+        )
+        x_min, y_min = np.min(extended_coords, axis=0)
+        x_max, y_max = np.max(extended_coords, axis=0)
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+        # hack to check if this is a newly created empty plot
+        if xlim == (0.0, 1.0) and ylim == (0.0, 1.0):
+            new_xlim = (x_min, x_max)
+            new_ylim = (y_min, y_max)
+        else:
+            new_xlim = (min(xlim[0], x_min), max(xlim[1], x_max))
+            new_ylim = (min(ylim[0], y_min), max(ylim[1], y_max))
+        ax.set_xlim(new_xlim)
+        ax.set_ylim(new_ylim)
+        ax.set_aspect("equal")
+
+        # autolim is set to False because it's our job to compute the lims considering the bounding
+        # boxes of
+        # other fovs
+        ax.add_collection(collection, autolim=True)
+        # original_labels = self.obs["original_labels"].to_numpy()
+        # original_labels = np.insert(original_labels, 0, 0)
+        # contiguous_labels = np.arange(len(original_labels))
+        # x = self.data
+        # if not np.all(original_labels == contiguous_labels):
+        #     # probably not the most efficient, but probably also fine
+        #     lut = np.zeros(max(original_labels) + 1, dtype=np.int)
+        #     for i, o in enumerate(original_labels):
+        #         lut[o] = i
+        #     x = lut[self.data]
+        # ax.imshow(fill_color_array[x])
+        #
+        # if outline_colors_array is not None:
+        #     for i, c in enumerate(contiguous_labels):
+        #         outline_color = outline_colors_array[i]
+        #         boolean_mask = x == c
+        #         contours = skimage.measure.find_contours(boolean_mask, 0.7)
+        #         for contour in contours:
+        #             ax.plot(contour[:, 1], contour[:, 0], linewidth=2, color=outline_color)
 
     def __repr__(self):
         return super().__repr__(mask_type="shape masks")
@@ -709,7 +883,7 @@ class RasterMasks(Masks):
             self._write(grp)
             # self._mask = None
         else:
-            print('who is calling me?')
+            print("who is calling me?")
             assert self.isbacked
 
     def _write(self, grp: h5py.Group):
@@ -735,104 +909,12 @@ class RasterMasks(Masks):
         mask_df = pd.DataFrame(data=dict(original_labels=unique_masks))
         self._obs = mask_df
 
-    def plot(
+    def _plot(
         self,
-        fill_colors: ColorsType = "random",
-        outline_colors: ColorsType = None,
-        background_color: Optional[Union[str, np.array]] = (0.0, 0.0, 0.0, 0.0),
-        ax: matplotlib.axes.Axes = None,
-        alpha: float = 1.0,
-        show_title: bool = True,
-        show_legend: bool = True,
+        fill_color_array: np.ndarray,
+        outline_colors_array: Optional[np.ndarray],
+        ax: matplotlib.axes.Axes,
     ):
-        # adding the background
-        n = len(self._obs) + 1
-        plotting_a_category = False
-        title = None
-        _legend = None
-
-        def normalize_color(x):
-            if type(x) == tuple:
-                x = np.array(x)
-            assert len(x.shape) in [0, 1]
-            x = x.flatten()
-            assert len(x) in [3, 4]
-            if len(x) == 3:
-                x = np.array(x.tolist() + [1.0])
-            else:
-                x[3] = 1.0
-            x = x.reshape(1, -1)
-            return x
-
-        def apply_alpha(x):
-            assert len(x.shape) == 2
-            assert x.shape[1] == 4
-            x[:, 3] *= alpha
-
-        # return a tensor of length n, then the first element (the background color), will be replaced with
-        # background_color
-        def get_color_array_rgba(color):
-            if color is None:
-                return np.zeros((n, 4))
-            elif type(color) == str and color in self.obs.columns:
-                nonlocal plotting_a_category
-                nonlocal title
-                nonlocal _legend
-                plotting_a_category = True
-                title = color
-                cmap = matplotlib.cm.get_cmap("tab10")
-                categories = self.obs[color].cat.categories.values.tolist()
-                d = dict(zip(categories, cmap.colors))
-                levels = self.obs[color].tolist()
-                # it will be replaced with the background color
-                colors = [normalize_color((0.0, 0.0, 0.0, 0.0))]
-                colors += [normalize_color(d[ll]) for ll in levels]
-                c = np.concatenate(colors, axis=0)
-                _legend = []
-                for cat, col in zip(categories, cmap.colors):
-                    _legend.append(
-                        matplotlib.patches.Patch(facecolor=col, edgecolor=col, label=cat)
-                    )
-                return c
-            elif type(color) == str and color == "random":
-                a = np.random.rand(n, 3)
-                b = np.ones(len(a)).reshape(-1, 1) * 1.0
-                c = np.concatenate((a, b), axis=1)
-                return c
-            elif type(color) == str:
-                a = matplotlib.colors.to_rgba(color)
-                a = normalize_color(a)
-                b = np.tile(a, (n, 1))
-                return b
-            elif type(color) == list or type(color) == np.ndarray:
-                try:
-                    a = matplotlib.colors.to_rgba(color)
-                    b = [normalize_color(a)] * n
-                    c = np.concatenate(b, axis=0)
-                    return c
-                except ValueError:
-                    # it will be replaced with the background color
-                    b = [normalize_color((0.0, 0.0, 0.0, 0.0))]
-                    for c in color:
-                        d = matplotlib.colors.to_rgba(c)
-                        b.append(normalize_color(d))
-                    e = np.concatenate(b, axis=0)
-                    if len(e) != n:
-                        raise ValueError(
-                            "number of colors must match the number of elements in obs"
-                        )
-                    return e
-            else:
-                raise ValueError(f"invalid way of specifying the color: {color}")
-
-        fill_color_array = get_color_array_rgba(fill_colors)
-        outline_colors_array = get_color_array_rgba(outline_colors)
-        background_color = normalize_color(matplotlib.colors.to_rgba(background_color))
-        fill_color_array[0] = background_color
-        outline_colors_array[0] = background_color
-        for a in [fill_color_array, outline_colors_array]:
-            apply_alpha(a)
-
         original_labels = self.obs["original_labels"].to_numpy()
         original_labels = np.insert(original_labels, 0, 0)
         contiguous_labels = np.arange(len(original_labels))
@@ -843,33 +925,15 @@ class RasterMasks(Masks):
             for i, o in enumerate(original_labels):
                 lut[o] = i
             x = lut[self.data]
-        if ax is None:
-            plt.figure()
-            axs = plt.gca()
-        else:
-            axs = ax
-        axs.imshow(fill_color_array[x])
+        ax.imshow(fill_color_array[x])
 
-        if outline_colors is not None:
+        if outline_colors_array is not None:
             for i, c in enumerate(contiguous_labels):
                 outline_color = outline_colors_array[i]
                 boolean_mask = x == c
                 contours = skimage.measure.find_contours(boolean_mask, 0.7)
                 for contour in contours:
-                    axs.plot(contour[:, 1], contour[:, 0], linewidth=2, color=outline_color)
-        if plotting_a_category:
-            if show_title:
-                ax.set_title(title)
-            if show_legend:
-                axs.legend(
-                    handles=_legend,
-                    frameon=False,
-                    loc="lower center",
-                    bbox_to_anchor=(0.5, -0.1),
-                    ncol=len(_legend),
-                )
-        if ax is None:
-            plt.show()
+                    ax.plot(contour[:, 1], contour[:, 0], linewidth=2, color=outline_color)
 
     def accumulate_features(self, fov: Union["Raster", "Regions"]):
         from spatialmuon.datatypes.regions import Regions

@@ -40,11 +40,8 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
         spatialmuon.SpatialMuData(backing=fpath)
 
     def test_can_pretty_print(self):
-        ##
         d = spatialmuon.SpatialMuData(backing=fpath)
         print(d)
-        pass
-        ##
 
     def test_can_plot_image(self):
         d = spatialmuon.SpatialMuData(backing=fpath)
@@ -52,9 +49,9 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
         img.plot()
 
     def test_can_plot_regions_single_channel(self):
-        # d = spatialmuon.SpatialMuData(backing=fpath)
-        # ome = d["imc"]["ome"]
-        # ome.plot(channels="ArAr80", preprocessing=np.arcsinh)
+        d = spatialmuon.SpatialMuData(backing=fpath)
+        e = d["visium"]["expression"]
+        e.plot(channels="Rp1")
         pass
 
     def test_can_plot_regions_non_overlapping_channels(self):

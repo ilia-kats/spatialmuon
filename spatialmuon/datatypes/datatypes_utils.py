@@ -220,7 +220,7 @@ def regions_raster_plot(
         # axs[idx].text(0, -10, channel, size=12)
         if suptitle is not None:
             plt.suptitle(suptitle)
-        axs.set_axis_off()
+        # axs.set_axis_off()
         if ax is None:
             plt.tight_layout()
             plt.show()

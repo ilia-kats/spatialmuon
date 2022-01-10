@@ -4,6 +4,7 @@ from typing import Optional, Union, Literal, Callable
 from enum import Enum, auto
 import warnings
 
+import anndata._core.sparse_dataset
 import numpy as np
 from scipy.sparse import spmatrix
 import pandas as pd
@@ -28,6 +29,7 @@ from spatialmuon.datatypes.datatypes_utils import (
     PlottingMethod
 )
 import warnings
+import anndata
 
 from .. import FieldOfView, SpatialIndex
 from ..utils import _read_hdf5_attribute, preprocess_3d_polygon_mask
@@ -263,9 +265,18 @@ class Regions(FieldOfView):
                 # instead of calling imshow passing cnorm and cmap we are using the plotting function defined for
                 # masks and passing already the appropriate colors. We compute the colors manually
                 def normalizer(e):
-                    return (e - x.min()) / (x.max() - x.min())
+                    d = e.max() - e.min()
+                    if np.isclose(d, 0):
+                        return np.zeros_like(e)
+                    else:
+                        return (e - e.min()) / d
 
-                colors = cmap(normalizer(x))
+                if isinstance(x, anndata._core.sparse_dataset.backed_csr_matrix):
+                    z = x.todense()
+                else:
+                    z = x
+                z = normalizer(z)
+                colors = cmap(z)
         self.masks.plot(fill_colors=colors, outline_colors=None, ax=ax, alpha=a)
             # im = ax.imshow(x, cmap=cmap[idx], alpha=a)
         # code explained in raster.py

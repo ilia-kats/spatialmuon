@@ -200,21 +200,21 @@ if __name__ == "__main__":
     if not DEBUGGING:
         unittest.main()
     else:
-        # PlotSmallImc_TestClass().test_can_load_smu_file()
-        # PlotSmallImc_TestClass().test_can_pretty_print()
-        # #
-        # PlotSmallImc_TestClass().test_can_plot_raster_single_channel_in_ax()
-        # PlotSmallImc_TestClass().test_can_plot_raster_single_channel()
-        # PlotSmallImc_TestClass().test_can_plot_raster_overlapping_channels_in_ax()
-        # PlotSmallImc_TestClass().test_can_plot_raster_overlapping_channels()
-        # PlotSmallImc_TestClass().test_can_plot_raster_non_overlapping_channels()
-        # PlotSmallImc_TestClass().test_can_plot_raster_first_4_channels_as_rgba()
-        # #
-        # PlotSmallImc_TestClass().test_can_plot_regions_random_color()
-        # PlotSmallImc_TestClass().test_can_plot_regions_solid_color()
-        # PlotSmallImc_TestClass().test_can_plot_raster_and_regions_together()
-        # #
-        # PlotSmallImc_TestClass().test_can_accumulate_raster_with_raster_masks()
-        # PlotSmallImc_TestClass().test_can_plot_accumulated_regions_value()
-        # PlotSmallImc_TestClass().test_can_plot_accumulated_regions_first_4_channels_as_rgba()
+        PlotSmallImc_TestClass().test_can_load_smu_file()
+        PlotSmallImc_TestClass().test_can_pretty_print()
+        #
+        PlotSmallImc_TestClass().test_can_plot_raster_single_channel_in_ax()
+        PlotSmallImc_TestClass().test_can_plot_raster_single_channel()
+        PlotSmallImc_TestClass().test_can_plot_raster_overlapping_channels_in_ax()
+        PlotSmallImc_TestClass().test_can_plot_raster_overlapping_channels()
+        PlotSmallImc_TestClass().test_can_plot_raster_non_overlapping_channels()
+        PlotSmallImc_TestClass().test_can_plot_raster_first_4_channels_as_rgba()
+        #
+        PlotSmallImc_TestClass().test_can_plot_regions_random_color()
+        PlotSmallImc_TestClass().test_can_plot_regions_solid_color()
+        PlotSmallImc_TestClass().test_can_plot_raster_and_regions_together()
+        #
+        PlotSmallImc_TestClass().test_can_accumulate_raster_with_raster_masks()
+        PlotSmallImc_TestClass().test_can_plot_accumulated_regions_value()
+        PlotSmallImc_TestClass().test_can_plot_accumulated_regions_first_4_channels_as_rgba()
         PlotSmallImc_TestClass().test_can_plot_accumulated_regions_non_overlapping_channels()

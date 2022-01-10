@@ -24,7 +24,7 @@ d0._X = new_X
 new_obs = d0.masks.obs[:100]
 d0.masks._obs = new_obs
 d0.masks._masks_centers = d0.masks._masks_centers[:100]
-d0.masks._masks_radii = d0.masks._masks_centers[:100]
+d0.masks._masks_radii = d0.masks._masks_radii[:100]
 
 img = a1.X[...]
 new_img = img[:400, :300, :]

@@ -49,8 +49,7 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
     def test_can_plot_image(self):
         d = spatialmuon.SpatialMuData(backing=fpath)
         img = d['visium']['image']
-        img.plot(overlap=True)
-        pass
+        img.plot()
 
     def test_can_plot_regions_single_channel(self):
         # d = spatialmuon.SpatialMuData(backing=fpath)

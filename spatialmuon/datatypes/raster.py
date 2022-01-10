@@ -21,6 +21,7 @@ from spatialmuon.utils import _get_hdf5_attribute
 from spatialmuon.datatypes.datatypes_utils import (
     regions_raster_plot,
     get_channel_index_from_channel_name,
+    PlottingMethod
 )
 from spatialmuon._core.masks import Masks
 
@@ -241,6 +242,8 @@ class Raster(FieldOfView):
         else:
             n_x = grid_size[0]
             n_y = grid_size[1]
+        grid_size[0] = n_x
+        grid_size[1] = n_y
 
         idx = get_channel_index_from_channel_name(self.var, channels_to_plot[0])
         (x, y) = self.X[:, :, idx].shape
@@ -278,22 +281,41 @@ class Raster(FieldOfView):
         plt.tight_layout()
         plt.show()
 
+    # TODO: code very similar to Regions._plot_in_canvas(), maybe unify
     def _plot_in_canvas(
         self,
         channels_to_plot: list[str],
+        rgba: bool,
         preprocessing: Optional[Callable] = None,
         cmap: Union[
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
         ax: matplotlib.axes.Axes = None,
     ):
-        for idx, channel in enumerate(channels_to_plot):
-            a = 1 / (max(len(channels_to_plot) - 1, 2)) if idx > 0 else 1
-            channel_index = get_channel_index_from_channel_name(self.var, channel)
-            data_to_plot = self.X[:, :, channel_index]
+        if rgba:
+            indices = [get_channel_index_from_channel_name(self.var, channel) for channel in channels_to_plot]
+            indices = np.array(indices)
+            data_to_plot = self.X[:, :, indices]
 
             x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
-            im = ax.imshow(x, cmap=cmap[idx], alpha=a)
+            if np.min(x) < 0. or np.max(x) > 1.:
+                warnings.warn('the data is not in the [0, 1] range. Plotting the result of an affine transformation to '
+                              'make the data in [0, 1].')
+                old_shape = x.shape
+                x = np.reshape(x, (-1, old_shape[-1]))
+                a = np.min(x, axis=0)
+                b = np.max(x, axis=0)
+                x = (x - a) / (b - a)
+                x = np.reshape(x, old_shape)
+            im = ax.imshow(x)
+        else:
+            for idx, channel in enumerate(channels_to_plot):
+                a = 1 / (max(len(channels_to_plot) - 1, 2)) if idx > 0 else 1
+                channel_index = get_channel_index_from_channel_name(self.var, channel)
+                data_to_plot = self.X[:, :, channel_index]
+
+                x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
+                im = ax.imshow(x, cmap=cmap[idx], alpha=a)
         # im is used in the calling function in datatypes_utils.py to draw the show_colorbar, but we are not displaying a
         # show_colorbar when we have more than one channel, so let's return a nonsense value
         if len(channels_to_plot) == 1:
@@ -305,9 +327,8 @@ class Raster(FieldOfView):
         self,
         channels: Optional[Union[str, list[str], int, list[int]]] = "all",
         grid_size: Union[int, list[int]] = 1,
+        method: PlottingMethod = 'auto',
         preprocessing: Optional[Callable] = None,
-        overlap: bool = False,
-        channels_as_rgba: bool = True,
         cmap: Union[
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
@@ -323,8 +344,7 @@ class Raster(FieldOfView):
             channels=channels,
             grid_size=grid_size,
             preprocessing=preprocessing,
-            overlap=overlap,
-            channels_as_rgba=channels_as_rgba,
+            method=method,
             cmap=cmap,
             ax=ax,
             show_title=show_title,

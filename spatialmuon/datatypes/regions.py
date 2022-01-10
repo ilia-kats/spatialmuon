@@ -25,6 +25,7 @@ from spatialmuon._core.masks import Masks
 from spatialmuon.datatypes.datatypes_utils import (
     regions_raster_plot,
     get_channel_index_from_channel_name,
+    PlottingMethod
 )
 import warnings
 
@@ -192,32 +193,52 @@ class Regions(FieldOfView):
             plt.suptitle(suptitle)
         raise NotImplementedError()
 
+    # TODO: code very similar to Raster._plot_in_canvas(), maybe unify
     def _plot_in_canvas(
         self,
         channels_to_plot: list[str],
+        rgba: bool,
         preprocessing: Optional[Callable] = None,
         cmap: Union[
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
         ax: matplotlib.axes.Axes = None,
     ):
-        for idx, channel in enumerate(channels_to_plot):
-            a = 1 / (max(len(channels_to_plot) - 1, 2)) if idx > 0 else 1
-            channel_index = get_channel_index_from_channel_name(self.var, channel)
-            data_to_plot = self.X[:, channel_index]
+        if rgba:
+            indices = [get_channel_index_from_channel_name(self.var, channel) for channel in channels_to_plot]
+            indices = np.array(indices)
+            data_to_plot = self.X[:, indices]
+
             x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
-            assert len(cmap) == 1
-            cmap = cmap[0]
-            cnorm = matplotlib.colors.Normalize(vmin=np.min(x), vmax=np.max(x))
-            sm = matplotlib.cm.ScalarMappable(norm=cnorm, cmap=cmap)
+            if np.min(x) < 0. or np.max(x) > 1.:
+                warnings.warn('the data is not in the [0, 1] range. Plotting the result of an affine transformation to '
+                              'make the data in [0, 1].')
+                old_shape = x.shape
+                x = np.reshape(x, (-1, old_shape[-1]))
+                a = np.min(x, axis=0)
+                b = np.max(x, axis=0)
+                x = (x - a) / (b - a)
+                x = np.reshape(x, old_shape)
+            colors = x
+            a = 1.
+        else:
+            for idx, channel in enumerate(channels_to_plot):
+                a = 1 / (max(len(channels_to_plot) - 1, 2)) if idx > 0 else 1
+                channel_index = get_channel_index_from_channel_name(self.var, channel)
+                data_to_plot = self.X[:, channel_index]
+                x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
+                assert len(cmap) == 1
+                cmap = cmap[0]
+                cnorm = matplotlib.colors.Normalize(vmin=np.min(x), vmax=np.max(x))
+                sm = matplotlib.cm.ScalarMappable(norm=cnorm, cmap=cmap)
 
-            # instead of calling imshow passing cnorm and cmap we are using the plotting function defined for
-            # masks and passing already the appropriate colors. We compute the colors manually
-            def normalizer(e):
-                return (e - x.min()) / (x.max() - x.min())
+                # instead of calling imshow passing cnorm and cmap we are using the plotting function defined for
+                # masks and passing already the appropriate colors. We compute the colors manually
+                def normalizer(e):
+                    return (e - x.min()) / (x.max() - x.min())
 
-            colors = cmap(normalizer(x))
-            self.masks.plot(fill_colors=colors, outline_colors=None, ax=ax, alpha=a)
+                colors = cmap(normalizer(x))
+        self.masks.plot(fill_colors=colors, outline_colors=None, ax=ax, alpha=a)
             # im = ax.imshow(x, cmap=cmap[idx], alpha=a)
         # code explained in raster.py
         if len(channels_to_plot) == 1:
@@ -229,9 +250,8 @@ class Regions(FieldOfView):
         self,
         channels: Optional[Union[str, list[str], int, list[int]]] = "all",
         grid_size: Union[int, list[int]] = 1,
+        method: PlottingMethod = 'auto',
         preprocessing: Optional[Callable] = None,
-        overlap: bool = False,
-        channels_as_rgba: bool = True,
         cmap: Union[
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
@@ -253,8 +273,7 @@ class Regions(FieldOfView):
                 channels=channels,
                 grid_size=grid_size,
                 preprocessing=preprocessing,
-                overlap=overlap,
-                channels_as_rgba=channels_as_rgba,
+                method=method,
                 cmap=cmap,
                 ax=ax,
                 show_title=show_title,

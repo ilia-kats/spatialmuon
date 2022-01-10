@@ -1,4 +1,4 @@
-from typing import Optional, Union, Callable
+from typing import Optional, Union, Callable, Literal
 
 import matplotlib
 import matplotlib.cm
@@ -9,7 +9,11 @@ import matplotlib.pyplot as plt
 import warnings
 from matplotlib_scalebar.scalebar import ScaleBar
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import itertools
 
+import spatialmuon
+
+PlottingMethod = Literal['auto', 'panels', 'overlap', 'rgba']
 
 def get_channel_index_from_channel_name(var, channel_name):
     channel_idx = var.query("channel_name == @channel_name").index.tolist()[0]
@@ -22,8 +26,7 @@ def regions_raster_plot(
     channels: Optional[Union[str, list[str], int, list[int]]] = "all",
     grid_size: Union[int, list[int]] = 1,
     preprocessing: Optional[Callable] = None,
-    overlap: bool = False,
-    channels_as_rgba: bool = True,
+    method: PlottingMethod = 'auto',
     cmap: Union[
         matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
     ] = matplotlib.cm.viridis,
@@ -89,16 +92,22 @@ def regions_raster_plot(
             "'cmap' must either be length one or the same length as the channels that will be plotted."
         )
 
-    if not isinstance(overlap, bool):
-        raise ValueError("'overlap' must be 'True' or 'False'.")
+    if not method in ['auto', 'panels', 'overlap', 'rgba']:
+        raise ValueError("plotting 'method' not recognized")
 
     if ax is not None:
-        overlap = True
+        assert method != 'panels'
 
-    # if overlap == False:
+    if len(channels_to_plot) == 1:
+        method = 'overlap'
 
+    if method == 'auto':
+        if len(channels_to_plot) <= 4 and isinstance(instance, spatialmuon.Raster):
+            method = 'rgba'
+        else:
+            method = 'panels'
 
-    if overlap or len(channels_to_plot) == 1:
+    if method in ['overlap', 'rgba']:
         DEFAULT_CMAPS = [
             matplotlib.cm.get_cmap("viridis"),
             matplotlib.cm.get_cmap("plasma"),
@@ -116,17 +125,18 @@ def regions_raster_plot(
             matplotlib.cm.get_cmap("winter"),
             matplotlib.cm.get_cmap("cool"),
         ]
-        if isinstance(cmap, matplotlib.colors.Colormap) and len(channels_to_plot) > 1:
-            cmap = DEFAULT_CMAPS
-        if len(channels_to_plot) > 1:
-            if len(channels_to_plot) > len(cmap):
-                warnings.warn(
-                    f"{len(channels_to_plot)} channels to plot but {len(cmap)} colormaps available; colormaps will be cycled."
-                )
-                cmap = cmap * len(channels_to_plot) // len(cmap) + 1
-        if isinstance(cmap, matplotlib.colors.Colormap):
-            cmap = [cmap]
-        cmap = cmap[: len(channels_to_plot)]
+        if method == 'overlap':
+            if isinstance(cmap, matplotlib.colors.Colormap) and len(channels_to_plot) > 1:
+                cmap = DEFAULT_CMAPS
+            if len(channels_to_plot) > 1:
+                if len(channels_to_plot) > len(cmap):
+                    warnings.warn(
+                        f"{len(channels_to_plot)} channels to plot but {len(cmap)} colormaps available; colormaps will be cycled."
+                    )
+                    cmap = cmap * len(channels_to_plot) // len(cmap) + 1
+            if isinstance(cmap, matplotlib.colors.Colormap):
+                cmap = [cmap]
+            cmap = cmap[: len(channels_to_plot)]
 
         if len(channels_to_plot) == 1:
             show_legend = False and show_legend
@@ -141,25 +151,49 @@ def regions_raster_plot(
             axs = ax
         # ######### going back to the calling class ########## #
         im = instance._plot_in_canvas(
-            channels_to_plot=channels_to_plot, preprocessing=preprocessing, cmap=cmap, ax=axs
+            channels_to_plot=channels_to_plot, rgba=method == 'rgba', preprocessing=preprocessing, cmap=cmap, ax=axs
         )
         if show_title:
-            title = "background: " if len(channels_to_plot) > 1 else ""
-            title += "{}".format([k for k in channels_to_plot][0])
-            if len(channels_to_plot) > 1:
-                title += "; overlay: {}".format(
-                    ", ".join(map(str, [k for k in channels_to_plot][1:]))
-                )
-                axs.set_title(title)
+            if method == 'overlap':
+                title = "background: " if len(channels_to_plot) > 1 else ""
+                title += "{}".format([k for k in channels_to_plot][0])
+                if len(channels_to_plot) > 1:
+                    title += "; overlay: {}".format(
+                        ", ".join(map(str, [k for k in channels_to_plot][1:]))
+                    )
+            elif method == 'rgba':
+                title = f'RGB: {", ".join(map(str, [k for k in channels_to_plot]))}'
+                if len(channels_to_plot) == 4:
+                    title += f'. Alpha: {[k for k in channels_to_plot][-1]}'
+            else:
+                raise ValueError()
+            axs.set_title(title)
         if show_legend:
             _legend = []
-            for idx, c in enumerate(cmap):
-                rgba = c(255)
-                _legend.append(
-                    matplotlib.patches.Patch(
-                        facecolor=rgba, edgecolor=rgba, label=[k for k in channels_to_plot][idx]
+            if method == 'overlap':
+                for idx, c in enumerate(cmap):
+                    rgba = c(255)
+                    # label = itertools.islice(channels_to_plot, idx, None).__iter__().__next__()
+                    # label = channels_to_plot[idx]
+                    label = [k for k in channels_to_plot][idx]
+                    _legend.append(
+                        matplotlib.patches.Patch(
+                            facecolor=rgba, edgecolor=rgba, label=label
+                        )
                     )
-                )
+            elif method == 'rgba':
+                colors = ['red', 'green', 'blue', 'white']
+                for idx, label in enumerate(channels_to_plot):
+                    c = colors[idx]
+                    if idx == 3:
+                        label = '(alpha) ' + label
+                    _legend.append(
+                        matplotlib.patches.Patch(
+                            facecolor=c, edgecolor='k', label=label
+                        )
+                    )
+            else:
+                raise ValueError()
 
             axs.legend(
                 handles=_legend,
@@ -190,6 +224,7 @@ def regions_raster_plot(
             plt.tight_layout()
             plt.show()
     else:
+        assert method == 'panels'
         # ######### going back to the calling class ########## #
         instance._plot_in_grid(
             channels_to_plot=channels_to_plot,

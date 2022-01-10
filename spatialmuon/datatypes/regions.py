@@ -179,6 +179,8 @@ class Regions(FieldOfView):
     def _write_attributes_impl(self, obj):
         pass
 
+    # TODO: this function shares code with Raster._plot_in_grid(), unify better at some point putting for instance
+    #  the shared code in datatypes_utils.py
     def _plot_in_grid(
         self,
         channels_to_plot: list[str],
@@ -189,9 +191,35 @@ class Regions(FieldOfView):
         ] = matplotlib.cm.viridis,
         suptitle: Optional[str] = None,
     ):
+        idx = get_channel_index_from_channel_name(self.var, channels_to_plot[0])
+        # TODO: get this info by calling a get_bounding_box() function, which shuold take into account for alignment
+        #  information
+        # (x, y) = self.X[:, :, idx].shape
+        # cell_size_x = 2 * x / max(x, y)
+        # cell_size_y = 2 * y / max(x, y)
+        cell_size_x = cell_size_y = 3
+        fig, axs = plt.subplots(grid_size[1], grid_size[0], figsize=(cell_size_y * grid_size[1], cell_size_x *
+                                                                     grid_size[0]))
+        if len(channels_to_plot) > 1:
+            axs = axs.flatten()
+
+        for idx, channel in enumerate(channels_to_plot):
+            self.plot(
+                channels=channel,
+                preprocessing=preprocessing,
+                cmap=cmap,
+                ax=axs[idx],
+                show_legend=False,
+                show_colorbar=False,
+                show_scalebar=idx == 0,
+            )
+        for idx in range(len(channels_to_plot), grid_size[0] * grid_size[1]):
+            axs[idx].set_axis_off()
         if suptitle is not None:
             plt.suptitle(suptitle)
-        raise NotImplementedError()
+        plt.subplots_adjust()
+        plt.tight_layout()
+        plt.show()
 
     # TODO: code very similar to Raster._plot_in_canvas(), maybe unify
     def _plot_in_canvas(

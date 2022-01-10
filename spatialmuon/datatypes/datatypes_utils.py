@@ -7,6 +7,7 @@ import matplotlib.colors
 import matplotlib.patches
 import matplotlib.pyplot as plt
 import warnings
+import math
 from matplotlib_scalebar.scalebar import ScaleBar
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import itertools
@@ -225,6 +226,44 @@ def regions_raster_plot(
             plt.show()
     else:
         assert method == 'panels'
+        upper_limit_tiles = 50
+
+        if (
+            isinstance(grid_size, list)
+            and len(grid_size) == 2
+            and all(isinstance(x, int) for x in grid_size)
+        ):
+            n_tiles = grid_size[0] * grid_size[1]
+        elif grid_size == 1 and len(channels_to_plot) != 1:
+            n_tiles = len(channels_to_plot)
+        elif isinstance(grid_size, int):
+            n_tiles = grid_size ** 2
+        else:
+            raise ValueError(
+                "'grid_size' must either be a single integer or a list of two integers."
+            )
+        if n_tiles > upper_limit_tiles:
+            warnings.warn(
+                "The generated plot will be very large. Consider plotting it outside of spatialmuon."
+            )
+
+        if len(channels_to_plot) > n_tiles:
+            msg = "More channels available than covered by 'grid_size'. Only the first {} channels will be plotted".format(
+                n_tiles
+            )
+            warnings.warn(msg)
+
+        # Calcualte grid layout
+        if not isinstance(grid_size, list):
+            n_x = math.ceil(n_tiles ** 0.5)
+            n_y = math.floor(n_tiles ** 0.5)
+            if n_x * n_y < n_tiles:
+                n_y += 1
+        else:
+            n_x = grid_size[0]
+            n_y = grid_size[1]
+        grid_size = [n_x, n_y]
+
         # ######### going back to the calling class ########## #
         instance._plot_in_grid(
             channels_to_plot=channels_to_plot,

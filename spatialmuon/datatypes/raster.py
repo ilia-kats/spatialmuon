@@ -196,6 +196,8 @@ class Raster(FieldOfView):
         if self._px_dimensions is not None:
             obj.attrs["px_dimensions"] = self._px_dimensions
 
+    # TODO: this function shares code with Regions._plot_in_grid(), unify better at some point putting for instance
+    #  the shared code in datatypes_utils.py
     def _plot_in_grid(
         self,
         channels_to_plot: list[str],
@@ -206,74 +208,28 @@ class Raster(FieldOfView):
         ] = matplotlib.cm.viridis,
         suptitle: Optional[str] = None,
     ):
-        upper_limit_tiles = 50
-
-        if (
-            isinstance(grid_size, list)
-            and len(grid_size) == 2
-            and all(isinstance(x, int) for x in grid_size)
-        ):
-            n_tiles = grid_size[0] * grid_size[1]
-        elif grid_size == 1 and len(channels_to_plot) != 1:
-            n_tiles = len(channels_to_plot)
-        elif isinstance(grid_size, int):
-            n_tiles = grid_size ** 2
-        else:
-            raise ValueError(
-                "'grid_size' must either be a single integer or a list of two integers."
-            )
-        if n_tiles > upper_limit_tiles:
-            warnings.warn(
-                "The generated plot will be very large. Consider plotting it outside of spatialmuon."
-            )
-
-        if len(channels_to_plot) > n_tiles:
-            msg = "More channels available than covered by 'grid_size'. Only the first {} channels will be plotted".format(
-                n_tiles
-            )
-            warnings.warn(msg)
-
-        # Calcualte grid layout
-        if not isinstance(grid_size, list):
-            n_x = math.ceil(n_tiles ** 0.5)
-            n_y = math.floor(n_tiles ** 0.5)
-            if n_x * n_y < n_tiles:
-                n_y += 1
-        else:
-            n_x = grid_size[0]
-            n_y = grid_size[1]
-        grid_size[0] = n_x
-        grid_size[1] = n_y
-
         idx = get_channel_index_from_channel_name(self.var, channels_to_plot[0])
+        # TODO: get this info by calling a get_bounding_box() function, which shuold take into account for alignment
+        #  information
         (x, y) = self.X[:, :, idx].shape
         cell_size_x = 2 * x / max(x, y)
         cell_size_y = 2 * y / max(x, y)
-        fig, axs = plt.subplots(n_y, n_x, figsize=(cell_size_y * n_y, cell_size_x * n_x))
+        fig, axs = plt.subplots(grid_size[1], grid_size[0], figsize=(cell_size_y * grid_size[1], cell_size_x *
+                                                                     grid_size[0]))
         if len(channels_to_plot) > 1:
             axs = axs.flatten()
 
         for idx, channel in enumerate(channels_to_plot):
-            if idx < n_tiles:
-                # self._plot_in_canvas(
-                #     channels_to_plot=[channel],
-                #     preprocessing=preprocessing,
-                #     cmap=cmap,
-                #     ax=axs[idx],
-                #     show_legend=False,
-                #     show_colorbar=False,
-                #     show_scalebar=idx == 0,
-                # )
-                self.plot(
-                    channels=channel,
-                    preprocessing=preprocessing,
-                    cmap=cmap,
-                    ax=axs[idx],
-                    show_legend=False,
-                    show_colorbar=False,
-                    show_scalebar=idx == 0,
-                )
-        for idx in range(n_tiles, n_x * n_y):
+            self.plot(
+                channels=channel,
+                preprocessing=preprocessing,
+                cmap=cmap,
+                ax=axs[idx],
+                show_legend=False,
+                show_colorbar=False,
+                show_scalebar=idx == 0,
+            )
+        for idx in range(len(channels_to_plot), grid_size[0] * grid_size[1]):
             axs[idx].set_axis_off()
         if suptitle is not None:
             plt.suptitle(suptitle)

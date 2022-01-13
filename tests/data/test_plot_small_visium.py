@@ -29,7 +29,8 @@ if not DEBUGGING:
 
     matplotlib.use("Agg")
 else:
-    fpath = os.path.expanduser("~/spatialmuon/tests/data/small_visium.h5smu")
+    small_visium = "~/spatialmuon/tests/data/small_visium.h5smu"
+    fpath = os.path.expanduser(small_visium)
 
 plt.style.use("dark_background")
 
@@ -51,44 +52,47 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
     def test_can_plot_regions_single_channel(self):
         d = spatialmuon.SpatialMuData(backing=fpath)
         e = d["visium"]["expression"]
-        e.plot(channels="Rp1")
-        pass
+        plt.figure()
+        ax = plt.gca()
+        e.plot(channels="Rp1", ax=ax)
+        ax.set(xlim=(1650, 1700), ylim=(1500, 1600))
+        plt.show()
 
     def test_can_plot_regions_non_overlapping_channels(self):
-        # d = spatialmuon.SpatialMuData(backing=fpath)
-        # ome = d["imc"]["ome"]
-        # ome.plot(
-        #     preprocessing=np.arcsinh,
-        # )
-        pass
+        d = spatialmuon.SpatialMuData(backing=fpath)
+        e = d["visium"]["expression"]
+        e.plot(list(range(10)))
 
     def test_can_plot_regions_random_color(self):
-        # d = spatialmuon.SpatialMuData(backing=fpath)
-        # masks = d["imc"]["masks"]
-        # masks.plot()
-        # masks.masks.plot(fill_colors='random', outline_colors='w')
-        # masks.masks.plot(fill_colors=None, outline_colors='random')
-        pass
+        d = spatialmuon.SpatialMuData(backing=fpath)
+        e = d["visium"]["expression"]
+        _, ax = plt.subplots(1)
+        e.masks.plot(fill_colors='black', outline_colors='random', ax=ax)
+        ax.set_title('visualizing masks')
+        plt.show()
 
     def test_can_plot_regions_solid_color(self):
-        # d = spatialmuon.SpatialMuData(backing=fpath)
-        # masks = d["imc"]["masks"]
-        # masks.masks.plot(fill_colors='red')
-        # masks.masks.plot(fill_colors=[0., 0., 1., 1.])
-        # masks.masks.plot(fill_colors=np.array([0., 1., 0., 1.]))
-        # colors = ["red", "yellow"] * len(masks.masks.obs)
-        # colors = colors[: len(masks.masks.obs)]
-        # colors[1] = [0., 1., 0]
-        # masks.masks.plot(fill_colors=colors)
-        pass
+        d = spatialmuon.SpatialMuData(backing=fpath)
+        e = d["visium"]["expression"]
+        e.masks.plot(fill_colors='red')
+        e.masks.plot(fill_colors=[0., 0., 1., 1.])
+        e.masks.plot(fill_colors=np.array([0., 1., 0., 1.]))
+        colors = ["red", "yellow"] * len(e.masks.obs)
+        colors = colors[: len(e.masks.obs)]
+        colors[1] = [0., 1., 0]
+        e.masks.plot(fill_colors=colors)
 
     def test_can_plot_raster_and_regions_together(self):
-        # d = spatialmuon.SpatialMuData(backing=fpath)
-        # fig, ax = plt.subplots(1)
-        # channels = d['imc']['ome'].var['channel_name'].tolist()
-        # d['imc']['ome'].plot(ax=ax, channels=channels[0])
-        # d['imc']['masks'].masks.plot(fill_colors=None, outline_colors='random', ax=ax)
-        # plt.show()
+        ##
+        d = spatialmuon.SpatialMuData(backing=fpath)
+        e = d["visium"]["expression"]
+        _, ax = plt.subplots(1)
+        d['visium']['image'].plot(ax=ax, show_legend=False)
+        e.masks.plot(fill_colors='black', outline_colors='random', ax=ax)
+        ax.set_title('visualizing masks')
+        plt.show()
+        print('oooooooooo')
+        ##
         pass
 
     def test_can_accumulate_raster_with_shape_masks(self):
@@ -123,16 +127,16 @@ if __name__ == "__main__":
     if not DEBUGGING:
         unittest.main()
     else:
-        PlotSmallVisium_TestClass().test_can_load_smu_file()
-        PlotSmallVisium_TestClass().test_can_pretty_print()
+        # PlotSmallVisium_TestClass().test_can_load_smu_file()
+        # PlotSmallVisium_TestClass().test_can_pretty_print()
+        # #
+        # PlotSmallVisium_TestClass().test_can_plot_image()
+        # #
+        # PlotSmallVisium_TestClass().test_can_plot_regions_single_channel()
+        # PlotSmallVisium_TestClass().test_can_plot_regions_non_overlapping_channels()
         #
-        PlotSmallVisium_TestClass().test_can_plot_image()
-        #
-        PlotSmallVisium_TestClass().test_can_plot_regions_single_channel()
-        PlotSmallVisium_TestClass().test_can_plot_regions_non_overlapping_channels()
-        #
-        PlotSmallVisium_TestClass().test_can_plot_regions_random_color()
-        PlotSmallVisium_TestClass().test_can_plot_regions_solid_color()
+        # PlotSmallVisium_TestClass().test_can_plot_regions_random_color()
+        # PlotSmallVisium_TestClass().test_can_plot_regions_solid_color()
         PlotSmallVisium_TestClass().test_can_plot_raster_and_regions_together()
         PlotSmallVisium_TestClass().test_can_accumulate_raster_with_shape_masks()
         PlotSmallVisium_TestClass().test_can_plot_accumulated_regions_value()

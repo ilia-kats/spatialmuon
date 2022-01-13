@@ -468,10 +468,16 @@ class ShapeMasks(Masks, MutableMapping):
         for i in range(len(self)):
             xy = self._masks_centers[i]
             radius = self._masks_radii[i]
-            patch = matplotlib.patches.Ellipse(xy, width=radius[0], height=radius[1])
+            patch = matplotlib.patches.Ellipse(xy, width=2 * radius[0], height=2 * radius[1])
             patches.append(patch)
         collection = matplotlib.collections.PatchCollection(patches)
-        collection.set_color(np.random.rand(len(self), 3))
+        # TODO: ignoring the background color for the moment, implement it
+        collection.set_facecolor(fill_color_array[1:, :])
+        if outline_colors_array is None:
+            # need to plot always something otherwise the spot size is smaller
+            collection.set_edgecolor(fill_color_array[1:, :])
+        else:
+            collection.set_edgecolor(outline_colors_array[1:, :])
 
         # TODO: consider bounding boxes
         extended_coords = np.concatenate(

@@ -2,6 +2,7 @@
 # this file is not a test but just a quick script for us to generate "small_imc.h5smu"
 import spatialmuon as smu
 import os
+import numpy as np
 from pathlib import Path
 # this file is cumbersome because at the moment subsetting and copy constructors are not yet implemented
 
@@ -19,16 +20,20 @@ a1 = d['Visium']['ST8059049H&E']
 
 import copy
 d0 = copy.copy(a0)
-new_X = d0.X[:100, :]
+x_cutoff = 1400
+y_cutoff = 1250
+centers = d0.masks._masks_centers
+obs_to_keep = (centers[:, 0] > x_cutoff) * (centers[:, 1] > y_cutoff)
+print(f'keeping {np.sum(obs_to_keep)} out of {len(centers)} obs')
+new_X = d0.X[obs_to_keep, :]
 d0._X = new_X
-new_obs = d0.masks.obs[:100]
+new_obs = d0.masks.obs[obs_to_keep]
 d0.masks._obs = new_obs
-d0.masks._masks_centers = d0.masks._masks_centers[:100]
-d0.masks._masks_radii = d0.masks._masks_radii[:100]
+d0.masks._masks_centers = d0.masks._masks_centers[np.where(obs_to_keep)]
+d0.masks._masks_radii = d0.masks._masks_radii[np.where(obs_to_keep)]
 
 img = a1.X[...]
-new_img = img[:400, :300, :]
-d1 = smu.Raster(X=new_img)
+d1 = smu.Raster(X=img)
 
 print(outfile)
 if os.path.isfile(outfile):

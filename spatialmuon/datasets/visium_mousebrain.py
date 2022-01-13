@@ -98,7 +98,23 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
             with open(os.path.join(cdir, "spatial", "scalefactors_json.json"), "r") as f:
                 meta = json.load(f)
-            radius = 0.5 * meta["spot_diameter_fullres"] * meta["tissue_hires_scalef"]
+            # wrong
+            # radius = 0.5 * meta["spot_diameter_fullres"] * meta["tissue_hires_scalef"]
+            # computed manually by considering pairwise differences of the xaxis, using the following code and some
+            # extra easy steps
+            # import matplotlib.pyplot as plt
+            # plt.scatter(coords[:, 0], coords[:, 1], s=1)
+            # plt.gca().set_aspect('equal')
+            # plt.gca().set(xlim=(1000, 1100), ylim=(800, 1000))
+            # x = coords[:, 0]
+            # x = x[(x > 1000) * (x < 1100)]
+            # diff = (x[:, np.newaxis] - x[np.newaxis, :]).flatten()
+            # plt.show()
+            # plt.hist(x, bins=100)
+            # plt.show()
+
+            center_to_center = 25.411068101069596
+            radius = center_to_center * 55 / 100 / 2
             coords = coords * meta["tissue_hires_scalef"]
 
             # the samples are offset by 10 μm in the Z axis according to the paper

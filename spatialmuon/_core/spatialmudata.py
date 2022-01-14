@@ -19,7 +19,7 @@ class SpatialMuData(BackableObject, BackedDictProxy):
 
         if isinstance(backing, PathLike) or isinstance(backing, str):
             assert backingmode in ["r", "r+", "w"], "Argument `backingmode` must be r, r+ or w"
-            if path.isfile(backing) and backingmode != 'w':
+            if path.isfile(backing) and backingmode != "w":
                 if is_h5smu(backing):
                     try:
                         backing = h5py.File(backing, backingmode)

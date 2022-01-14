@@ -104,7 +104,7 @@ class Masks(BackableObject):
     def __len__(self):
         pass
 
-    @abstractmethod
+    # @abstractmethod
     def update_obs_from_masks(self):
         pass
 
@@ -481,7 +481,10 @@ class ShapeMasks(Masks, MutableMapping):
 
         # TODO: consider bounding boxes
         extended_coords = np.concatenate(
-            [self._masks_centers[...] + self._masks_radii[...], self._masks_centers[...] - self._masks_radii[...]],
+            [
+                self._masks_centers[...] + self._masks_radii[...],
+                self._masks_centers[...] - self._masks_radii[...],
+            ],
             axis=0,
         )
         x_min, y_min = np.min(extended_coords, axis=0)

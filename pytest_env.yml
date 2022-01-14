@@ -27,3 +27,4 @@ dependencies:
   - pip:
     - squidpy==1.1.2
     - h5py==3.6.0
+    - matplotlib_scalebar

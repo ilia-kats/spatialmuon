@@ -69,7 +69,6 @@ class FieldOfView(BackableObject):
             self.coordinate_unit = _get_hdf5_attribute(self.backing.attrs, "coordinate_unit", None)
         else:
             self.coordinate_unit = coordinate_unit
-
         if self.isbacked and "var" in self.backing:
             self._var = read_attribute(backing["var"])
         elif var is not None:

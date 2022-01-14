@@ -65,7 +65,7 @@ class BackableObject(ABC):
             if self.backing.file != obj.file or self.backing.name != obj.name:
                 obj.parent.copy(self.backing, os.path.basename(obj.name))
             else:
-                print('to study the code')
+                print("to study the code")
         else:
             self._write_attributes(obj)
             self._write(obj)
@@ -118,7 +118,7 @@ class BackedDictProxy(UserDict):
             if key in self._grp and value.backing != self._grp[key] or key not in self._grp:
                 value.set_backing(self._grp, key)
         else:
-            print('to set a breakpoint and study the code')
+            print("to set a breakpoint and study the code")
         super().__setitem__(key, value)
 
     def __delitem__(self, key: str):

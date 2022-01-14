@@ -91,7 +91,7 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
         e.masks.plot(fill_colors='black', outline_colors='random', ax=ax)
         ax.set_title('visualizing masks')
         plt.show()
-        print('oooooooooo')
+        print('oooo')
         ##
         pass
 

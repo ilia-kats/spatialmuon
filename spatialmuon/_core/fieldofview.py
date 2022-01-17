@@ -101,6 +101,8 @@ class FieldOfView(BackableObject, BoundingBoxable):
                 # implies that ancor is not None, so this code should not be reached
                 self._anchor = Anchor(self.ndim)
                 warnings.warn("who called me?")
+        # disabled by default since it is slowe
+        self.compressed_storage = False
 
     def _set_backing(self, grp):
         super()._set_backing(grp)
@@ -204,12 +206,20 @@ class FieldOfView(BackableObject, BoundingBoxable):
             obj.attrs["coordinate_unit"] = self.coordinate_unit
 
     def _write(self, obj: h5py.Group):
-        write_attribute(
-            obj, "var", self._var, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
-        )
-        write_attribute(
-            obj, "uns", self.uns, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
-        )
+        if self.compressed_storage:
+            write_attribute(
+                obj, "var", self._var, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
+            )
+            write_attribute(
+                obj, "uns", self.uns, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
+            )
+        else:
+            write_attribute(
+                obj, "var", self._var
+            )
+            write_attribute(
+                obj, "uns", self.uns
+            )
 
     def _adjust_plot_lims(self, ax=None):
         if ax is None:

@@ -96,11 +96,11 @@ class Raster(FieldOfView):
         assert self.ndim in [2, 3]
         if self.ndim == 3:
             raise NotImplementedError()
-        w, h = self.X.shape[:2]
+        h, w = self.X.shape[:2]
         px_dimensions = self.px_dimensions
         px_distance = self.px_distance
-        actual_w = float(w) * px_dimensions[0] + (w - 1) * (px_distance[0] - 1)
-        actual_h = float(h) * px_dimensions[1] + (h - 1) * (px_distance[1] - 1)
+        actual_h = float(h) * px_dimensions[0] + (h - 1) * (px_distance[0] - 1)
+        actual_w = float(w) * px_dimensions[1] + (w - 1) * (px_distance[1] - 1)
         bounding_box = {"x0": 0.0, "y0": 0.0, "x1": actual_w, "y1": actual_h}
         return bounding_box
 
@@ -198,8 +198,10 @@ class Raster(FieldOfView):
 
     def _write(self, grp):
         super()._write(grp)
-        grp.create_dataset("X", data=self.X)
-        # grp.create_dataset("X", data=self.X, compression="gzip", compression_opts=9)
+        if self.compressed_storage:
+            grp.create_dataset("X", data=self.X, compression="gzip", compression_opts=9)
+        else:
+            grp.create_dataset("X", data=self.X)
 
     def _write_attributes_impl(self, obj):
         super()._write_attributes_impl(obj)
@@ -283,7 +285,11 @@ class Raster(FieldOfView):
                 b = np.max(x, axis=0)
                 x = (x - a) / (b - a)
                 x = np.reshape(x, old_shape)
-            im = ax.imshow(x)
+            bb = self.bounding_box
+            extent = [bb['x0'], bb['x1'], bb['y0'], bb['y1']]
+            assert bb['x1'] - bb['x0'] == self.X.shape[1]
+            assert bb['y1'] - bb['y0'] == self.X.shape[0]
+            im = ax.imshow(x, extent=extent, origin='lower')
         else:
             for idx, channel in enumerate(channels_to_plot):
                 a = 1 / (max(len(channels_to_plot) - 1, 2)) if idx > 0 else 1
@@ -291,7 +297,11 @@ class Raster(FieldOfView):
                 data_to_plot = self.X[:, :, channel_index]
 
                 x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
-                im = ax.imshow(x, cmap=cmap[idx], alpha=a)
+                bb = self.bounding_box
+                extent = [bb['x0'], bb['x1'], bb['y0'], bb['y1']]
+                assert bb['x1'] - bb['x0'] == self.X.shape[1]
+                assert bb['y1'] - bb['y0'] == self.X.shape[0]
+                im = ax.imshow(x, cmap=cmap[idx], alpha=a, extent=extent, origin='lower')
         # im is used in the calling function in datatypes_utils.py to draw the show_colorbar, but we are not displaying a
         # show_colorbar when we have more than one channel, so let's return a nonsense value
         if len(channels_to_plot) == 1:

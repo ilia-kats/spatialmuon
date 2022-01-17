@@ -39,25 +39,24 @@ class Anchor(BackableObject):
             if ndim is None and origin is None and vector is None:
                 raise ValueError("at least one parameter should be specified")
 
+            if ndim is not None:
+                self._ndim = ndim
+
             if origin is None:
                 self._origin = np.array([0] * ndim)
             else:
                 self._origin = origin
                 if ndim is not None:
                     assert len(origin) == ndim
-                else:
-                    self._ndim = len(origin)
+                self._ndim = len(origin)
 
             if vector is None:
-                self._vector = np.array([1] + ([0] * (ndim - 1)))
+                self._vector = np.array([1] + ([0] * (self.ndim - 1)))
             else:
                 self._vector = vector
                 if ndim is not None:
                     assert len(vector) == ndim
-                else:
-                    self._ndim = len(vector)
-
-            self._ndim = ndim
+                self._ndim = len(vector)
 
     def _set_backing(self, value: Optional[Union[h5py.Group, h5py.Dataset]] = None):
         self._write(value)

@@ -184,13 +184,15 @@ class Regions(FieldOfView):
     def _write(self, grp: h5py.Group):
         super()._write(grp)
         if self._X is not None:
-            # write_attribute(
-            #     grp, "X", self._X, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
-            # )
-            # for debugging (waaay faster, but more space on disk), for the future let's maybe make the compression
-            # optional
-            # grp.create_dataset('X', data=self._X)
-            write_attribute(grp, "X", self._X)
+            if self.compressed_storage:
+                write_attribute(
+                    grp, "X", self._X, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
+                )
+            else:
+                # for debugging (waaay faster, but more space on disk), for the future let's maybe make the compression
+                # optional
+                write_attribute(grp, "X", self._X)
+                # grp.create_dataset('X', data=self._X)
 
         # self._index.write(grp, "index")
 

@@ -97,13 +97,13 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
         ##
         d = spatialmuon.SpatialMuData(backing=fpath)
         e = d["visium"]["expression"]
-        _, ax = plt.subplots(1)
+        _, ax = plt.subplots(1, figsize=(30, 30))
         d["visium"]["image"].plot(ax=ax, show_legend=False)
         # e.plot(channels=6, ax=ax, )
-        e.masks.plot(fill_colors=None, outline_colors="black", ax=ax)
+        e.masks.plot(fill_colors=None, outline_colors='', ax=ax)
         ax.set_title("visium spots")
         # e.set_lims_to_bounding_box()
-        ax.set(xlim=(1400, 1500), ylim=(1600, 1800))
+        # ax.set(xlim=(1400, 1500), ylim=(1600, 2000))
         plt.show()
         ##
 

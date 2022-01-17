@@ -286,10 +286,10 @@ class Raster(FieldOfView):
                 x = (x - a) / (b - a)
                 x = np.reshape(x, old_shape)
             bb = self.bounding_box
-            extent = [bb['x0'], bb['x1'], bb['y0'], bb['y1']]
-            assert bb['x1'] - bb['x0'] == self.X.shape[1]
-            assert bb['y1'] - bb['y0'] == self.X.shape[0]
-            im = ax.imshow(x, extent=extent, origin='lower')
+            extent = [bb["x0"], bb["x1"], bb["y0"], bb["y1"]]
+            assert bb["x1"] - bb["x0"] == self.X.shape[1]
+            assert bb["y1"] - bb["y0"] == self.X.shape[0]
+            im = ax.imshow(x, extent=extent, origin="lower")
         else:
             for idx, channel in enumerate(channels_to_plot):
                 a = 1 / (max(len(channels_to_plot) - 1, 2)) if idx > 0 else 1

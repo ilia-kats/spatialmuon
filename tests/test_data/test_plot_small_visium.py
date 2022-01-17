@@ -100,7 +100,7 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
         _, ax = plt.subplots(1, figsize=(5, 5))
         d["visium"]["image"].plot(ax=ax, show_legend=False)
         # e.plot(channels=6, ax=ax, )
-        e.masks.plot(fill_colors=None, outline_colors='red', ax=ax)
+        e.masks.plot(fill_colors=None, outline_colors="red", ax=ax)
         ax.set_title("visium spots")
         e.set_lims_to_bounding_box()
         # ax.set(xlim=(1400, 1500), ylim=(1600, 2000))

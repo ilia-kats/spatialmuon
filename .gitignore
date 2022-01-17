@@ -9,3 +9,4 @@ setup.py
 .idea/
 .vscode/
 spatialmuon.egg-info/
+.DS_Store

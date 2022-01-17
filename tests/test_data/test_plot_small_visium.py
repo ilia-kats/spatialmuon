@@ -46,7 +46,7 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
 
     def test_can_plot_image(self):
         d = spatialmuon.SpatialMuData(backing=fpath)
-        img = d['visium']['image']
+        img = d["visium"]["image"]
         img.plot()
 
     def test_can_plot_regions_single_channel(self):
@@ -67,35 +67,48 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
         d = spatialmuon.SpatialMuData(backing=fpath)
         e = d["visium"]["expression"]
         _, ax = plt.subplots(1)
-        e.masks.plot(fill_colors='black', outline_colors='random', ax=ax)
-        ax.set_title('visualizing masks')
+        e.masks.plot(fill_colors="black", outline_colors="random", ax=ax)
+        ax.set_title("visualizing masks")
         plt.show()
 
     def test_can_plot_regions_solid_color(self):
         d = spatialmuon.SpatialMuData(backing=fpath)
         e = d["visium"]["expression"]
-        e.masks.plot(fill_colors='red')
-        e.masks.plot(fill_colors=[0., 0., 1., 1.])
-        e.masks.plot(fill_colors=np.array([0., 1., 0., 1.]))
+        e.masks.plot(fill_colors="red")
+        e.masks.plot(fill_colors=[0.0, 0.0, 1.0, 1.0])
+        e.masks.plot(fill_colors=np.array([0.0, 1.0, 0.0, 1.0]))
         colors = ["red", "yellow"] * len(e.masks.obs)
         colors = colors[: len(e.masks.obs)]
-        colors[1] = [0., 1., 0]
+        colors[1] = [0.0, 1.0, 0]
         e.masks.plot(fill_colors=colors)
+
+    def test_bounding_boxes(self):
+        ##
+        d = spatialmuon.SpatialMuData(backing=fpath)
+        e = d["visium"]["expression"]
+        im = d["visium"]["image"]
+        bb_e = e.bounding_box
+        bb_im = im.bounding_box
+        # print(bb_e, bb_im)
+
+    ##
 
     def test_can_plot_raster_and_regions_together(self):
         ##
         d = spatialmuon.SpatialMuData(backing=fpath)
         e = d["visium"]["expression"]
         _, ax = plt.subplots(1)
-        d['visium']['image'].plot(ax=ax, show_legend=False)
-        e.masks.plot(fill_colors='black', outline_colors='random', ax=ax)
-        ax.set_title('visualizing masks')
+        d["visium"]["image"].plot(ax=ax, show_legend=False)
+        # e.plot(channels=6, ax=ax, )
+        e.masks.plot(fill_colors=None, outline_colors="black", ax=ax)
+        ax.set_title("visium spots")
+        # e.set_lims_to_bounding_box()
+        ax.set(xlim=(1400, 1500), ylim=(1600, 1800))
         plt.show()
-        print('oooo')
         ##
-        pass
 
     def test_can_accumulate_raster_with_shape_masks(self):
+        # raise NotImplementedError()
         # d = spatialmuon.SpatialMuData(backing=fpath)
         # accumulated = d['imc']['ome'].accumulate_features(d['imc']['masks'].masks)
         # for k, v in accumulated.items():
@@ -107,6 +120,7 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
         pass
 
     def test_can_plot_accumulated_regions_value(self):
+        # raise NotImplementedError()
         # d = spatialmuon.SpatialMuData(backing=fpath)
         # accumulated = d['imc']['ome'].accumulate_features(d['imc']['masks'].masks)
         # for k, v in accumulated.items():
@@ -129,14 +143,17 @@ if __name__ == "__main__":
     else:
         # PlotSmallVisium_TestClass().test_can_load_smu_file()
         # PlotSmallVisium_TestClass().test_can_pretty_print()
-        # #
+        #
         # PlotSmallVisium_TestClass().test_can_plot_image()
-        # #
+        #
         # PlotSmallVisium_TestClass().test_can_plot_regions_single_channel()
         # PlotSmallVisium_TestClass().test_can_plot_regions_non_overlapping_channels()
         #
         # PlotSmallVisium_TestClass().test_can_plot_regions_random_color()
         # PlotSmallVisium_TestClass().test_can_plot_regions_solid_color()
+        # PlotSmallVisium_TestClass().test_bounding_boxes()
         PlotSmallVisium_TestClass().test_can_plot_raster_and_regions_together()
-        PlotSmallVisium_TestClass().test_can_accumulate_raster_with_shape_masks()
-        PlotSmallVisium_TestClass().test_can_plot_accumulated_regions_value()
+
+        # not implemented yet
+        # PlotSmallVisium_TestClass().test_can_accumulate_raster_with_shape_masks()
+        # PlotSmallVisium_TestClass().test_can_plot_accumulated_regions_value()

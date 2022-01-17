@@ -47,10 +47,11 @@ class Converter_TestClass(unittest.TestCase):
 
     def test_can_create_AnnData_from_Regions(self):
         d = spatialmuon.SpatialMuData(backing=fpath_small_imc)
-        accumulated = d['imc']['ome'].accumulate_features(d['imc']['masks'].masks)
-        e = accumulated['mean']
+        accumulated = d["imc"]["ome"].accumulate_features(d["imc"]["masks"].masks)
+        e = accumulated["mean"]
         adata = Converter().regions_to_anndata(e)
         import scanpy
+
         scanpy.pl.spatial(adata, spot_size=3)
 
 

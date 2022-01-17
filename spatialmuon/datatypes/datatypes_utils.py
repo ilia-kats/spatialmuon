@@ -6,6 +6,7 @@ import matplotlib.axes
 import matplotlib.colors
 import matplotlib.patches
 import matplotlib.pyplot as plt
+import numpy as np
 import warnings
 import math
 from matplotlib_scalebar.scalebar import ScaleBar
@@ -14,7 +15,8 @@ import itertools
 
 import spatialmuon
 
-PlottingMethod = Literal['auto', 'panels', 'overlap', 'rgba']
+PlottingMethod = Literal["auto", "panels", "overlap", "rgba"]
+
 
 def get_channel_index_from_channel_name(var, channel_name):
     channel_idx = var.query("channel_name == @channel_name").index.tolist()[0]
@@ -27,7 +29,7 @@ def regions_raster_plot(
     channels: Optional[Union[str, list[str], int, list[int]]] = "all",
     grid_size: Union[int, list[int]] = 1,
     preprocessing: Optional[Callable] = None,
-    method: PlottingMethod = 'auto',
+    method: PlottingMethod = "auto",
     cmap: Union[
         matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
     ] = matplotlib.cm.viridis,
@@ -93,22 +95,22 @@ def regions_raster_plot(
             "'cmap' must either be length one or the same length as the channels that will be plotted."
         )
 
-    if not method in ['auto', 'panels', 'overlap', 'rgba']:
+    if not method in ["auto", "panels", "overlap", "rgba"]:
         raise ValueError("plotting 'method' not recognized")
 
     if ax is not None:
-        assert method != 'panels'
+        assert method != "panels"
 
     if len(channels_to_plot) == 1:
-        method = 'overlap'
+        method = "overlap"
 
-    if method == 'auto':
+    if method == "auto":
         if len(channels_to_plot) <= 4 and isinstance(instance, spatialmuon.Raster):
-            method = 'rgba'
+            method = "rgba"
         else:
-            method = 'panels'
+            method = "panels"
 
-    if method in ['overlap', 'rgba']:
+    if method in ["overlap", "rgba"]:
         DEFAULT_CMAPS = [
             matplotlib.cm.get_cmap("viridis"),
             matplotlib.cm.get_cmap("plasma"),
@@ -126,7 +128,7 @@ def regions_raster_plot(
             matplotlib.cm.get_cmap("winter"),
             matplotlib.cm.get_cmap("cool"),
         ]
-        if method == 'overlap':
+        if method == "overlap":
             if isinstance(cmap, matplotlib.colors.Colormap) and len(channels_to_plot) > 1:
                 cmap = DEFAULT_CMAPS
             if len(channels_to_plot) > 1:
@@ -152,46 +154,46 @@ def regions_raster_plot(
             axs = ax
         # ######### going back to the calling class ########## #
         im = instance._plot_in_canvas(
-            channels_to_plot=channels_to_plot, rgba=method == 'rgba', preprocessing=preprocessing, cmap=cmap, ax=axs
+            channels_to_plot=channels_to_plot,
+            rgba=method == "rgba",
+            preprocessing=preprocessing,
+            cmap=cmap,
+            ax=axs,
         )
         if show_title:
-            if method == 'overlap':
+            if method == "overlap":
                 title = "background: " if len(channels_to_plot) > 1 else ""
                 title += "{}".format([k for k in channels_to_plot][0])
                 if len(channels_to_plot) > 1:
                     title += "; overlay: {}".format(
                         ", ".join(map(str, [k for k in channels_to_plot][1:]))
                     )
-            elif method == 'rgba':
-                title = f'RGB: {", ".join(map(str, [k for k in channels_to_plot]))}'
+            elif method == "rgba":
+                title = f'RGB: {", ".join(map(str, [k for k in channels_to_plot][:3]))}'
                 if len(channels_to_plot) == 4:
-                    title += f'. Alpha: {[k for k in channels_to_plot][-1]}'
+                    title += f". Alpha: {[k for k in channels_to_plot][-1]}"
             else:
                 raise ValueError()
             axs.set_title(title)
         if show_legend:
             _legend = []
-            if method == 'overlap':
+            if method == "overlap":
                 for idx, c in enumerate(cmap):
                     rgba = c(255)
                     # label = itertools.islice(channels_to_plot, idx, None).__iter__().__next__()
                     # label = channels_to_plot[idx]
                     label = [k for k in channels_to_plot][idx]
                     _legend.append(
-                        matplotlib.patches.Patch(
-                            facecolor=rgba, edgecolor=rgba, label=label
-                        )
+                        matplotlib.patches.Patch(facecolor=rgba, edgecolor=rgba, label=label)
                     )
-            elif method == 'rgba':
-                colors = ['red', 'green', 'blue', 'white']
+            elif method == "rgba":
+                colors = ["red", "green", "blue", "white"]
                 for idx, label in enumerate(channels_to_plot):
                     c = colors[idx]
                     if idx == 3:
-                        label = '(alpha) ' + label
+                        label = "(alpha) " + label
                     _legend.append(
-                        matplotlib.patches.Patch(
-                            facecolor=c, edgecolor='k', label=label
-                        )
+                        matplotlib.patches.Patch(facecolor=c, edgecolor="k", label=label)
                     )
             else:
                 raise ValueError()
@@ -200,7 +202,7 @@ def regions_raster_plot(
                 handles=_legend,
                 frameon=False,
                 loc="lower center",
-                bbox_to_anchor=(0.5, -0.1),
+                bbox_to_anchor=(0.5, -0.2),
                 ncol=len(_legend),
             )
         if len(channels_to_plot) == 1 and show_colorbar:
@@ -212,11 +214,35 @@ def regions_raster_plot(
         if show_scalebar:
             unit = instance.coordinate_unit
             if unit is not None:
-                scalebar = ScaleBar(
-                    instance.scale, unit, box_alpha=0.8, color="white", box_color="black"
-                )
+                scale_factor = np.linalg.norm(instance.anchor.vector)
+                try:
+                    scalebar = ScaleBar(
+                        scale_factor, unit, box_alpha=0.8, color="white", box_color="black"
+                    )
+                except ValueError as e:
+                    if str(e).startswith("Invalid unit (") and str(e).endswith(") with dimension"):
+                        from matplotlib_scalebar.dimension import _Dimension
+
+                        class CustomDimension(_Dimension):
+                            def __init__(self, unit: str):
+                                super().__init__(unit)
+
+                        custom_dimension = CustomDimension(unit=unit)
+                        ##
+                        scalebar = ScaleBar(
+                            scale_factor,
+                            units=unit,
+                            dimension=custom_dimension,
+                            box_alpha=0.8,
+                            color="white",
+                            box_color="black",
+                        )
+                        ##
+                    else:
+                        raise e
                 axs.add_artist(scalebar)
 
+        instance._adjust_plot_lims(axs)
         # axs[idx].text(0, -10, channel, size=12)
         if suptitle is not None:
             plt.suptitle(suptitle)
@@ -225,7 +251,7 @@ def regions_raster_plot(
             plt.tight_layout()
             plt.show()
     else:
-        assert method == 'panels'
+        assert method == "panels"
         upper_limit_tiles = 50
 
         if (

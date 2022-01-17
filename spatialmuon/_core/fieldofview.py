@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from importlib.metadata import entry_points
 from typing import Optional, Union, Literal
 import warnings
+import matplotlib.pyplot as plt
 
 import numpy as np
 import h5py
@@ -14,13 +15,14 @@ from anndata.utils import make_index_unique
 import pandas as pd
 
 from spatialmuon._core.backing import BackableObject
+from spatialmuon._core.anchor import Anchor
+from spatialmuon._core.bounding_box import BoundingBoxable
 
 # from .image import Image
-import spatialmuon
 from ..utils import _read_hdf5_attribute, _get_hdf5_attribute, UnknownEncodingException
 
 
-class FieldOfView(BackableObject):
+class FieldOfView(BackableObject, BoundingBoxable):
     _datatypes = {}
 
     @classmethod
@@ -48,51 +50,62 @@ class FieldOfView(BackableObject):
         self,
         backing: Optional[h5py.Group] = None,
         *,
-        scale: Optional[float] = None,
-        rotation: Optional[np.ndarray] = None,
-        translation: Optional[np.ndarray] = None,
         var: Optional[pd.DataFrame] = None,
         uns: Optional[dict] = None,
         coordinate_unit: Optional[str] = None,
+        anchor: Optional[Anchor] = None,
     ):
         super().__init__(backing)
-        self._scale = scale
-        self._rotation = rotation
-        self._translation = translation
-        if scale is None and self.isbacked:
-            self._scale = _get_hdf5_attribute(self.backing.attrs, "scale")
-        if rotation is None and self.isbacked:
-            self._rotation = _get_hdf5_attribute(self.backing.attrs, "rotation")
-        if translation is None and self.isbacked:
-            self._translation = _get_hdf5_attribute(self.backing.attrs, "translation")
-        if coordinate_unit is None and self.isbacked:
-            self.coordinate_unit = _get_hdf5_attribute(self.backing.attrs, "coordinate_unit", None)
-        else:
-            self.coordinate_unit = coordinate_unit
-        if self.isbacked and "var" in self.backing:
-            self._var = read_attribute(backing["var"])
-        elif var is not None:
-            # if var.shape[0] != self._X.shape[1]:
-            #     raise ValueError("X shape is inconsistent with var")
-            # else:
-            self._var = var
-            if not self._var.index.is_unique:
-                warnings.warn(
-                    "Gene names are not unique. This will negatively affect indexing/subsetting. Making unique names..."
+        if backing is not None:
+            if (
+                var is not None
+                or uns is not None
+                or coordinate_unit is not None
+                or anchor is not None
+            ):
+                raise ValueError("attempting to specify properties for a non-empty backing store")
+            else:
+                self.var = read_attribute(backing["var"])
+                # self._var = read_attribute(backing["var"])
+                # the function writing self.uns to disk in from the anndata package, and by default doesn't store uns
+                # if it's value is {}, so we have to check for existence
+                if "uns" in self.backing:
+                    self.uns = read_attribute(self.backing["uns"])
+                else:
+                    self.uns = {}
+                self.coordinate_unit = _get_hdf5_attribute(
+                    self.backing.attrs, "coordinate_unit", None
                 )
-                self._var.index = make_index_unique(self._var.index)
+                self._anchor = Anchor(backing=backing["anchor"])
         else:
-            self._var = pd.DataFrame()
-            # self._var = pd.DataFrame(index=range(self._X.shape[1]))
-        if self.isbacked and "uns" in self.backing:
-            self.uns = read_attribute(self.backing["uns"])
-        elif not self.isbacked and uns is not None:
-            self.uns = uns
-        else:
-            self.uns = {}
+            if var is not None:
+                self.var = var
+            else:
+                self.var = pd.DataFrame()
+                # self._var = pd.DataFrame()
+
+            if uns is not None:
+                self.uns = uns
+            else:
+                self.uns = {}
+
+            if coordinate_unit is not None:
+                self.coordinate_unit = coordinate_unit
+            else:
+                self.coordinate_unit = "units"
+
+            if anchor is not None:
+                self._anchor = anchor
+            else:
+                # in the new version of the code the function update_n_dim_in_anchor called by FieldOfView subclasses
+                # implies that ancor is not None, so this code should not be reached
+                self._anchor = Anchor(self.ndim)
+                warnings.warn("who called me?")
 
     def _set_backing(self, grp):
         super()._set_backing(grp)
+        assert self._anchor is not None
+        self._anchor.set_backing(grp, "anchor")
         # if grp is not None:
         #     assert isinstance(grp, h5py.Group)
         #     # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
@@ -103,46 +116,57 @@ class FieldOfView(BackableObject):
         #     print('who is calling me?')
         #     assert self.isbacked
 
+    # in classes inherithing from FieldOfView, this function is the only thing called in __init__() before calling
+    # super().__init__(). This becase the __init__() in FieldOfView needs to know which is the dimensionality of the
+    # data (2D vs 3D), in order to initialize a default value for self.ancors, and this requires information
+    # contained in the arguments passed to __init__() of the subclass (but not passed to the superclass). Then,
+    # after __init__() from FieldOfView is executed, in FieldOfView the ndim property will only make use of
+    # self.anchora, so subclasses can know their dimensionality by asking the superclass. An alternative approach
+    # would be to implement ndim as an abstract method, but in this way there is no way if super().__init__() is
+    # called in the beginning of the __init__() of subclasses, then there is no way to ask the subclass about ndim,
+    # because the subclass is not initialized yet
+    def update_n_dim_in_anchor(self, ndim: Optional[int], backing, **kwargs) -> Optional[Anchor]:
+        assert not (backing is not None and "anchor" in backing and "anchor" in kwargs)
+        if backing is not None and "anchor" in backing:
+            return None
+        elif "anchor" in kwargs:
+            return kwargs["anchor"]
+        else:
+            assert ndim is not None
+            return Anchor(ndim=ndim)
+
     @property
-    @abstractmethod
     def ndim(self) -> int:
-        pass
-
-    @property
-    def scale(self) -> float:
-        return self._scale if self._scale is not None and self._scale > 0 else 1
-
-    @scale.setter
-    def scale(self, newscale: Optional[float]):
-        if newscale is not None and newscale <= 0:
-            newscale = None
-        self._scale = newscale
-
-    @property
-    def rotation(self) -> np.ndarray:
-        if self._rotation is not None:
-            return self._rotation
-        elif self.ndim is not None:
-            return np.eye(self.ndim)
-        else:
-            return np.eye(3)
-
-    @property
-    def translation(self) -> np.ndarray:
-        if self._translation is not None:
-            return self._translation
-        elif self.ndim is not None:
-            return np.zeros(self.ndim)
-        else:
-            return np.zeros(3)
+        return self.anchor.ndim
 
     @property
     def var(self) -> pd.DataFrame:
         return self._var
 
+    @var.setter
+    def var(self, new_var):
+        self._var = new_var
+        if not self._var.index.is_unique:
+            warnings.warn(
+                "Gene names are not unique. This will negatively affect indexing/subsetting. Making unique names..."
+            )
+            self._var.index = make_index_unique(self._var.index)
+
     @property
     def n_var(self) -> int:
         return self._var.shape[0]
+
+    @property
+    def anchor(self) -> Anchor:
+        """A np.ndarray with an anchor/vector pair for alignment.
+        Spatial information can be aligned to eachother in a m:n fashion. This
+        is implemented in spatialmuon on the basis of an anchor point from which
+        a vector extends that is aligned in a global coordinate system. All data
+        shares this global coordinate system and aligns to eachother in it.
+
+        """
+        assert self._anchor is not None
+        return self._anchor
 
     def __getitem__(self, index):
         polygon_method = "discard"
@@ -176,10 +200,6 @@ class FieldOfView(BackableObject):
 
     def _write_attributes_impl(self, obj: h5py.Group):
         super()._write_attributes_impl(obj)
-        if self._rotation is not None:
-            obj.attrs["rotation"] = self._rotation
-        if self._translation is not None:
-            obj.attrs["translation"] = self._translation
         if self.coordinate_unit is not None:
             obj.attrs["coordinate_unit"] = self.coordinate_unit
 
@@ -190,3 +210,29 @@ class FieldOfView(BackableObject):
         write_attribute(
             obj, "uns", self.uns, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
         )
+
+    def _adjust_plot_lims(self, ax=None):
+        if ax is None:
+            ax = plt.gca()
+        bb = self.bounding_box
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+        # hack to check if this is a newly created empty plot
+        if xlim == (0.0, 1.0) and ylim == (0.0, 1.0):
+            new_xlim = (bb["x0"], bb["x1"])
+            new_ylim = (bb["y0"], bb["y1"])
+        else:
+            new_xlim = (min(xlim[0], bb["x0"]), max(xlim[1], bb["x1"]))
+            new_ylim = (min(ylim[0], bb["y0"]), max(ylim[1], bb["y1"]))
+        ax.set_xlim(new_xlim)
+        ax.set_ylim(new_ylim)
+        # print(f'xlim = {xlim}, ylim = {ylim}')
+        # print(f'new_xlim = {new_xlim}, new_ylim = {new_ylim}')
+        # pass
+
+    def set_lims_to_bounding_box(self, ax=None):
+        if ax is None:
+            ax = plt.gca()
+        bb = self.bounding_box
+        ax.set_xlim((bb["x0"], bb["x1"]))
+        ax.set_ylim((bb["y0"], bb["y1"]))

@@ -20,13 +20,14 @@ from spatialmuon.utils import _get_hdf5_attribute
 from spatialmuon.datatypes.datatypes_utils import (
     regions_raster_plot,
     get_channel_index_from_channel_name,
-    PlottingMethod
+    PlottingMethod,
 )
 from spatialmuon._core.masks import Masks
+from spatialmuon._core.anchor import Anchor
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib_scalebar.scalebar import ScaleBar
 
-from spatialmuon import FieldOfView, Anchor
+from spatialmuon import FieldOfView
 from spatialmuon.utils import _get_hdf5_attribute
 
 
@@ -38,48 +39,35 @@ class Raster(FieldOfView):
         X: Optional[np.ndarray] = None,
         px_dimensions: Optional[np.ndarray] = None,
         px_distance: Optional[np.ndarray] = None,
-        anchor: Optional[Anchor] = None,
         **kwargs,
     ):
+        kwargs["anchor"] = self.update_n_dim_in_anchor(
+            ndim=len(X.shape) - 1 if X is not None else None, backing=backing, **kwargs
+        )
+        super().__init__(backing, **kwargs)
         if backing is not None:
-            self._ndim = backing["X"].ndim - 1
-            if self._ndim == 1:
-                self._ndim = 2
             self._px_distance = _get_hdf5_attribute(backing.attrs, "px_distance")
             self._px_dimensions = _get_hdf5_attribute(backing.attrs, "px_dimensions")
-            if _get_hdf5_attribute(backing.attrs, "anchor") is None:
-                self._anchor = Anchor(self.ndim)
-            else:
-                self._anchor = _get_hdf5_attribute(backing.attrs, "anchor")
+
             self._X = None
-            n_channels = backing['X'].shape[-1]
         else:
             if X is None:
                 raise ValueError("no data and no backing store given")
             self._X = X
-            self._ndim = X.ndim if X.ndim == 2 else X.ndim - 1
-            if self._ndim < 2 or self._ndim > 3:
-                raise ValueError("image dimensionality not supported")
-            self._anchor = Anchor(self.ndim)
             self._px_dimensions = px_dimensions
             self._px_distance = px_distance
             if self._px_dimensions is not None:
                 self._px_dimensions = np.asarray(self._px_dimensions).squeeze()
-                if self._px_dimensions.shape[0] != self._ndim or self._px_dimensions.ndim != 1:
+                if self._px_dimensions.shape[0] != self.ndim or self._px_dimensions.ndim != 1:
                     raise ValueError("pixel_size dimensionality is inconsistent with X")
             if self._px_distance is not None:
                 self._px_distance = np.asarray(self._px_distance).squeeze()
-                if self._px_distance.shape[0] != self._ndim or self._px_distance.ndim != 1:
+                if self._px_distance.shape[0] != self.ndim or self._px_distance.ndim != 1:
                     raise ValueError("pixel_distance dimensionality is inconsistent with X")
             n_channels = self._X.shape[-1]
-        if backing is None and 'var' not in kwargs:
-            var = pd.DataFrame(dict(channel_name=range(n_channels)))
-            kwargs['var'] = var
-        super().__init__(backing, **kwargs)
-
-    @property
-    def ndim(self):
-        return self._ndim
+            if "var" not in kwargs:
+                var = pd.DataFrame(dict(channel_name=range(n_channels)))
+                self.var = var
 
     @property
     def X(self) -> Union[np.ndarray, h5py.Dataset]:
@@ -102,19 +90,19 @@ class Raster(FieldOfView):
         else:
             return self._px_distance
 
+    # TODO: this code is almost identical to the one in masks.py, do something to avoid redundancy
     @property
-    def anchor(self) -> Anchor:
-        """A np.ndarray with an anchor/vector pair for alignment.
-        Spatial information can be aligned to eachother in a m:n fashion. This
-        is implemented in spatialmuon on the basis of an anchor point from which
-        a vector extends that is aligned in a global coordinate system. All data
-        shares this global coordinate system and aligns to eachother in it.
-
-        """
-        if self._anchor is None:
-            return self.anchor
-        else:
-            return self._anchor
+    def _untransformed_bounding_box(self) -> dict[str, float]:
+        assert self.ndim in [2, 3]
+        if self.ndim == 3:
+            raise NotImplementedError()
+        w, h = self.X.shape[:2]
+        px_dimensions = self.px_dimensions
+        px_distance = self.px_distance
+        actual_w = float(w) * px_dimensions[0] + (w - 1) * (px_distance[0] - 1)
+        actual_h = float(h) * px_dimensions[1] + (h - 1) * (px_distance[1] - 1)
+        bounding_box = {"x0": 0.0, "y0": 0.0, "x1": actual_w, "y1": actual_h}
+        return bounding_box
 
     # flake8: noqa: C901
     def _getitem(
@@ -187,7 +175,6 @@ class Raster(FieldOfView):
         #         data = data[..., yidx]
         # return data
 
-
     @staticmethod
     def _encodingtype():
         return "fov-raster"
@@ -206,7 +193,7 @@ class Raster(FieldOfView):
             self._write(grp)
             # self._X = None
         else:
-            print('who is calling me?')
+            print("who is calling me?")
             assert self.isbacked
 
     def _write(self, grp):
@@ -239,8 +226,11 @@ class Raster(FieldOfView):
         (x, y) = self.X[:, :, idx].shape
         cell_size_x = 2 * x / max(x, y)
         cell_size_y = 2 * y / max(x, y)
-        fig, axs = plt.subplots(grid_size[1], grid_size[0], figsize=(cell_size_y * grid_size[1], cell_size_x *
-                                                                     grid_size[0]))
+        fig, axs = plt.subplots(
+            grid_size[1],
+            grid_size[0],
+            figsize=(cell_size_y * grid_size[1], cell_size_x * grid_size[0]),
+        )
         if len(channels_to_plot) > 1:
             axs = axs.flatten()
 
@@ -274,14 +264,19 @@ class Raster(FieldOfView):
         ax: matplotlib.axes.Axes = None,
     ):
         if rgba:
-            indices = [get_channel_index_from_channel_name(self.var, channel) for channel in channels_to_plot]
+            indices = [
+                get_channel_index_from_channel_name(self.var, channel)
+                for channel in channels_to_plot
+            ]
             indices = np.array(indices)
             data_to_plot = self.X[:, :, indices]
 
             x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
-            if np.min(x) < 0. or np.max(x) > 1.:
-                warnings.warn('the data is not in the [0, 1] range. Plotting the result of an affine transformation to '
-                              'make the data in [0, 1].')
+            if np.min(x) < 0.0 or np.max(x) > 1.0:
+                warnings.warn(
+                    "the data is not in the [0, 1] range. Plotting the result of an affine transformation to "
+                    "make the data in [0, 1]."
+                )
                 old_shape = x.shape
                 x = np.reshape(x, (-1, old_shape[-1]))
                 a = np.min(x, axis=0)
@@ -308,7 +303,7 @@ class Raster(FieldOfView):
         self,
         channels: Optional[Union[str, list[str], int, list[int]]] = "all",
         grid_size: Union[int, list[int]] = 1,
-        method: PlottingMethod = 'auto',
+        method: PlottingMethod = "auto",
         preprocessing: Optional[Callable] = None,
         cmap: Union[
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]

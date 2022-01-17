@@ -27,13 +27,15 @@ class SquidpyExternal:
                     img = x[:, :, i]
                     # name = f"channel{i}"
                     name = f"{i}"
-                    if 'spatial' not in adata.uns:
+                    if "spatial" not in adata.uns:
                         adata.uns["spatial"] = dict()
                     adata.uns["spatial"][name] = dict()
                     adata.uns["spatial"][name]["images"] = {"hires": img}
                     # the handling of scalefactors is not implemented yet
-                    adata.uns["spatial"][name]["scalefactors"] = {"tissue_hires_scalef": 1.0,
-                                                                  "spot_diameter_fullres": 2.5}
+                    adata.uns["spatial"][name]["scalefactors"] = {
+                        "tissue_hires_scalef": 1.0,
+                        "spot_diameter_fullres": 2.5,
+                    }
             elif isinstance(raster_images, list) and all(
                 [isinstance(r, spatialmuon.datatypes.raster.Raster) for r in raster_images]
             ):

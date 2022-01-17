@@ -10,6 +10,7 @@ from ncls import NCLS
 from trimesh import Trimesh
 import h5py
 from anndata._io.utils import read_attribute, write_attribute
+from spatialmuon._core.anchor import Anchor
 
 from .. import FieldOfView, SpatialIndex
 from ..utils import read_dataframe_subset, preprocess_3d_polygon_mask
@@ -35,6 +36,10 @@ class SingleMolecule(FieldOfView):
         index_kwargs: dict = {},
         **kwargs,
     ):
+        # specify ndim in the commented line
+        raise NotImplementedError()
+        # kwargs['anchor'] = self.update_n_dim_in_anchor(ndim=raise NotImplementedError(), backing=backing, **kwargs)
+        super().__init__(backing, **kwargs)
         if backing is not None:
             self._index = SpatialIndex(
                 backing=backing["index"],
@@ -46,11 +51,15 @@ class SingleMolecule(FieldOfView):
             self._index = SpatialIndex(coordinates=np.vstack(self._data.geometry), **index_kwargs)
         else:
             raise ValueError("no coordinates and no backing store given")
-        super().__init__(backing, **kwargs)
 
     @property
     def data(self):
         return self._data_subset()
+
+    @property
+    def _untransformed_bounding_box(self) -> dict[str, float]:
+        raise NotImplementedError()
+        return dict()
 
     # flake8: noqa: C901
     def _data_subset(self, yidx=None, genes=None):
@@ -143,13 +152,6 @@ class SingleMolecule(FieldOfView):
         # elif genes is not None:
         #     return self._data_subset(genes=genes)
 
-    @property
-    def ndim(self):
-        if self.isbacked:
-            return self.backing["coordinates"].shape[1]
-        else:
-            return self._data.shape[1]
-
     @staticmethod
     def _encodingtype() -> str:
         return "fov-single-molecule"
@@ -169,7 +171,7 @@ class SingleMolecule(FieldOfView):
             self._index.set_backing(grp, "index")
             # self._data = None
         else:
-            print('who is calling me?')
+            print("who is calling me?")
             assert self.isbacked
             # self._data = self.data
             # self._index.set_backing(None)

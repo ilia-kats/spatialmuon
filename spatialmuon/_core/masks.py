@@ -27,6 +27,7 @@ from enum import Enum, auto
 from spatialmuon._core.fieldofview import FieldOfView
 from spatialmuon._core.backing import BackableObject
 from spatialmuon.utils import _read_hdf5_attribute, UnknownEncodingException, _get_hdf5_attribute
+from spatialmuon._core.bounding_box import BoundingBoxable
 
 # either a color or a list of colors
 ColorsType = Optional[
@@ -51,7 +52,7 @@ class SpotShape(Enum):
         return str(self.name)
 
 
-class Masks(BackableObject):
+class Masks(BackableObject, BoundingBoxable):
     def __new__(cls, *, backing: Optional[h5py.Group] = None, **kwargs):
         if backing is not None:
             masktype = _read_hdf5_attribute(backing.attrs, "encoding-type")
@@ -90,6 +91,10 @@ class Masks(BackableObject):
     @parentdataset.setter
     def parentdataset(self, dset: FieldOfView):
         self._parentdataset = dset
+
+    @property
+    def anchor(self):
+        return self._parentdataset.anchor
 
     @property
     @abstractmethod
@@ -272,6 +277,11 @@ class Masks(BackableObject):
                     bbox_to_anchor=(0.5, -0.1),
                     ncol=len(_legend),
                 )
+        # when the plot is invoked with my_fov.masks.plot(), then self.parentdataset._adjust_plot_lims() is called
+        # once, when the plot is invoked with my_fov.plot(), then self.parentdataset._adjust_plot_lims() is called
+        # twice (one now and one in the code for plotting FieldOfView subclasses). This should not pose a problem
+        if self.parentdataset is not None:
+            self.parentdataset._adjust_plot_lims(ax=axs)
         if ax is None:
             plt.show()
 
@@ -417,6 +427,20 @@ class ShapeMasks(Masks, MutableMapping):
         # else:
         #     return iter(self._data)
 
+    @property
+    def _untransformed_bounding_box(self) -> dict[str, float]:
+        ##
+        extended_coords = np.concatenate(
+            [
+                self._masks_centers[...] + self._masks_radii[...],
+                self._masks_centers[...] - self._masks_radii[...],
+            ],
+            axis=0,
+        )
+        x_min, y_min = np.min(extended_coords, axis=0)
+        x_max, y_max = np.max(extended_coords, axis=0)
+        return {"x0": x_min, "x1": x_max, "y0": y_min, "y1": y_max}
+
     def items(self):
         raise NotImplementedError()
 
@@ -450,6 +474,7 @@ class ShapeMasks(Masks, MutableMapping):
         pass
 
     def _write_attributes_impl(self, grp: h5py.Group):
+        super()._write_attributes_impl(grp)
         grp.attrs["masks_shape"] = self._masks_shape.name
 
     def accumulate_features(self, x: Union["Raster", "Regions"]):
@@ -479,52 +504,10 @@ class ShapeMasks(Masks, MutableMapping):
         else:
             collection.set_edgecolor(outline_colors_array[1:, :])
 
-        # TODO: consider bounding boxes
-        extended_coords = np.concatenate(
-            [
-                self._masks_centers[...] + self._masks_radii[...],
-                self._masks_centers[...] - self._masks_radii[...],
-            ],
-            axis=0,
-        )
-        x_min, y_min = np.min(extended_coords, axis=0)
-        x_max, y_max = np.max(extended_coords, axis=0)
-        xlim = ax.get_xlim()
-        ylim = ax.get_ylim()
-        # hack to check if this is a newly created empty plot
-        if xlim == (0.0, 1.0) and ylim == (0.0, 1.0):
-            new_xlim = (x_min, x_max)
-            new_ylim = (y_min, y_max)
-        else:
-            new_xlim = (min(xlim[0], x_min), max(xlim[1], x_max))
-            new_ylim = (min(ylim[0], y_min), max(ylim[1], y_max))
-        ax.set_xlim(new_xlim)
-        ax.set_ylim(new_ylim)
         ax.set_aspect("equal")
-
         # autolim is set to False because it's our job to compute the lims considering the bounding
-        # boxes of
-        # other fovs
-        ax.add_collection(collection, autolim=True)
-        # original_labels = self.obs["original_labels"].to_numpy()
-        # original_labels = np.insert(original_labels, 0, 0)
-        # contiguous_labels = np.arange(len(original_labels))
-        # x = self.data
-        # if not np.all(original_labels == contiguous_labels):
-        #     # probably not the most efficient, but probably also fine
-        #     lut = np.zeros(max(original_labels) + 1, dtype=np.int)
-        #     for i, o in enumerate(original_labels):
-        #         lut[o] = i
-        #     x = lut[self.data]
-        # ax.imshow(fill_color_array[x])
-        #
-        # if outline_colors_array is not None:
-        #     for i, c in enumerate(contiguous_labels):
-        #         outline_color = outline_colors_array[i]
-        #         boolean_mask = x == c
-        #         contours = skimage.measure.find_contours(boolean_mask, 0.7)
-        #         for contour in contours:
-        #             ax.plot(contour[:, 1], contour[:, 0], linewidth=2, color=outline_color)
+        # boxes of other fovs
+        ax.add_collection(collection, autolim=False)
 
     def __repr__(self):
         return super().__repr__(mask_type="shape masks")
@@ -627,6 +610,11 @@ class PolygonMasks(Masks, MutableMapping):
         #     return iter(self.backing)
         # else:
         #     return iter(self._data)
+
+    @property
+    def _untransformed_bounding_box(self) -> dict[str, float]:
+        raise NotImplementedError()
+        return dict()
 
     def items(self):
         raise NotImplementedError()
@@ -737,6 +725,11 @@ class MeshMasks(Masks, MutableMapping):
         else:
             return iter(self._data)
 
+    @property
+    def _untransformed_bounding_box(self) -> dict[str, float]:
+        raise NotImplementedError()
+        return dict()
+
     def items(self):
         raise NotImplementedError()
 
@@ -761,6 +754,7 @@ class MeshMasks(Masks, MutableMapping):
             self._data.clear()
 
     def _write(self, obj: h5py.Group):
+        # why is obj not used in the following? Probably self.backing is to be replaced with obj
         for k, v in self._data.items():
             self.backing.create_dataset(
                 f"{k}/vertices", data=v.vertices, compression="gzip", compression_opts=9
@@ -777,6 +771,8 @@ class RasterMasks(Masks):
         mask: Optional[np.ndarray] = None,
         shape: Optional[Union[tuple[int, int], tuple[int, int, int]]] = None,
         dtype: Optional[type] = None,
+        px_dimensions: Optional[np.ndarray] = None,
+        px_distance: Optional[np.ndarray] = None,
     ):
         super().__init__(backing=backing)
         self._mask = None
@@ -792,6 +788,8 @@ class RasterMasks(Masks):
                 self._mask = mask
             else:
                 self._mask = self.backing["imagemask"]
+            self._px_distance = _get_hdf5_attribute(backing.attrs, "px_distance")
+            self._px_dimensions = _get_hdf5_attribute(backing.attrs, "px_dimensions")
         else:
             if mask is not None:
                 self._mask = mask
@@ -804,6 +802,16 @@ class RasterMasks(Masks):
                     raise ValueError("dtype must be an unsigned integer type")
                 self._mask = np.zeros(shape=shape, dtype=dtype)
             self.update_obs_from_masks()
+            self._px_dimensions = px_dimensions
+            self._px_distance = px_distance
+            if self._px_dimensions is not None:
+                self._px_dimensions = np.asarray(self._px_dimensions).squeeze()
+                if self._px_dimensions.shape[0] != self.ndim or self._px_dimensions.ndim != 1:
+                    raise ValueError("pixel_size dimensionality is inconsistent with X")
+            if self._px_distance is not None:
+                self._px_distance = np.asarray(self._px_distance).squeeze()
+                if self._px_distance.shape[0] != self.ndim or self._px_distance.ndim != 1:
+                    raise ValueError("pixel_distance dimensionality is inconsistent with X")
 
     @property
     def ndim(self):
@@ -811,6 +819,20 @@ class RasterMasks(Masks):
             return self.backing["imagemask"].ndim
         else:
             return self._mask.ndim
+
+    @property
+    def px_dimensions(self) -> np.ndarray:
+        if self._px_dimensions is None:
+            return np.ones(self.ndim, np.uint8)
+        else:
+            return self._px_dimensions
+
+    @property
+    def px_distance(self) -> np.ndarray:
+        if self._px_distance is None:
+            return self.px_dimensions
+        else:
+            return self._px_distance
 
     @property
     def shape(self):
@@ -825,6 +847,20 @@ class RasterMasks(Masks):
             return self.backing.dtype
         else:
             return self._mask.dtype
+
+    # TODO: this code is almost identical to the one in raster.py, do something to avoid redundancy
+    @property
+    def _untransformed_bounding_box(self) -> dict[str, float]:
+        assert self.ndim in [2, 3]
+        if self.ndim == 3:
+            raise NotImplementedError()
+        w, h = self._mask.shape[:2]
+        px_dimensions = self.px_dimensions
+        px_distance = self.px_distance
+        actual_w = float(w) * px_dimensions[0] + (w - 1) * (px_distance[0] - 1)
+        actual_h = float(h) * px_dimensions[1] + (h - 1) * (px_distance[1] - 1)
+        bounding_box = {"x0": 0.0, "y0": 0.0, "x1": actual_w, "y1": actual_h}
+        return bounding_box
 
     @property
     def data(self) -> Union[np.ndarray, h5py.Dataset]:
@@ -897,6 +933,13 @@ class RasterMasks(Masks):
 
     def _write(self, grp: h5py.Group):
         grp.create_dataset("imagemask", data=self._mask, compression="gzip", compression_opts=9)
+
+    def _write_attributes_impl(self, obj: Union[h5py.Dataset, h5py.Group]):
+        super()._write_attributes_impl(obj)
+        if self._px_distance is not None:
+            obj.attrs["px_distance"] = self._px_distance
+        if self._px_dimensions is not None:
+            obj.attrs["px_dimensions"] = self._px_dimensions
 
     def __repr__(self):
         return super().__repr__(mask_type="raster masks")

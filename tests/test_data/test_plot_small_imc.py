@@ -189,11 +189,19 @@ class PlotSmallImc_TestClass(unittest.TestCase):
                 del d["imc"][k]
             d["imc"][k] = v
         feature = "mean"
-        fig, ax = plt.subplots(1)
-        d["imc"][feature].plot(preprocessing=np.arcsinh, suptitle=feature, ax=ax)
-        plt.show()
+        d["imc"][feature].plot(preprocessing=np.arcsinh, suptitle=feature)
         for k in accumulated.keys():
             del d["imc"][k]
+
+    def test_bounding_boxes(self):
+        ##
+        d = spatialmuon.SpatialMuData(backing=fpath)
+        bb_ome = d["imc"]["ome"].bounding_box
+        bb_mean = d["imc"]["masks"].bounding_box
+        # fig, ax = plt.subplots(1)
+        # d["imc"][feature].plot(preprocessing=np.arcsinh, suptitle=feature, ax=ax)
+        # plt.show()
+        ##
 
 
 if __name__ == "__main__":
@@ -218,3 +226,5 @@ if __name__ == "__main__":
         PlotSmallImc_TestClass().test_can_plot_accumulated_regions_value()
         PlotSmallImc_TestClass().test_can_plot_accumulated_regions_first_4_channels_as_rgba()
         PlotSmallImc_TestClass().test_can_plot_accumulated_regions_non_overlapping_channels()
+        #
+        PlotSmallImc_TestClass().test_bounding_boxes()

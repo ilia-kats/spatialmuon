@@ -51,7 +51,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
     if os.path.isfile(outfname):
         os.unlink(outfname)
 
-    smudata = spatialmuon.SpatialMuData(outfname, backingmode='w')
+    smudata = spatialmuon.SpatialMuData(outfname, backingmode="w")
     smudata["Visium"] = modality = spatialmuon.SpatialModality()
 
     fovdir = os.path.join(tmpdir, "mouse_brain_visium_wo_cloupe_data", "rawdata")
@@ -121,11 +121,11 @@ with tempfile.TemporaryDirectory() as tmpdir:
             # I have no idea how much that is in pixels
             # So just do 10 px
             labels = obs.index.tolist()
-            masks = ShapeMasks(masks_shape='circle', masks_centers=coords, masks_radii=radius, masks_labels=labels)
-            cfov = spatialmuon.Regions(
-                X=X, var=var, translation=[0, 0, fovidx * 10], scale=6.698431978755106, masks=masks,
-                coordinate_unit='um'
+            masks = ShapeMasks(
+                masks_shape="circle", masks_centers=coords, masks_radii=radius, masks_labels=labels
             )
+            # scale = 6.698431978755106
+            cfov = spatialmuon.Regions(X=X, var=var, masks=masks, coordinate_unit="um")
             modality[fovname] = cfov
 
             img = Image.open(os.path.join(cdir, "spatial", "tissue_hires_image.png"))

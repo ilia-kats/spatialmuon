@@ -34,3 +34,4 @@ jobs:
         $CONDA/bin/mamba env update --file pytest_env.yml --name base
         $CONDA/bin/mamba develop .
         $CONDA/bin/pytest --verbose --color=yes
+        python setup.py install

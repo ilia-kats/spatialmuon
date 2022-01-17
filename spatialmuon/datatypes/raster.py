@@ -298,10 +298,10 @@ class Raster(FieldOfView):
 
                 x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
                 bb = self.bounding_box
-                extent = [bb['x0'], bb['x1'], bb['y0'], bb['y1']]
-                assert bb['x1'] - bb['x0'] == self.X.shape[1]
-                assert bb['y1'] - bb['y0'] == self.X.shape[0]
-                im = ax.imshow(x, cmap=cmap[idx], alpha=a, extent=extent, origin='lower')
+                extent = [bb["x0"], bb["x1"], bb["y0"], bb["y1"]]
+                assert bb["x1"] - bb["x0"] == self.X.shape[1]
+                assert bb["y1"] - bb["y0"] == self.X.shape[0]
+                im = ax.imshow(x, cmap=cmap[idx], alpha=a, extent=extent, origin="lower")
         # im is used in the calling function in datatypes_utils.py to draw the show_colorbar, but we are not displaying a
         # show_colorbar when we have more than one channel, so let's return a nonsense value
         if len(channels_to_plot) == 1:

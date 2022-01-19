@@ -154,8 +154,8 @@ class Masks(BackableObject, BoundingBoxable):
         assert len(x) in [3, 4]
         if len(x) == 3:
             x = np.array(x.tolist() + [1.0])
-        else:
-            x[3] = 1.0
+        # else:
+        #     x[3] = 1.0
         x = x.reshape(1, -1)
         return x
 
@@ -854,11 +854,11 @@ class RasterMasks(Masks):
         assert self.ndim in [2, 3]
         if self.ndim == 3:
             raise NotImplementedError()
-        w, h = self._mask.shape[:2]
+        h, w = self._mask.shape[:2]
         px_dimensions = self.px_dimensions
         px_distance = self.px_distance
-        actual_w = float(w) * px_dimensions[0] + (w - 1) * (px_distance[0] - 1)
-        actual_h = float(h) * px_dimensions[1] + (h - 1) * (px_distance[1] - 1)
+        actual_h = float(h) * px_dimensions[0] + (h - 1) * (px_distance[0] - 1)
+        actual_w = float(w) * px_dimensions[1] + (w - 1) * (px_distance[1] - 1)
         bounding_box = {"x0": 0.0, "y0": 0.0, "x1": actual_w, "y1": actual_h}
         return bounding_box
 
@@ -977,7 +977,7 @@ class RasterMasks(Masks):
             for i, o in enumerate(original_labels):
                 lut[o] = i
             x = lut[self.data]
-        ax.imshow(fill_color_array[x])
+        ax.imshow(fill_color_array[x], interpolation='none')
 
         if outline_colors_array is not None:
             for i, c in enumerate(contiguous_labels):

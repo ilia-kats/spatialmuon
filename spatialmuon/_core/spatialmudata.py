@@ -37,7 +37,7 @@ class SpatialMuData(BackableObject, BackedDictProxy):
                 else:
                     raise FileExistsError("file already exists and is not a valid SpatialMuon file")
             else:
-                print("creating a new file for the backed storage")
+                # print("creating a new file for the backed storage")
                 f = h5py.File(
                     backing,
                     "w",

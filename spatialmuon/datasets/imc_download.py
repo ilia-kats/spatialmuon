@@ -348,8 +348,8 @@ def create_muon_spatial_object(f_ome, f_masks, outfile):
     pass
 
 
-# DEBUG = False
-DEBUG = True
+DEBUG = False
+# DEBUG = True
 
 DOWNLOAD = False
 UNZIP = False
@@ -381,7 +381,7 @@ if __name__ == "__main__":
                 debug_create_spatial_muon_object()
                 os._exit(0)
 
-        outfdir = "imc"
+        outfdir = "/data/spatialmion/datasets/imc/smu/"
         imgfile = os.path.join(download_dir, "images.zip")
         metadatafile = os.path.join(download_dir, "metadata.zip")
         if DOWNLOAD:

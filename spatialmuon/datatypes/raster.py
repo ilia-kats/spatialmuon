@@ -45,11 +45,10 @@ class Raster(FieldOfView):
             ndim=len(X.shape) - 1 if X is not None else None, backing=backing, **kwargs
         )
         super().__init__(backing, **kwargs)
+        self._X = None
         if backing is not None:
             self._px_distance = _get_hdf5_attribute(backing.attrs, "px_distance")
             self._px_dimensions = _get_hdf5_attribute(backing.attrs, "px_dimensions")
-
-            self._X = None
         else:
             if X is None:
                 raise ValueError("no data and no backing store given")
@@ -289,7 +288,7 @@ class Raster(FieldOfView):
             extent = [bb['x0'], bb['x1'], bb['y0'], bb['y1']]
             assert bb['x1'] - bb['x0'] == self.X.shape[1]
             assert bb['y1'] - bb['y0'] == self.X.shape[0]
-            im = ax.imshow(x, extent=extent, origin='lower')
+            im = ax.imshow(x, extent=extent, origin='lower', interpolation='none')
         else:
             for idx, channel in enumerate(channels_to_plot):
                 a = 1 / (max(len(channels_to_plot) - 1, 2)) if idx > 0 else 1
@@ -301,7 +300,7 @@ class Raster(FieldOfView):
                 extent = [bb['x0'], bb['x1'], bb['y0'], bb['y1']]
                 assert bb['x1'] - bb['x0'] == self.X.shape[1]
                 assert bb['y1'] - bb['y0'] == self.X.shape[0]
-                im = ax.imshow(x, cmap=cmap[idx], alpha=a, extent=extent, origin='lower')
+                im = ax.imshow(x, cmap=cmap[idx], alpha=a, extent=extent, origin='lower', interpolation='none')
         # im is used in the calling function in datatypes_utils.py to draw the show_colorbar, but we are not displaying a
         # show_colorbar when we have more than one channel, so let's return a nonsense value
         if len(channels_to_plot) == 1:

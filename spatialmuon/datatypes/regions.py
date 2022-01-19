@@ -48,7 +48,8 @@ class Regions(FieldOfView):
     ):
         ndim_x = None
         ndim_masks = None
-        if X is not None is not None:
+        self._X = None
+        if X is not None:
             ndim_x = len(X.shape)
         if masks is not None:
             ndim_masks = masks.ndim

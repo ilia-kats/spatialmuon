@@ -141,17 +141,17 @@ if __name__ == "__main__":
     if not DEBUGGING:
         unittest.main()
     else:
-        # PlotSmallVisium_TestClass().test_can_load_smu_file()
-        # PlotSmallVisium_TestClass().test_can_pretty_print()
-        #
-        # PlotSmallVisium_TestClass().test_can_plot_image()
-        #
-        # PlotSmallVisium_TestClass().test_can_plot_regions_single_channel()
-        # PlotSmallVisium_TestClass().test_can_plot_regions_non_overlapping_channels()
-        #
-        # PlotSmallVisium_TestClass().test_can_plot_regions_random_color()
-        # PlotSmallVisium_TestClass().test_can_plot_regions_solid_color()
-        # PlotSmallVisium_TestClass().test_bounding_boxes()
+        PlotSmallVisium_TestClass().test_can_load_smu_file()
+        PlotSmallVisium_TestClass().test_can_pretty_print()
+
+        PlotSmallVisium_TestClass().test_can_plot_image()
+
+        PlotSmallVisium_TestClass().test_can_plot_regions_single_channel()
+        PlotSmallVisium_TestClass().test_can_plot_regions_non_overlapping_channels()
+
+        PlotSmallVisium_TestClass().test_can_plot_regions_random_color()
+        PlotSmallVisium_TestClass().test_can_plot_regions_solid_color()
+        PlotSmallVisium_TestClass().test_bounding_boxes()
         PlotSmallVisium_TestClass().test_can_plot_raster_and_regions_together()
 
         # not implemented yet

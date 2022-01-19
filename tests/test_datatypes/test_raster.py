@@ -1,10 +1,11 @@
 import unittest
 import spatialmuon
 from pathlib import Path
+from tests.testing_utils import initialize_testing
 
-# Get current file and pre-generate paths and names
-this_dir = Path(__file__).parent
-fpath_ome = this_dir / "../data/ome_example.tiff"
+test_data_dir, DEBUGGING = initialize_testing()
+
+fpath_ome = test_data_dir / "ome_example.tiff"
 
 
 class Raster_TestClass(unittest.TestCase):
@@ -22,4 +23,7 @@ class Raster_TestClass(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    if DEBUGGING:
+        unittest.main()
+    else:
+        pass

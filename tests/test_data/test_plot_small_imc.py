@@ -1,35 +1,16 @@
 ##
 import unittest
-import os
-import sys
 import spatialmuon
 import matplotlib
 import matplotlib.cm
 import matplotlib.colors
 import matplotlib.pyplot as plt
 import numpy as np
-import copy
-from pathlib import Path
+from tests.testing_utils import initialize_testing
 
-DEBUGGING = False
-try:
-    __file__
-except NameError as e:
-    if str(e) == "name '__file__' is not defined":
-        DEBUGGING = True
-    else:
-        raise e
-if sys.gettrace() is not None:
-    DEBUGGING = True
+test_data_dir, DEBUGGING = initialize_testing()
 
-if not DEBUGGING:
-    # Get current file and pre-generate paths and names
-    this_dir = Path(__file__).parent
-    fpath = this_dir / "../data/small_imc.h5smu"
-
-    matplotlib.use("Agg")
-else:
-    fpath = os.path.expanduser("~/spatialmuon/tests/data/small_imc.h5smu")
+fpath = test_data_dir / "small_imc.h5smu"
 
 plt.style.use("dark_background")
 

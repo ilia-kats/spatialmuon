@@ -3,10 +3,11 @@ import spatialmuon
 from pathlib import Path
 import numpy as np
 from spatialmuon._core.anchor import Anchor
+from tests.testing_utils import initialize_testing
 
-# Get current file and pre-generate paths and names
-this_dir = Path(__file__).parent
-fpath_ome = this_dir / "../data/ome_example.tiff"
+test_data_dir, DEBUGGING = initialize_testing()
+
+fpath_ome = test_data_dir / "ome_example.tiff"
 
 # TODO: Anchor is giving me AttributeError: module 'spatialmuon' has no attribute 'Anchor'. I have
 #  temporarily changed the import to be more explicit
@@ -51,6 +52,7 @@ class Anchor_TestClass(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # if not DEBUGGING:
-    unittest.main()
-    # else:
+    if not DEBUGGING:
+        unittest.main()
+    else:
+        pass

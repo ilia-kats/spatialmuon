@@ -4,30 +4,15 @@ import spatialmuon
 from pathlib import Path
 import sys
 from spatialmuon._core.converter import Converter
+from tests.testing_utils import initialize_testing
 
-DEBUGGING = False
-try:
-    __file__
-except NameError as e:
-    if str(e) == "name '__file__' is not defined":
-        DEBUGGING = True
-    else:
-        raise e
-if sys.gettrace() is not None:
-    DEBUGGING = True
-
-if not DEBUGGING:
-    # Get current file and pre-generate paths and names
-    this_dir = Path(__file__).parent
-else:
-    this_dir = Path(os.path.expanduser("~/spatialmuon/tests/data/"))
-
-# Get current file and pre-generate paths and names
-fpath_ome = this_dir / "../data/ome_example.tiff"
-fpath_ome_mask_left_eye = this_dir / "../data/mask_left_eye.tiff"
-fpath_ome_mask_right_eye = this_dir / "../data/mask_right_eye.tiff"
-fpath_ome_mask_mouth = this_dir / "../data/mask_mouth.tiff"
-fpath_small_imc = this_dir / "../data/small_imc.h5smu"
+test_data_dir, DEBUGGING = initialize_testing()
+fpath_ome = test_data_dir / "ome_example.tiff"
+fpath_ome_mask_left_eye = test_data_dir / "mask_left_eye.tiff"
+fpath_ome_mask_right_eye = test_data_dir / "mask_right_eye.tiff"
+fpath_ome_mask_mouth = test_data_dir / "mask_mouth.tiff"
+fpath_small_imc = test_data_dir / "small_imc.h5smu"
+print(test_data_dir)
 
 
 class Converter_TestClass(unittest.TestCase):

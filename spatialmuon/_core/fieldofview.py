@@ -214,12 +214,8 @@ class FieldOfView(BackableObject, BoundingBoxable):
                 obj, "uns", self.uns, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
             )
         else:
-            write_attribute(
-                obj, "var", self._var
-            )
-            write_attribute(
-                obj, "uns", self.uns
-            )
+            write_attribute(obj, "var", self._var)
+            write_attribute(obj, "uns", self.uns)
 
     def _adjust_plot_lims(self, ax=None):
         if ax is None:

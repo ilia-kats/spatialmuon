@@ -5,7 +5,9 @@ import warnings
 from collections.abc import MutableMapping
 from abc import abstractmethod
 from typing import Optional, Union, Literal
+from scipy.ndimage import center_of_mass
 
+from tqdm.auto import tqdm
 import matplotlib.pyplot as plt
 import matplotlib.colors
 import matplotlib.axes
@@ -15,6 +17,7 @@ import matplotlib.collections
 import numpy as np
 import h5py
 import copy
+import math
 from shapely.geometry import Polygon
 from trimesh import Trimesh
 from skimage.measure import find_contours, marching_cubes
@@ -143,6 +146,10 @@ class Masks(BackableObject, BoundingBoxable):
 
     @abstractmethod
     def accumulate_features(self, x: Union["Raster", "Regions"]):
+        pass
+
+    @abstractmethod
+    def extract_tiles(self, raster: "Raster", tile_dim: int):
         pass
 
     @staticmethod
@@ -479,6 +486,9 @@ class ShapeMasks(Masks, MutableMapping):
 
     def accumulate_features(self, x: Union["Raster", "Regions"]):
         # TODO:
+        raise NotImplementedError()
+
+    def extract_tiles(self, raster: "Raster", tile_dim: int):
         raise NotImplementedError()
 
     def _plot(
@@ -977,7 +987,7 @@ class RasterMasks(Masks):
             for i, o in enumerate(original_labels):
                 lut[o] = i
             x = lut[self.data]
-        ax.imshow(fill_color_array[x], interpolation='none')
+        ax.imshow(fill_color_array[x], interpolation="none")
 
         if outline_colors_array is not None:
             for i, c in enumerate(contiguous_labels):
@@ -1027,6 +1037,140 @@ class RasterMasks(Masks):
             )
             d[key.lower()] = regions
         return d
+
+    def extract_tiles(self, raster: "Raster", tile_dim: int):
+        DEBUG_WITH_PLOTS = False
+        accumulated = self.accumulate_features(raster)
+        obs = accumulated["mean"].obs
+        xy = obs[["region_center_x", "region_center_y"]].to_numpy()
+        m = raster.X[...]
+        mask_labels = set(obs["original_labels"].to_list())
+        real_labels = set(np.unique(self._mask).tolist())
+        if 0 in real_labels:
+            real_labels.remove(0)
+        assert mask_labels == real_labels
+        extracted_omes = []
+        extracted_masks = []
+        z_centers = []
+        origins = []
+        for i, mask_label in tqdm(
+            zip(range(len(mask_labels)), mask_labels),
+            desc="extracting tiles",
+            total=len(mask_labels),
+        ):
+            ome = m
+            masks = self._mask[...]
+            center = xy[i, :]
+            # compute the bounding box of the mask
+            z = masks == mask_label
+            z_center = center_of_mass(z)
+            z_centers.append(np.array((z_center[1], z_center[0])))
+            l = tile_dim
+            # r = (l - 1) / 2
+            # one pixel is lost but this makes computation easier
+            r = math.floor(l / 2)
+            if False:
+                p0 = np.sum(z, axis=0)
+                p1 = np.sum(z, axis=1)
+                (w0,) = np.where(p0 > 0)
+                (w1,) = np.where(p1 > 0)
+                a0 = w0[0]
+                b0 = w0[-1] + 1
+                a1 = w1[0]
+                b1 = w1[-1] + 1
+            else:
+                a0 = math.floor(z_center[1] - r)
+                origin_x = a0
+                a0 = max(0, a0)
+                b0 = math.ceil(z_center[1] + r)
+                b0 = min(b0, z.shape[1])
+                a1 = math.floor(z_center[0] - r)
+                origin_y = a1
+                a1 = max(0, a1)
+                b1 = math.ceil(z_center[0] + r)
+                b1 = min(b1, z.shape[0])
+                # print(f'[{a1}:{b1}, {a0}:{b0}]')
+            y = z[a1:b1, a0:b0]
+            if DEBUG_WITH_PLOTS:
+                center_debug = np.array(center_of_mass(masks == mask_label))
+                plt.figure(figsize=(20, 20))
+                plt.imshow(z)
+                plt.scatter(z_center[1], z_center[0], color="green", s=6)
+                plt.scatter(center_debug[1], center_debug[0], color="red", s=2)
+                plt.show()
+                assert np.allclose(z_center, center_debug)
+
+            y_center = np.array(center_of_mass(y))
+            if DEBUG_WITH_PLOTS:
+                plt.figure()
+                plt.imshow(y)
+                plt.scatter(y_center[1], y_center[0], color="black", s=1)
+                plt.show()
+            square_ome = np.zeros((l, l, ome.shape[2]))
+            square_mask = np.zeros((l, l))
+
+            def get_coords_for_padding(des_r, src_shape, src_center):
+                des_l = 2 * des_r + 1
+
+                def f(src_l, src_c):
+                    a = src_c - des_r
+                    b = src_c + des_r
+                    if a < 0:
+                        c = -a
+                        a = 0
+                    else:
+                        c = 0
+                    if b > src_l:
+                        b = src_l
+                    src_a = a
+                    src_b = b
+                    des_a = c
+                    des_b = des_a + b - a
+                    return src_a, src_b, des_a, des_b
+
+                src0_a, src0_b, des0_a, des0_b = f(src_shape[0], int(src_center[0]))
+                src1_a, src1_b, des1_a, des1_b = f(src_shape[1], int(src_center[1]))
+                return src0_a, src0_b, src1_a, src1_b, des0_a, des0_b, des1_a, des1_b
+
+            # fmt: off
+            (
+                src0_a, src0_b, src1_a, src1_b,
+                des0_a, des0_b, des1_a, des1_b,
+            ) = get_coords_for_padding(r, y.shape, y_center)
+            # fmt: on
+
+            square_ome[des0_a:des0_b, des1_a:des1_b, :] = ome[a1:b1, a0:b0, :][
+                src0_a:src0_b, src1_a:src1_b, :
+            ]
+            square_mask[des0_a:des0_b, des1_a:des1_b] = y[src0_a:src0_b, src1_a:src1_b]
+
+            if DEBUG_WITH_PLOTS:
+                plt.figure()
+                plt.imshow(square_mask)
+                plt.scatter(r, r, color="blue", s=1)
+                plt.show()
+            #                     f5_out[f'{split}/omes/{k}'] = ome[a1: b1, a0: b0]
+            #                     f5_out[f'{split}/masks/{k}'] = y
+            extracted_omes.append(square_ome)
+            extracted_masks.append(square_mask)
+            origins.append(np.array([origin_x, origin_y]))
+            if DEBUG_WITH_PLOTS:
+                if i >= 4:
+                    DEBUG_WITH_PLOTS = False
+                    RECAP_PLOT = True
+        if 'RECAP_PLOT' in locals():
+            for n in range(min(len(extracted_omes), 10)):
+                plt.figure()
+                x = extracted_omes[n][:, :, 0]
+                plt.imshow(x)
+                u = np.array([
+                    [0., 0., 0., 0.],
+                    [1., 0., 0., 1.],
+                ])
+                mask = extracted_masks[n]
+                plt.imshow(u[mask.astype(int)])
+                plt.show()
+        return extracted_omes, extracted_masks, z_centers, origins
 
 
 if __name__ == "__main__":

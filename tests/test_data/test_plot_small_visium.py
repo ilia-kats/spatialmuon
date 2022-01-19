@@ -10,27 +10,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import copy
 from pathlib import Path
+from tests.testing_utils import initialize_testing
 
-DEBUGGING = False
-try:
-    __file__
-except NameError as e:
-    if str(e) == "name '__file__' is not defined":
-        DEBUGGING = True
-    else:
-        raise e
-if sys.gettrace() is not None:
-    DEBUGGING = True
-
-if not DEBUGGING:
-    # Get current file and pre-generate paths and names
-    this_dir = Path(__file__).parent
-    fpath = this_dir / "../data/small_visium.h5smu"
-
-    matplotlib.use("Agg")
-else:
-    small_visium = "~/spatialmuon/tests/data/small_visium.h5smu"
-    fpath = os.path.expanduser(small_visium)
+test_data_dir, DEBUGGING = initialize_testing()
+fpath = test_data_dir / "small_visium.h5smu"
 
 plt.style.use("dark_background")
 
@@ -100,7 +83,7 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
         _, ax = plt.subplots(1, figsize=(5, 5))
         d["visium"]["image"].plot(ax=ax, show_legend=False)
         # e.plot(channels=6, ax=ax, )
-        e.masks.plot(fill_colors=None, outline_colors='red', ax=ax)
+        e.masks.plot(fill_colors=None, outline_colors="red", ax=ax)
         ax.set_title("visium spots")
         e.set_lims_to_bounding_box()
         # ax.set(xlim=(1400, 1500), ylim=(1600, 2000))

@@ -52,5 +52,5 @@ modality["expression"] = d0
 modality["image"] = d1
 print(new_smu)
 print(f"created at {outfile}")
-print('filesize: ', end='')
+print("filesize: ", end="")
 os.system(f'ls -lh {outfile} | cut -d " " -f 5')

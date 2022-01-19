@@ -3,11 +3,11 @@ import os
 from pathlib import Path
 import spatialmuon
 from spatialmuon import Converter, SpatialMuData, SpatialModality, Regions
+from tests.testing_utils import initialize_testing
 
-# Get current file and pre-generate paths and names
-this_dir = Path(__file__).parent
-fpath_ome_example = this_dir / "../data/ome_example.tiff"
-fpath_ome_mask_mouth = this_dir / "../data/mask_mouth.tiff"
+test_data_dir, DEBUGGING = initialize_testing()
+fpath_ome_example = test_data_dir / "ome_example.tiff"
+fpath_ome_mask_mouth = test_data_dir / "mask_mouth.tiff"
 
 
 class SpatialMuData_TestClass(unittest.TestCase):
@@ -36,4 +36,7 @@ class SpatialMuData_TestClass(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    if DEBUGGING:
+        unittest.main()
+    else:
+        pass

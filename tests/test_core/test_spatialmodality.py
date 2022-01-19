@@ -7,10 +7,10 @@ from spatialmuon import SpatialModality, Raster
 import tifffile
 from xml.etree import ElementTree
 import tempfile
+from tests.testing_utils import initialize_testing
 
-# Get current file and pre-generate paths and names
-this_dir = Path(__file__).parent
-fpath = this_dir / "../data/ome_example.tiff"
+test_data_dir, DEBUGGING = initialize_testing()
+fpath = test_data_dir / "ome_example.tiff"
 
 
 class SpatialModality_creation(unittest.TestCase):
@@ -69,4 +69,7 @@ class SpatialModality_creation(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    if DEBUGGING:
+        unittest.main()
+    else:
+        pass

@@ -210,7 +210,8 @@ class Masks(BackableObject, BoundingBoxable):
                 title = color
                 cmap = matplotlib.cm.get_cmap("tab10")
                 categories = self.obs[color].cat.categories.values.tolist()
-                d = dict(zip(categories, cmap.colors))
+                cycled_colors = list(cmap.colors) * (len(categories) // len(cmap.colors) + 1)
+                d = dict(zip(categories, cycled_colors))
                 levels = self.obs[color].tolist()
                 # it will be replaced with the background color
                 colors = [Masks.normalize_color((0.0, 0.0, 0.0, 0.0))]
@@ -275,7 +276,7 @@ class Masks(BackableObject, BoundingBoxable):
 
         if plotting_a_category:
             if show_title:
-                ax.set_title(title)
+                axs.set_title(title)
             if show_legend:
                 axs.legend(
                     handles=_legend,
@@ -797,7 +798,7 @@ class RasterMasks(Masks):
                     raise ValueError("masks must have an unsigned integer dtype")
                 self._mask = mask
             else:
-                self._mask = self.backing["imagemask"]
+                self._mask = self.backing["imagemask"][...]
             self._px_distance = _get_hdf5_attribute(backing.attrs, "px_distance")
             self._px_dimensions = _get_hdf5_attribute(backing.attrs, "px_dimensions")
         else:
@@ -825,10 +826,7 @@ class RasterMasks(Masks):
 
     @property
     def ndim(self):
-        if self.isbacked:
-            return self.backing["imagemask"].ndim
-        else:
-            return self._mask.ndim
+        return self.data.ndim
 
     @property
     def px_dimensions(self) -> np.ndarray:
@@ -846,17 +844,11 @@ class RasterMasks(Masks):
 
     @property
     def shape(self):
-        if self.isbacked:
-            return self.backing.shape
-        else:
-            return self._mask.shape
+        return self.data.shape
 
     @property
     def dtype(self):
-        if self.isbacked:
-            return self.backing.dtype
-        else:
-            return self._mask.dtype
+        return self.data.dtype
 
     # TODO: this code is almost identical to the one in raster.py, do something to avoid redundancy
     @property
@@ -864,7 +856,7 @@ class RasterMasks(Masks):
         assert self.ndim in [2, 3]
         if self.ndim == 3:
             raise NotImplementedError()
-        h, w = self._mask.shape[:2]
+        h, w = self.data.shape[:2]
         px_dimensions = self.px_dimensions
         px_distance = self.px_distance
         actual_h = float(h) * px_dimensions[0] + (h - 1) * (px_distance[0] - 1)
@@ -961,9 +953,9 @@ class RasterMasks(Masks):
             raise ValueError(
                 "replacing the old obs is only performed when obs is an empty DataFrame or it is None"
             )
-        if self._mask is None:
+        if self.data is None:
             raise ValueError("no mask data has been specified")
-        m = self._mask[...]
+        m = self.data
         assert np.all(m >= 0)
         unique_masks = np.unique(m).tolist()
         # remove eventual background label
@@ -1045,7 +1037,7 @@ class RasterMasks(Masks):
         xy = obs[["region_center_x", "region_center_y"]].to_numpy()
         m = raster.X[...]
         mask_labels = set(obs["original_labels"].to_list())
-        real_labels = set(np.unique(self._mask).tolist())
+        real_labels = set(np.unique(self.data).tolist())
         if 0 in real_labels:
             real_labels.remove(0)
         assert mask_labels == real_labels
@@ -1059,7 +1051,7 @@ class RasterMasks(Masks):
             total=len(mask_labels),
         ):
             ome = m
-            masks = self._mask[...]
+            masks = self.data
             center = xy[i, :]
             # compute the bounding box of the mask
             z = masks == mask_label
@@ -1090,6 +1082,8 @@ class RasterMasks(Masks):
                 b1 = math.ceil(z_center[0] + r)
                 b1 = min(b1, z.shape[0])
                 # print(f'[{a1}:{b1}, {a0}:{b0}]')
+            # TODO: y this is empty when the tile around the mask does not contain any point of the mask and this
+            #  leads to an exception. Handle this gracefully and show a warning
             y = z[a1:b1, a0:b0]
             if DEBUG_WITH_PLOTS:
                 center_debug = np.array(center_of_mass(masks == mask_label))

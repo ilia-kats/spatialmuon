@@ -4,6 +4,7 @@ from .spatialmodality import SpatialModality
 from .fieldofview import FieldOfView
 from .converter import Converter
 from .anchor import Anchor
+from .tiler import Tiles
 
 # from .image import Image
 from .masks import ShapeMasks, PolygonMasks, MeshMasks, RasterMasks

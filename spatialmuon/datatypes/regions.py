@@ -6,6 +6,7 @@ import warnings
 
 import anndata._core.sparse_dataset
 import numpy as np
+import scipy.sparse.csr
 from scipy.sparse import spmatrix
 import pandas as pd
 import geopandas as gpd
@@ -18,6 +19,7 @@ import matplotlib.axes
 import matplotlib.colors
 import matplotlib.patches
 import matplotlib.pyplot as plt
+import scipy
 from anndata import AnnData
 from anndata._io.utils import read_attribute, write_attribute
 from anndata._core.sparse_dataset import SparseDataset
@@ -97,7 +99,7 @@ class Regions(FieldOfView):
         if self.isbacked:
             X = self.backing["X"]
             if isinstance(X, h5py.Group):
-                return SparseDataset(X)
+                return SparseDataset(X)[...]
             else:
                 return X
         else:
@@ -298,7 +300,7 @@ class Regions(FieldOfView):
                     else:
                         return (e - e.min()) / d
 
-                if isinstance(x, anndata._core.sparse_dataset.backed_csr_matrix):
+                if isinstance(x, scipy.sparse.csr.csr_matrix):
                     z = x.todense()
                 else:
                     z = x

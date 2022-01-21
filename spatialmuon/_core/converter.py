@@ -36,7 +36,8 @@ class Converter:
         return res
 
     def regions_to_anndata(self, regions: spatialmuon.datatypes.regions.Regions) -> anndata.AnnData:
-        adata = anndata.AnnData(X=regions.X)
+        var = regions.var.set_index('channel_name')
+        adata = anndata.AnnData(X=regions.X, var=var)
         coords = regions.masks.obs[["region_center_y", "region_center_x"]].to_numpy()
         adata.obsm["spatial"] = coords
         adata.var.index = regions.var

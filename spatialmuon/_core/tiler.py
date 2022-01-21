@@ -1,3 +1,4 @@
+from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm.auto import tqdm
@@ -8,8 +9,8 @@ import math
 class Tiles:
     def __init__(
         self,
-        raster: spatialmuon.datatypes.raster.Raster,
-        masks: spatialmuon._core.masks.Masks,
+        raster: "Raster",
+        masks: 'Masks',
         tile_dim: int,
     ):
         self.raster = raster
@@ -56,3 +57,4 @@ class Tiles:
         anchor = self.get_anchor_for_tile(index)
         s = spatialmuon.Raster(X=tile, anchor=anchor)
         return s
+

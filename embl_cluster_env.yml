@@ -1,0 +1,22 @@
+name: spatialmuon
+channels:
+  - bioconda
+  - anaconda
+  - conda-forge
+dependencies:
+  - pip
+  - vigra
+  - mamba
+  - pandas
+  - scikit-image
+  - tifffile
+  - anndata
+  - scanpy
+  - matplotlib-base
+  - matplotlib-inline
+  - matplotlib-scalebar
+  - pytest
+  - louvain
+  - h5py
+  - pip:
+    - squidpy

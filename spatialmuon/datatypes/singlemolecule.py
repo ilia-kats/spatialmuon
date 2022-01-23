@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
-from ncls import NCLS
+# from ncls import NCLS
 from trimesh import Trimesh
 import h5py
 from anndata._io.utils import read_attribute, write_attribute

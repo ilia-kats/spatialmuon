@@ -4,6 +4,7 @@ channels:
   - anaconda
   - conda-forge
 dependencies:
+  - python>=3.9
   - pip
   - vigra
   - mamba
@@ -18,5 +19,11 @@ dependencies:
   - pytest
   - louvain
   - h5py
+  - rtree
+  - shapely
+  - trimesh
+  - ncls
+  - geopandas
+  - ipykernel
   - pip:
     - squidpy

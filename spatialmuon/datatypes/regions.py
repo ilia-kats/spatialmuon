@@ -213,6 +213,7 @@ class Regions(FieldOfView):
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
         suptitle: Optional[str] = None,
+        alpha: float = 1.
     ):
         idx = get_channel_index_from_channel_name(self.var, channels_to_plot[0])
         # TODO: get this info by calling a get_bounding_box() function, which shuold take into account for alignment
@@ -238,6 +239,7 @@ class Regions(FieldOfView):
                 show_legend=False,
                 show_colorbar=False,
                 show_scalebar=idx == 0,
+                alpha=alpha
             )
         for idx in range(len(channels_to_plot), grid_size[0] * grid_size[1]):
             axs[idx].set_axis_off()
@@ -257,6 +259,7 @@ class Regions(FieldOfView):
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
         ax: matplotlib.axes.Axes = None,
+        alpha: float = 1.
     ):
         if rgba:
             indices = [
@@ -306,7 +309,7 @@ class Regions(FieldOfView):
                     z = x
                 z = normalizer(z)
                 colors = cmap(z)
-        self.masks.plot(fill_colors=colors, outline_colors=None, ax=ax, alpha=a)
+        self.masks.plot(fill_colors=colors, outline_colors=None, ax=ax, alpha=a * alpha)
         # im = ax.imshow(x, cmap=cmap[idx], alpha=a)
         # code explained in raster.py
         if len(channels_to_plot) == 1:
@@ -329,6 +332,7 @@ class Regions(FieldOfView):
         show_colorbar: bool = True,
         show_scalebar: bool = True,
         suptitle: Optional[str] = None,
+        alpha: float = 1,
     ):
         if self.var is None or len(self.var.columns) == 0:
             warnings.warn(
@@ -349,6 +353,7 @@ class Regions(FieldOfView):
                 show_colorbar=show_colorbar,
                 show_scalebar=show_scalebar,
                 suptitle=suptitle,
+                alpha=alpha,
             )
 
     def __repr__(self):

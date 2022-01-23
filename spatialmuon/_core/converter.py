@@ -135,5 +135,10 @@ if __name__ == '__main__':
     f = '/Users/macbook/temp'
     modality = Converter().read_visium10x(f)
     smu = spatialmuon.SpatialMuData('/Users/macbook/temp/test.h5smu', backingmode='w')
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(20, 20))
+    ax = plt.gca()
     smu['visium'] = modality
-    smu['visium']['image'].plot()
+    smu['visium']['image'].plot(ax=ax, alpha=0.4)
+    smu['visium']['expression'].plot(0, ax=ax)
+    plt.show()

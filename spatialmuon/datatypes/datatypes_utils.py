@@ -39,6 +39,7 @@ def regions_raster_plot(
     show_colorbar: bool = True,
     show_scalebar: bool = True,
     suptitle: Optional[str] = None,
+    alpha: float = 1.
 ):
     if not (isinstance(channels, list) or isinstance(channels, str) or isinstance(channels, int)):
         raise ValueError(
@@ -159,6 +160,7 @@ def regions_raster_plot(
             preprocessing=preprocessing,
             cmap=cmap,
             ax=axs,
+            alpha=alpha
         )
         if show_title:
             if method == "overlap":
@@ -297,4 +299,5 @@ def regions_raster_plot(
             preprocessing=preprocessing,
             cmap=cmap,
             suptitle=suptitle,
+            alpha=alpha,
         )

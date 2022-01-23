@@ -113,22 +113,27 @@ class Converter:
             masks_shape="circle", masks_centers=coords, masks_radii=radius, masks_labels=labels
         )
         # scale = 6.698431978755106
-        cfov = spatialmuon.Regions(X=X, var=var, masks=masks)
+        cfov = spatialmuon.datatypes.regions.Regions(X=X, var=var, masks=masks)
         modality['expression'] = cfov
 
         img = Image.open(os.path.join(image_file))
         hires_img = np.asarray(img)
         img.close()
-        modality[f"image"] = spatialmuon.Raster(X=hires_img)
+        modality[f"image"] = spatialmuon.datatypes.raster.Raster(X=hires_img)
+        return modality
 
-        outfname = os.path.join(path, 'visium.h5smu')
-        if os.path.isfile(outfname):
-            os.unlink(outfname)
+        # outfname = os.path.join(path, 'visium.h5smu')
+        # if os.path.isfile(outfname):
+        #     os.unlink(outfname)
 
-        smudata = spatialmuon.SpatialMuData(outfname, backingmode="w")
-        smudata["visium"] = modality
-        pass
+        # smudata = spatialmuon.SpatialMuData(outfname, backingmode="w")
+        # smudata = spatialmuon.SpatialModality()
+        # smudata["visium"] = modality
+        # return smudata
 
 if __name__ == '__main__':
     f = '/Users/macbook/temp'
-    Converter().read_visium10x(f)
+    modality = Converter().read_visium10x(f)
+    smu = spatialmuon.SpatialMuData('/Users/macbook/temp/test.h5smu', backingmode='w')
+    smu['visium'] = modality
+    smu['visium']['image'].plot()

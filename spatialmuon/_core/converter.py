@@ -5,7 +5,12 @@ import pandas as pd
 import tifffile
 import spatialmuon
 from xml.etree import ElementTree
+from scipy.sparse import csr_matrix
 import anndata
+import os
+import h5py
+import json
+from PIL import Image
 
 
 class Converter:
@@ -43,3 +48,87 @@ class Converter:
         adata.var.index = regions.var
         adata.var.reset_index(drop=True, inplace=True)
         return adata
+
+    def read_visium10x(self, path: str):
+        assert os.path.isdir(path)
+        visium_dir = os.path.join(path, 'outs')
+        assert os.path.isdir(visium_dir)
+        count_matrix_file = os.path.join(visium_dir, 'filtered_feature_bc_matrix.h5')
+        image_file = os.path.join(visium_dir, 'spatial/tissue_hires_image.png')
+        coords_file = os.path.join(visium_dir, 'spatial/tissue_positions_list.csv')
+        scale_factors_file = os.path.join(visium_dir, 'spatial/scalefactors_json.json')
+        for f in [count_matrix_file, image_file, coords_file, scale_factors_file]:
+            assert os.path.isfile(f)
+
+        modality = spatialmuon.SpatialModality()
+
+        with h5py.File(os.path.join(count_matrix_file)) as f:
+            matrix = f["matrix"]
+            X = csr_matrix(
+                (matrix["data"][()], matrix["indices"][()], matrix["indptr"][()]),
+                shape=matrix["shape"][()][::-1],
+            )
+
+            barcodes = matrix["barcodes"].asstr()[()]
+
+            var = pd.DataFrame(dict(channel_name=matrix["features/name"].asstr()[()]))
+            var["id"] = matrix["features/id"].asstr()[()]
+            for fname in matrix["features/_all_tag_keys"].asstr()[()]:
+                feat = matrix[f"features/{fname}"]
+                if h5py.check_string_dtype(feat.dtype):
+                    feat = feat.asstr()
+                var[fname] = feat[()]
+
+        tissue_positions = (
+            pd.read_csv(
+                os.path.join(coords_file),
+                names=(
+                    "barcode",
+                    "in_tissue",
+                    "array_row",
+                    "array_col",
+                    "pxl_col_in_fullres",
+                    "pxl_row_in_fullres",
+                ),
+            )
+                .set_index("barcode")
+                .loc[barcodes]
+                .drop("in_tissue", axis=1)
+        )
+        coords = tissue_positions[["pxl_row_in_fullres", "pxl_col_in_fullres"]].to_numpy()
+        obs = tissue_positions.drop(["pxl_row_in_fullres", "pxl_col_in_fullres"], axis=1)
+
+        with open(os.path.join(scale_factors_file), "r") as f:
+            meta = json.load(f)
+
+        center_to_center = 25.411068101069596
+        radius = center_to_center * 55 / 100 / 2
+        coords = coords * meta["tissue_hires_scalef"]
+
+        # the samples are offset by 10 μm in the Z axis according to the paper
+        # I have no idea how much that is in pixels
+        # So just do 10 px
+        labels = obs.index.tolist()
+        masks = spatialmuon.ShapeMasks(
+            masks_shape="circle", masks_centers=coords, masks_radii=radius, masks_labels=labels
+        )
+        # scale = 6.698431978755106
+        cfov = spatialmuon.Regions(X=X, var=var, masks=masks)
+        modality['expression'] = cfov
+
+        img = Image.open(os.path.join(image_file))
+        hires_img = np.asarray(img)
+        img.close()
+        modality[f"image"] = spatialmuon.Raster(X=hires_img)
+
+        outfname = os.path.join(path, 'visium.h5smu')
+        if os.path.isfile(outfname):
+            os.unlink(outfname)
+
+        smudata = spatialmuon.SpatialMuData(outfname, backingmode="w")
+        smudata["visium"] = modality
+        pass
+
+if __name__ == '__main__':
+    f = '/Users/macbook/temp'
+    Converter().read_visium10x(f)

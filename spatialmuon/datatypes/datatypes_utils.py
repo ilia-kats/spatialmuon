@@ -175,7 +175,7 @@ def regions_raster_plot(
             else:
                 raise ValueError()
             axs.set_title(title)
-        if show_legend:
+        if show_legend and not (method == 'rgba' and isinstance(instance, spatialmuon.Raster)):
             _legend = []
             if method == "overlap":
                 for idx, c in enumerate(cmap):
@@ -252,7 +252,7 @@ def regions_raster_plot(
             plt.show()
     else:
         assert method == "panels"
-        upper_limit_tiles = 50
+        upper_limit_tiles = 100
 
         if (
             isinstance(grid_size, list)
@@ -269,8 +269,8 @@ def regions_raster_plot(
                 "'grid_size' must either be a single integer or a list of two integers."
             )
         if n_tiles > upper_limit_tiles:
-            warnings.warn(
-                "The generated plot will be very large. Consider plotting it outside of spatialmuon."
+            raise RuntimeError(
+                f"Not plotting more than {upper_limit_tiles} subplots. Please plot channels to Axes manually"
             )
 
         if len(channels_to_plot) > n_tiles:

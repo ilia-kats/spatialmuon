@@ -220,6 +220,7 @@ class Raster(FieldOfView):
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
         suptitle: Optional[str] = None,
+        alpha: float = 1.
     ):
         idx = get_channel_index_from_channel_name(self.var, channels_to_plot[0])
         # TODO: get this info by calling a get_bounding_box() function, which shuold take into account for alignment
@@ -244,6 +245,7 @@ class Raster(FieldOfView):
                 show_legend=False,
                 show_colorbar=False,
                 show_scalebar=idx == 0,
+                alpha=alpha
             )
         for idx in range(len(channels_to_plot), grid_size[0] * grid_size[1]):
             axs[idx].set_axis_off()
@@ -263,6 +265,7 @@ class Raster(FieldOfView):
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
         ax: matplotlib.axes.Axes = None,
+        alpha: float = 1.
     ):
         if rgba:
             indices = [
@@ -288,7 +291,7 @@ class Raster(FieldOfView):
             extent = [bb["x0"], bb["x1"], bb["y0"], bb["y1"]]
             assert bb["x1"] - bb["x0"] == self.X.shape[1]
             assert bb["y1"] - bb["y0"] == self.X.shape[0]
-            im = ax.imshow(x, extent=extent, origin="lower", interpolation="none")
+            im = ax.imshow(x, extent=extent, origin="lower", interpolation="none", alpha=alpha)
         else:
             for idx, channel in enumerate(channels_to_plot):
                 a = 1 / (max(len(channels_to_plot) - 1, 2)) if idx > 0 else 1
@@ -301,7 +304,7 @@ class Raster(FieldOfView):
                 assert np.isclose(bb["x1"] - bb["x0"], self.X.shape[1])
                 assert np.isclose(bb["y1"] - bb["y0"], self.X.shape[0])
                 im = ax.imshow(
-                    x, cmap=cmap[idx], alpha=a, extent=extent, origin="lower", interpolation="none"
+                    x, cmap=cmap[idx], alpha=a * alpha, extent=extent, origin="lower", interpolation="none"
                 )
         # im is used in the calling function in datatypes_utils.py to draw the show_colorbar, but we are not displaying a
         # show_colorbar when we have more than one channel, so let's return a nonsense value
@@ -325,6 +328,7 @@ class Raster(FieldOfView):
         show_colorbar: bool = True,
         show_scalebar: bool = True,
         suptitle: Optional[str] = None,
+        alpha: float = 1.
     ):
         regions_raster_plot(
             self,
@@ -339,6 +343,7 @@ class Raster(FieldOfView):
             show_colorbar=show_colorbar,
             show_scalebar=show_scalebar,
             suptitle=suptitle,
+            alpha=alpha,
         )
 
     def __repr__(self):

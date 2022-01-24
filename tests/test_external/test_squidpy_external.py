@@ -60,7 +60,7 @@ class SquidpyExternal_TestClass(unittest.TestCase):
         masks = copy.copy(e.masks)
         louvain.index = masks.obs.index
         masks.obs["louvain"] = louvain
-        clustered = spatialmuon.Regions(backing=None, X=None, index_kwargs={}, masks=masks)
+        clustered = spatialmuon.Regions(backing=None, X=None, masks=masks)
         fig, ax = plt.subplots(1, figsize=(5, 5))
         d["imc"]["ome"].plot(
             channels=0, ax=ax, cmap=matplotlib.cm.get_cmap("Greys_r"), show_title=False

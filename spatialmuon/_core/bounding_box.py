@@ -19,15 +19,17 @@ class BoundingBoxable(ABC):
         if ndim == 3:
             raise NotImplementedError("3D case not yet implemented")
         origin = self.anchor.origin[...]
-        vector = self.anchor.vector[...]
+        k = self.anchor.scale_factor
+        normalized = self.anchor.normalized_vector
+        cos, sin = normalized
         ubb = self._untransformed_bounding_box
         self._validate_dict(ubb)
 
         # rotation
         # fmt: off
         rotation_matrix = np.array([
-            [vector[0], -vector[1]],
-            [vector[1], vector[0]]
+            [cos, -sin],
+            [sin, cos]
         ])
         # fmt: on
         corners = np.array(
@@ -40,10 +42,10 @@ class BoundingBoxable(ABC):
         ).T
         rotated_corners = (rotation_matrix @ corners).T
         bb = {
-            "x0": np.min(rotated_corners[:, 0]),
-            "x1": np.max(rotated_corners[:, 0]),
-            "y0": np.min(rotated_corners[:, 1]),
-            "y1": np.max(rotated_corners[:, 1]),
+            "x0": np.min(rotated_corners[:, 0]) / k,
+            "x1": np.max(rotated_corners[:, 0]) / k,
+            "y0": np.min(rotated_corners[:, 1]) / k,
+            "y1": np.max(rotated_corners[:, 1]) / k,
         }
         self._validate_dict(bb)
 

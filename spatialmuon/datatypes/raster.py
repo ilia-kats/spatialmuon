@@ -71,7 +71,7 @@ class Raster(FieldOfView):
     @property
     def X(self) -> Union[np.ndarray, h5py.Dataset]:
         if self.isbacked:
-            return self.backing["X"]
+            return self.backing["X"][...]
         else:
             return self._X
 
@@ -289,8 +289,8 @@ class Raster(FieldOfView):
                 x = np.reshape(x, old_shape)
             bb = self.bounding_box
             extent = [bb["x0"], bb["x1"], bb["y0"], bb["y1"]]
-            assert bb["x1"] - bb["x0"] == self.X.shape[1]
-            assert bb["y1"] - bb["y0"] == self.X.shape[0]
+            # assert np.isclose(bb["x1"] - bb["x0"], self.X.shape[1])
+            # assert np.isclose(bb["y1"] - bb["y0"], self.X.shape[0])
             im = ax.imshow(x, extent=extent, origin="lower", interpolation="none", alpha=alpha)
         else:
             for idx, channel in enumerate(channels_to_plot):
@@ -301,8 +301,8 @@ class Raster(FieldOfView):
                 x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
                 bb = self.bounding_box
                 extent = [bb["x0"], bb["x1"], bb["y0"], bb["y1"]]
-                assert np.isclose(bb["x1"] - bb["x0"], self.X.shape[1])
-                assert np.isclose(bb["y1"] - bb["y0"], self.X.shape[0])
+                # assert np.isclose(bb["x1"] - bb["x0"], self.X.shape[1])
+                # assert np.isclose(bb["y1"] - bb["y0"], self.X.shape[0])
                 im = ax.imshow(
                     x, cmap=cmap[idx], alpha=a * alpha, extent=extent, origin="lower", interpolation="none"
                 )

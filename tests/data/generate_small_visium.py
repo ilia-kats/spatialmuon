@@ -37,9 +37,11 @@ d0.masks._obs = new_obs
 d0.masks._masks_centers = d0.masks._masks_centers[np.where(obs_to_keep)]
 d0.masks._masks_radii = d0.masks._masks_radii[np.where(obs_to_keep)]
 
+vector = a1.anchor.vector
+scale_factor = a1.anchor.scale_factor
 img = a1.X[y_cutoff:, x_cutoff:, ...]
-anchor = Anchor(origin=np.array([x_cutoff, y_cutoff]))
-d1 = smu.Raster(X=img, anchor=anchor)
+anchor = Anchor(origin=np.array([x_cutoff / scale_factor, y_cutoff / scale_factor]), vector=vector)
+d1 = smu.Raster(X=img, anchor=anchor, coordinate_unit=a1.coordinate_unit)
 
 print(outfile)
 if os.path.isfile(outfile):

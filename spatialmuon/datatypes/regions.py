@@ -44,7 +44,6 @@ class Regions(FieldOfView):
         backing: Optional[h5py.Group] = None,
         *,
         X: Optional[Union[np.ndarray, spmatrix]] = None,
-        index_kwargs: dict = {},
         masks: Optional[Masks] = None,
         **kwargs,
     ):
@@ -92,7 +91,7 @@ class Regions(FieldOfView):
 
     @property
     def _untransformed_bounding_box(self) -> dict[str, float]:
-        return self.masks.bounding_box
+        return self.masks._untransformed_bounding_box
 
     @property
     def X(self) -> Union[np.ndarray, spmatrix, h5py.Dataset, SparseDataset]:

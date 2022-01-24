@@ -216,10 +216,10 @@ def regions_raster_plot(
         if show_scalebar:
             unit = instance.coordinate_unit
             if unit is not None:
-                scale_factor = np.linalg.norm(instance.anchor.vector)
+                # scale_factor = instance.scale_factor
                 try:
                     scalebar = ScaleBar(
-                        scale_factor, unit, box_alpha=0.8, color="white", box_color="black"
+                        dx=1, units=unit, box_alpha=0.8, color="white", box_color="black"
                     )
                 except ValueError as e:
                     if str(e).startswith("Invalid unit (") and str(e).endswith(") with dimension"):
@@ -232,7 +232,7 @@ def regions_raster_plot(
                         custom_dimension = CustomDimension(unit=unit)
                         ##
                         scalebar = ScaleBar(
-                            scale_factor,
+                            dx=1,
                             units=unit,
                             dimension=custom_dimension,
                             box_alpha=0.8,

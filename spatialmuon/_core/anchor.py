@@ -41,22 +41,27 @@ class Anchor(BackableObject):
 
             if ndim is not None:
                 self._ndim = ndim
-
-            if origin is None:
-                self._origin = np.array([0] * ndim)
-            else:
-                self._origin = origin
+            if origin is not None:
+                self._ndim = len(origin)
                 if ndim is not None:
                     assert len(origin) == ndim
-                self._ndim = len(origin)
+            if vector is not None:
+                self._ndim = len(vector)
+                if ndim is not None:
+                    assert len(vector) == ndim
+                if origin is not None:
+                    assert len(origin) == len(vector)
+
+
+            if origin is None:
+                self._origin = np.array([0] * self.ndim)
+            else:
+                self._origin = origin
 
             if vector is None:
                 self._vector = np.array([1] + ([0] * (self.ndim - 1)))
             else:
                 self._vector = vector
-                if ndim is not None:
-                    assert len(vector) == ndim
-                self._ndim = len(vector)
 
     def _set_backing(self, value: Optional[Union[h5py.Group, h5py.Dataset]] = None):
         self._write(value)
@@ -148,6 +153,14 @@ class Anchor(BackableObject):
         """
         assert self._vector is not None
         return self._vector
+
+    @property
+    def scale_factor(self) -> float:
+        return np.linalg.norm(self.vector)
+
+    @property
+    def normalized_vector(self) -> np.ndarray:
+        return self.vector / self.scale_factor
 
     @vector.setter
     def vector(self, new_vector: np.ndarray):
@@ -272,3 +285,24 @@ class Anchor(BackableObject):
                 raise ValueError("Please specify a float for 'factor'.")
 
         self._vector = np.array([i * factor for i in self.vector])
+
+    def transform_coordinates(self, coords: np.ndarray) -> np.ndarray:
+        old_shape = coords.shape
+        if len(coords.shape) in [0, 1] and len(coords) == 2:
+            coords = coords.reshape((1, 2))
+        assert len(coords.shape) == 2
+        if not coords.shape[1] == 2:
+            raise NotImplementedError('only the 2D case is currently implemented')
+        # rotation
+        # fmt: off
+        cos, sin = self.normalized_vector
+        rotation_matrix = np.array([
+            [cos, -sin],
+            [sin, cos]
+        ])
+        # fmt: on
+        rotated = (rotation_matrix @ coords.T).T
+        scaled = rotated / self.scale_factor
+        translated = scaled + self.origin
+        translated = translated.reshape(old_shape)
+        return translated

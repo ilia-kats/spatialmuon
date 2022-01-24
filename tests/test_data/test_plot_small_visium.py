@@ -33,13 +33,16 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
         img.plot()
 
     def test_can_plot_regions_single_channel(self):
+        ##
         d = spatialmuon.SpatialMuData(backing=fpath)
         e = d["visium"]["expression"]
         plt.figure()
         ax = plt.gca()
         e.plot(channels="Rp1", ax=ax)
-        ax.set(xlim=(1650, 1700), ylim=(1500, 1600))
+        # ax.set(xlim=(1650, 1700), ylim=(1500, 1600))
+        # ax.set(xlim=(0, 30000), ylim=(0, 30000))
         plt.show()
+        ##
 
     def test_can_plot_regions_non_overlapping_channels(self):
         d = spatialmuon.SpatialMuData(backing=fpath)
@@ -124,17 +127,17 @@ if __name__ == "__main__":
     if not DEBUGGING:
         unittest.main()
     else:
-        PlotSmallVisium_TestClass().test_can_load_smu_file()
-        PlotSmallVisium_TestClass().test_can_pretty_print()
-
+        # PlotSmallVisium_TestClass().test_can_load_smu_file()
+        # PlotSmallVisium_TestClass().test_can_pretty_print()
+        #
         PlotSmallVisium_TestClass().test_can_plot_image()
-
+        #
         PlotSmallVisium_TestClass().test_can_plot_regions_single_channel()
-        PlotSmallVisium_TestClass().test_can_plot_regions_non_overlapping_channels()
-
-        PlotSmallVisium_TestClass().test_can_plot_regions_random_color()
-        PlotSmallVisium_TestClass().test_can_plot_regions_solid_color()
-        PlotSmallVisium_TestClass().test_bounding_boxes()
+        # PlotSmallVisium_TestClass().test_can_plot_regions_non_overlapping_channels()
+        #
+        # PlotSmallVisium_TestClass().test_can_plot_regions_random_color()
+        # PlotSmallVisium_TestClass().test_can_plot_regions_solid_color()
+        # PlotSmallVisium_TestClass().test_bounding_boxes()
         PlotSmallVisium_TestClass().test_can_plot_raster_and_regions_together()
 
         # not implemented yet

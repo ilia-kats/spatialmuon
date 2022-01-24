@@ -503,7 +503,9 @@ class ShapeMasks(Masks, MutableMapping):
         patches = []
         for i in range(len(self)):
             xy = self._masks_centers[i]
+            xy = self.anchor.transform_coordinates(xy)
             radius = self._masks_radii[i]
+            radius /= self.anchor.scale_factor
             patch = matplotlib.patches.Ellipse(xy, width=2 * radius[0], height=2 * radius[1])
             patches.append(patch)
         collection = matplotlib.collections.PatchCollection(patches)
@@ -979,7 +981,9 @@ class RasterMasks(Masks):
             for i, o in enumerate(original_labels):
                 lut[o] = i
             x = lut[self.data]
-        ax.imshow(fill_color_array[x], interpolation="none")
+        bb = self.bounding_box
+        extent = [bb["x0"], bb["x1"], bb["y0"], bb["y1"]]
+        ax.imshow(fill_color_array[x], interpolation="none", extent=extent, origin="lower")
 
         if outline_colors_array is not None:
             for i, c in enumerate(contiguous_labels):
@@ -987,7 +991,8 @@ class RasterMasks(Masks):
                 boolean_mask = x == c
                 contours = skimage.measure.find_contours(boolean_mask, 0.7)
                 for contour in contours:
-                    ax.plot(contour[:, 1], contour[:, 0], linewidth=2, color=outline_color)
+                    transformed = self.anchor.transform_coordinates(contour)
+                    ax.plot(transformed[:, 1], transformed[:, 0], linewidth=2, color=outline_color)
 
     def accumulate_features(self, fov: Union["Raster", "Regions"]):
         from spatialmuon.datatypes.regions import Regions
@@ -1152,15 +1157,17 @@ class RasterMasks(Masks):
                 if i >= 4:
                     DEBUG_WITH_PLOTS = False
                     RECAP_PLOT = True
-        if 'RECAP_PLOT' in locals():
+        if "RECAP_PLOT" in locals():
             for n in range(min(len(extracted_omes), 10)):
                 plt.figure()
                 x = extracted_omes[n][:, :, 0]
                 plt.imshow(x)
-                u = np.array([
-                    [0., 0., 0., 0.],
-                    [1., 0., 0., 1.],
-                ])
+                u = np.array(
+                    [
+                        [0.0, 0.0, 0.0, 0.0],
+                        [1.0, 0.0, 0.0, 1.0],
+                    ]
+                )
                 mask = extracted_masks[n]
                 plt.imshow(u[mask.astype(int)])
                 plt.show()

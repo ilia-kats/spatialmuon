@@ -16,7 +16,7 @@ import pandas as pd
 
 from spatialmuon._core.backing import BackableObject
 from spatialmuon._core.anchor import Anchor
-from spatialmuon._core.bounding_box import BoundingBoxable
+from spatialmuon._core.bounding_box import BoundingBoxable, BoundingBox
 
 # from .image import Image
 from ..utils import _read_hdf5_attribute, _get_hdf5_attribute, UnknownEncodingException
@@ -225,21 +225,21 @@ class FieldOfView(BackableObject, BoundingBoxable):
         ylim = ax.get_ylim()
         # hack to check if this is a newly created empty plot
         if xlim == (0.0, 1.0) and ylim == (0.0, 1.0):
-            new_xlim = (bb["x0"], bb["x1"])
-            new_ylim = (bb["y0"], bb["y1"])
+            new_xlim = (bb.x0, bb.x1)
+            new_ylim = (bb.y0, bb.y1)
         else:
-            new_xlim = (min(xlim[0], bb["x0"]), max(xlim[1], bb["x1"]))
-            new_ylim = (min(ylim[0], bb["y0"]), max(ylim[1], bb["y1"]))
+            new_xlim = (min(xlim[0], bb.x0), max(xlim[1], bb.x1))
+            new_ylim = (min(ylim[0], bb.y0), max(ylim[1], bb.y1))
         ax.set_xlim(new_xlim)
         ax.set_ylim(new_ylim)
         # print(f'xlim = {xlim}, ylim = {ylim}')
         # print(f'new_xlim = {new_xlim}, new_ylim = {new_ylim}')
         # pass
 
-    def set_lims_to_bounding_box(self, bb=None, ax=None):
+    def set_lims_to_bounding_box(self, bb: BoundingBox=None, ax=None):
         if ax is None:
             ax = plt.gca()
         if bb is None:
             bb = self.bounding_box
-        ax.set_xlim((bb["x0"], bb["x1"]))
-        ax.set_ylim((bb["y0"], bb["y1"]))
+        ax.set_xlim((bb.x0, bb.x1))
+        ax.set_ylim((bb.y0, bb.y1))

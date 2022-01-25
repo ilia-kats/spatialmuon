@@ -26,6 +26,7 @@ from anndata._core.sparse_dataset import SparseDataset
 import spatialmuon
 from spatialmuon._core.masks import Masks
 from spatialmuon._core.anchor import Anchor
+from spatialmuon._core.bounding_box import BoundingBox
 from spatialmuon.datatypes.datatypes_utils import (
     regions_raster_plot,
     get_channel_index_from_channel_name,
@@ -90,7 +91,7 @@ class Regions(FieldOfView):
         return None
 
     @property
-    def _untransformed_bounding_box(self) -> dict[str, float]:
+    def _untransformed_bounding_box(self) -> BoundingBox:
         return self.masks._untransformed_bounding_box
 
     @property
@@ -259,7 +260,7 @@ class Regions(FieldOfView):
         ] = matplotlib.cm.viridis,
         ax: matplotlib.axes.Axes = None,
         alpha: float = 1.,
-        bounding_box: Optional[dict] = None
+        bounding_box: Optional[BoundingBox] = None
     ):
         if rgba:
             indices = [
@@ -333,7 +334,7 @@ class Regions(FieldOfView):
         show_scalebar: bool = True,
         suptitle: Optional[str] = None,
         alpha: float = 1,
-        bounding_box: Optional[dict] = None
+        bounding_box: Optional[BoundingBox] = None
     ):
         if self.var is None or len(self.var.columns) == 0:
             warnings.warn(

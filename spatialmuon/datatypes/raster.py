@@ -25,6 +25,7 @@ from spatialmuon.datatypes.datatypes_utils import (
 )
 from spatialmuon._core.masks import Masks
 from spatialmuon._core.anchor import Anchor
+from spatialmuon._core.bounding_box import BoundingBox
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib_scalebar.scalebar import ScaleBar
 
@@ -92,7 +93,7 @@ class Raster(FieldOfView):
 
     # TODO: this code is almost identical to the one in masks.py, do something to avoid redundancy
     @property
-    def _untransformed_bounding_box(self) -> dict[str, float]:
+    def _untransformed_bounding_box(self) -> BoundingBox:
         assert self.ndim in [2, 3]
         if self.ndim == 3:
             raise NotImplementedError()
@@ -101,7 +102,7 @@ class Raster(FieldOfView):
         px_distance = self.px_distance
         actual_h = float(h) * px_dimensions[0] + (h - 1) * (px_distance[0] - 1)
         actual_w = float(w) * px_dimensions[1] + (w - 1) * (px_distance[1] - 1)
-        bounding_box = {"x0": 0.0, "y0": 0.0, "x1": actual_w, "y1": actual_h}
+        bounding_box = BoundingBox(x0=0.0, y0=0.0, x1=actual_w, y1=actual_h)
         return bounding_box
 
     # flake8: noqa: C901
@@ -267,7 +268,7 @@ class Raster(FieldOfView):
         ] = matplotlib.cm.viridis,
         ax: matplotlib.axes.Axes = None,
         alpha: float = 1.0,
-        bounding_box: Optional[dict] = None,
+        bounding_box: Optional[BoundingBox] = None,
     ):
         def get_crop(shape):
             if len(shape) != 3:
@@ -276,15 +277,19 @@ class Raster(FieldOfView):
                 return slice(None), slice(None)
             else:
                 # bounding_box
-                real_bounding_box = self.bounding_box
-                assert np.isclose(real_bounding_box["x0"], 0.0)
-                assert np.isclose(real_bounding_box["y0"], 0.0)
-                x_size = real_bounding_box["x1"] - real_bounding_box["x0"]
-                y_size = real_bounding_box["y1"] - real_bounding_box["y0"]
-                x0_relative = bounding_box["x0"] / x_size
-                x1_relative = bounding_box["x1"] / x_size
-                y0_relative = bounding_box["y0"] / y_size
-                y1_relative = bounding_box["y1"] / y_size
+                ubb = self._untransformed_bounding_box
+                a = self.anchor.inverse_transform_bounding_box(self.bounding_box)
+                b = self._untransformed_bounding_box
+                # assert a == b, (a, b)
+                bb = self.anchor.inverse_transform_bounding_box(bounding_box)
+                assert np.isclose(ubb.x0, 0.0)
+                assert np.isclose(ubb.y0, 0.0)
+                x_size = ubb.x1 - ubb.x0
+                y_size = ubb.y1 - ubb.y0
+                x0_relative = bb.x0 / x_size
+                x1_relative = bb.x1 / x_size
+                y0_relative = bb.y0 / y_size
+                y1_relative = bb.y1 / y_size
 
                 x0_real = round(shape[1] * x0_relative)
                 x1_real = round(shape[1] * x1_relative)
@@ -298,7 +303,7 @@ class Raster(FieldOfView):
                 bb = self.bounding_box
             else:
                 bb = bounding_box
-            extent = [bb["x0"], bb["x1"], bb["y0"], bb["y1"]]
+            extent = [bb.x0, bb.x1, bb.y0, bb.y1]
             # assert np.isclose(bb["x1"] - bb["x0"], self.X.shape[1])
             # assert np.isclose(bb["y1"] - bb["y0"], self.X.shape[0])
             im = ax.imshow(
@@ -361,7 +366,7 @@ class Raster(FieldOfView):
         show_scalebar: bool = True,
         suptitle: Optional[str] = None,
         alpha: float = 1.0,
-        bounding_box: Optional[dict] = None,
+        bounding_box: Optional[BoundingBox] = None,
     ):
         regions_raster_plot(
             self,

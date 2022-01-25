@@ -30,7 +30,7 @@ from enum import Enum, auto
 from spatialmuon._core.fieldofview import FieldOfView
 from spatialmuon._core.backing import BackableObject
 from spatialmuon.utils import _read_hdf5_attribute, UnknownEncodingException, _get_hdf5_attribute
-from spatialmuon._core.bounding_box import BoundingBoxable
+from spatialmuon._core.bounding_box import BoundingBoxable, BoundingBox
 
 # either a color or a list of colors
 ColorsType = Optional[
@@ -436,7 +436,7 @@ class ShapeMasks(Masks, MutableMapping):
         #     return iter(self._data)
 
     @property
-    def _untransformed_bounding_box(self) -> dict[str, float]:
+    def _untransformed_bounding_box(self) -> BoundingBox:
         ##
         extended_coords = np.concatenate(
             [
@@ -447,7 +447,8 @@ class ShapeMasks(Masks, MutableMapping):
         )
         x_min, y_min = np.min(extended_coords, axis=0)
         x_max, y_max = np.max(extended_coords, axis=0)
-        return {"x0": x_min, "x1": x_max, "y0": y_min, "y1": y_max}
+        bb = BoundingBox(x0=x_min, x1=x_max, y0=y_min, y1=y_max)
+        return bb
 
     def items(self):
         raise NotImplementedError()
@@ -625,7 +626,7 @@ class PolygonMasks(Masks, MutableMapping):
         #     return iter(self._data)
 
     @property
-    def _untransformed_bounding_box(self) -> dict[str, float]:
+    def _untransformed_bounding_box(self) -> BoundingBox:
         raise NotImplementedError()
         return dict()
 
@@ -739,7 +740,7 @@ class MeshMasks(Masks, MutableMapping):
             return iter(self._data)
 
     @property
-    def _untransformed_bounding_box(self) -> dict[str, float]:
+    def _untransformed_bounding_box(self) -> BoundingBox:
         raise NotImplementedError()
         return dict()
 
@@ -854,7 +855,7 @@ class RasterMasks(Masks):
 
     # TODO: this code is almost identical to the one in raster.py, do something to avoid redundancy
     @property
-    def _untransformed_bounding_box(self) -> dict[str, float]:
+    def _untransformed_bounding_box(self) -> BoundingBox:
         assert self.ndim in [2, 3]
         if self.ndim == 3:
             raise NotImplementedError()
@@ -863,7 +864,7 @@ class RasterMasks(Masks):
         px_distance = self.px_distance
         actual_h = float(h) * px_dimensions[0] + (h - 1) * (px_distance[0] - 1)
         actual_w = float(w) * px_dimensions[1] + (w - 1) * (px_distance[1] - 1)
-        bounding_box = {"x0": 0.0, "y0": 0.0, "x1": actual_w, "y1": actual_h}
+        bounding_box = BoundingBox(x0=0.0, y0=0.0, x1=actual_w, y1=actual_h)
         return bounding_box
 
     @property
@@ -982,7 +983,7 @@ class RasterMasks(Masks):
                 lut[o] = i
             x = lut[self.data]
         bb = self.bounding_box
-        extent = [bb["x0"], bb["x1"], bb["y0"], bb["y1"]]
+        extent = [bb.x0, bb.x1, bb.y0, bb.y1]
         ax.imshow(fill_color_array[x], interpolation="none", extent=extent, origin="lower")
 
         if outline_colors_array is not None:

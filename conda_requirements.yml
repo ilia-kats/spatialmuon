@@ -6,6 +6,7 @@ channels:
   - bioconda
 dependencies:
   - python >= 3.9
+  - numpy >= 1.21
   - black
   - flake8
   - rtree
@@ -26,3 +27,4 @@ dependencies:
   - pip:
  	  - squidpy
       - matplotlib-show_scalebar
+      - xarray-multiscale

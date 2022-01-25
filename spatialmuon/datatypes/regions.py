@@ -258,7 +258,8 @@ class Regions(FieldOfView):
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
         ax: matplotlib.axes.Axes = None,
-        alpha: float = 1.
+        alpha: float = 1.,
+        bounding_box: Optional[dict] = None
     ):
         if rgba:
             indices = [
@@ -332,6 +333,7 @@ class Regions(FieldOfView):
         show_scalebar: bool = True,
         suptitle: Optional[str] = None,
         alpha: float = 1,
+        bounding_box: Optional[dict] = None
     ):
         if self.var is None or len(self.var.columns) == 0:
             warnings.warn(
@@ -353,6 +355,7 @@ class Regions(FieldOfView):
                 show_scalebar=show_scalebar,
                 suptitle=suptitle,
                 alpha=alpha,
+                bounding_box=bounding_box
             )
 
     def __repr__(self):

@@ -51,8 +51,8 @@ class Converter:
 
     def read_visium10x(self, path: str):
         assert os.path.isdir(path)
-        visium_dir = os.path.join(path, 'outs')
-        assert os.path.isdir(visium_dir)
+        # visium_dir = os.path.join(path, 'outs')
+        visium_dir = path
         count_matrix_file = os.path.join(visium_dir, 'filtered_feature_bc_matrix.h5')
         image_file = os.path.join(visium_dir, 'spatial/tissue_hires_image.png')
         coords_file = os.path.join(visium_dir, 'spatial/tissue_positions_list.csv')
@@ -101,9 +101,11 @@ class Converter:
         with open(os.path.join(scale_factors_file), "r") as f:
             meta = json.load(f)
 
-        center_to_center = 25.411068101069596
-        radius = center_to_center * 55 / 100 / 2
+        # center_to_center = meta['spot_diameter_fullres'] / 55 * 100 * meta['tissue_hires_scalef']
+        # radius = center_to_center * 55 / 100 / 2
+        radius = meta['spot_diameter_fullres'] * meta['tissue_hires_scalef'] / 2
         coords = coords * meta["tissue_hires_scalef"]
+        anchor = spatialmuon.Anchor(vector=np.array([radius / (55 / 2), 0.]))
 
         # the samples are offset by 10 μm in the Z axis according to the paper
         # I have no idea how much that is in pixels
@@ -113,13 +115,16 @@ class Converter:
             masks_shape="circle", masks_centers=coords, masks_radii=radius, masks_labels=labels
         )
         # scale = 6.698431978755106
-        cfov = spatialmuon.datatypes.regions.Regions(X=X, var=var, masks=masks)
+        cfov = spatialmuon.datatypes.regions.Regions(X=X, var=var, masks=masks, anchor=anchor, coordinate_unit='um')
         modality['expression'] = cfov
 
         img = Image.open(os.path.join(image_file))
         hires_img = np.asarray(img)
         img.close()
-        modality[f"image"] = spatialmuon.datatypes.raster.Raster(X=hires_img)
+        if np.min(hires_img) < 0 or np.max(hires_img) > 1:
+            assert hires_img.dtype == np.dtype('uint8')
+            hires_img = hires_img / 255
+        modality[f"image"] = spatialmuon.datatypes.raster.Raster(X=hires_img, anchor=anchor, coordinate_unit='um')
         return modality
 
         # outfname = os.path.join(path, 'visium.h5smu')

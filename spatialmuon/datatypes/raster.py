@@ -15,6 +15,7 @@ import matplotlib.colors
 import matplotlib.patches
 import matplotlib.pyplot as plt
 import pandas as pd
+import math
 
 from spatialmuon.utils import _get_hdf5_attribute
 from spatialmuon.datatypes.datatypes_utils import (
@@ -71,7 +72,7 @@ class Raster(FieldOfView):
     @property
     def X(self) -> Union[np.ndarray, h5py.Dataset]:
         if self.isbacked:
-            return self.backing["X"][...]
+            return self.backing["X"]
         else:
             return self._X
 
@@ -220,7 +221,7 @@ class Raster(FieldOfView):
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
         suptitle: Optional[str] = None,
-        alpha: float = 1.
+        alpha: float = 1.0,
     ):
         idx = get_channel_index_from_channel_name(self.var, channels_to_plot[0])
         # TODO: get this info by calling a get_bounding_box() function, which shuold take into account for alignment
@@ -245,7 +246,7 @@ class Raster(FieldOfView):
                 show_legend=False,
                 show_colorbar=False,
                 show_scalebar=idx == 0,
-                alpha=alpha
+                alpha=alpha,
             )
         for idx in range(len(channels_to_plot), grid_size[0] * grid_size[1]):
             axs[idx].set_axis_off()
@@ -265,15 +266,55 @@ class Raster(FieldOfView):
             matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
         ax: matplotlib.axes.Axes = None,
-        alpha: float = 1.
+        alpha: float = 1.0,
+        bounding_box: Optional[dict] = None,
     ):
+        def get_crop(shape):
+            if len(shape) != 3:
+                raise ValueError("only the 2d case (H x W x C) is currently supported")
+            if bounding_box is None:
+                return slice(None), slice(None)
+            else:
+                # bounding_box
+                real_bounding_box = self.bounding_box
+                assert np.isclose(real_bounding_box["x0"], 0.0)
+                assert np.isclose(real_bounding_box["y0"], 0.0)
+                x_size = real_bounding_box["x1"] - real_bounding_box["x0"]
+                y_size = real_bounding_box["y1"] - real_bounding_box["y0"]
+                x0_relative = bounding_box["x0"] / x_size
+                x1_relative = bounding_box["x1"] / x_size
+                y0_relative = bounding_box["y0"] / y_size
+                y1_relative = bounding_box["y1"] / y_size
+
+                x0_real = round(shape[1] * x0_relative)
+                x1_real = round(shape[1] * x1_relative)
+                y0_real = round(shape[0] * y0_relative)
+                y1_real = round(shape[0] * y1_relative)
+
+                return slice(y0_real, y1_real), slice(x0_real, x1_real)
+
+        def _imshow(x, alpha, cmap=None):
+            if bounding_box is None:
+                bb = self.bounding_box
+            else:
+                bb = bounding_box
+            extent = [bb["x0"], bb["x1"], bb["y0"], bb["y1"]]
+            # assert np.isclose(bb["x1"] - bb["x0"], self.X.shape[1])
+            # assert np.isclose(bb["y1"] - bb["y0"], self.X.shape[0])
+            im = ax.imshow(
+                x, cmap=cmap, extent=extent, origin="lower", interpolation="none", alpha=alpha
+            )
+            return im
+
         if rgba:
             indices = [
                 get_channel_index_from_channel_name(self.var, channel)
                 for channel in channels_to_plot
             ]
             indices = np.array(indices)
-            data_to_plot = self.X[:, :, indices]
+
+            crop = get_crop(self.X.shape)
+            data_to_plot = self.X[crop[0], crop[1], indices]
 
             x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
             if np.min(x) < 0.0 or np.max(x) > 1.0:
@@ -287,25 +328,16 @@ class Raster(FieldOfView):
                 b = np.max(x, axis=0)
                 x = (x - a) / (b - a)
                 x = np.reshape(x, old_shape)
-            bb = self.bounding_box
-            extent = [bb["x0"], bb["x1"], bb["y0"], bb["y1"]]
-            # assert np.isclose(bb["x1"] - bb["x0"], self.X.shape[1])
-            # assert np.isclose(bb["y1"] - bb["y0"], self.X.shape[0])
-            im = ax.imshow(x, extent=extent, origin="lower", interpolation="none", alpha=alpha)
+            im = _imshow(x=x, alpha=alpha)
         else:
             for idx, channel in enumerate(channels_to_plot):
                 a = 1 / (max(len(channels_to_plot) - 1, 2)) if idx > 0 else 1
                 channel_index = get_channel_index_from_channel_name(self.var, channel)
-                data_to_plot = self.X[:, :, channel_index]
+                crop = get_crop(self.X.shape)
+                data_to_plot = self.X[crop[0], crop[1], channel_index]
 
                 x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
-                bb = self.bounding_box
-                extent = [bb["x0"], bb["x1"], bb["y0"], bb["y1"]]
-                # assert np.isclose(bb["x1"] - bb["x0"], self.X.shape[1])
-                # assert np.isclose(bb["y1"] - bb["y0"], self.X.shape[0])
-                im = ax.imshow(
-                    x, cmap=cmap[idx], alpha=a * alpha, extent=extent, origin="lower", interpolation="none"
-                )
+                im = _imshow(x=x, alpha=a * alpha, cmap=cmap[idx])
         # im is used in the calling function in datatypes_utils.py to draw the show_colorbar, but we are not displaying a
         # show_colorbar when we have more than one channel, so let's return a nonsense value
         if len(channels_to_plot) == 1:
@@ -328,7 +360,8 @@ class Raster(FieldOfView):
         show_colorbar: bool = True,
         show_scalebar: bool = True,
         suptitle: Optional[str] = None,
-        alpha: float = 1.
+        alpha: float = 1.0,
+        bounding_box: Optional[dict] = None,
     ):
         regions_raster_plot(
             self,
@@ -344,6 +377,7 @@ class Raster(FieldOfView):
             show_scalebar=show_scalebar,
             suptitle=suptitle,
             alpha=alpha,
+            bounding_box=bounding_box,
         )
 
     def __repr__(self):

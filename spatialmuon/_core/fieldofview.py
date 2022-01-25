@@ -236,9 +236,10 @@ class FieldOfView(BackableObject, BoundingBoxable):
         # print(f'new_xlim = {new_xlim}, new_ylim = {new_ylim}')
         # pass
 
-    def set_lims_to_bounding_box(self, ax=None):
+    def set_lims_to_bounding_box(self, bb=None, ax=None):
         if ax is None:
             ax = plt.gca()
-        bb = self.bounding_box
+        if bb is None:
+            bb = self.bounding_box
         ax.set_xlim((bb["x0"], bb["x1"]))
         ax.set_ylim((bb["y0"], bb["y1"]))

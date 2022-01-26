@@ -993,7 +993,7 @@ class RasterMasks(Masks):
                 contours = skimage.measure.find_contours(boolean_mask, 0.7)
                 for contour in contours:
                     transformed = self.anchor.transform_coordinates(contour)
-                    ax.plot(transformed[:, 1], transformed[:, 0], linewidth=2, color=outline_color)
+                    ax.plot(transformed[:, 1], transformed[:, 0], linewidth=1, color=outline_color)
 
     def accumulate_features(self, fov: Union["Raster", "Regions"]):
         from spatialmuon.datatypes.regions import Regions

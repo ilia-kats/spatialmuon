@@ -1,13 +1,16 @@
 ##
+import pandas as pd
 import scanpy as sc
 import anndata as ad
 import spatialmuon as smu
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import skimage
 from PIL import Image
 import math
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from mpl_toolkits.axes_grid1 import ImageGrid
 
 ##
 root = "/data/spatialmuon/datasets/tomoseq_ikmi"
@@ -23,7 +26,13 @@ f2 = os.path.join(root, "raw/tomoseq_positions_seurat_v3.h5ad")
 
 img_root = os.path.join(root, "raw/polyp_images_jpg/")
 
-if True:
+manual_alignments = {
+                'b3-LWF-18-24hpa': [116, 425],
+                'b3-LWF-13-96hpa': [78, 432],
+                'b3-LWF-17-12hpa': [50, 398]
+            }
+
+if False:
     images = {}
     for file in os.listdir(img_root):
         if file.endswith(".jpg"):
@@ -120,9 +129,11 @@ if True:
             slide_width = img.shape[1] / n_slices0
             min_boundary = obs[obs.original_labels == min_index].region_center_y.item() - slide_width / 2
             max_boundary = obs[obs.original_labels == max_index].region_center_y.item() + slide_width / 2
-            pixel_boundaries = {
-                'b3-LWF-18-24hpa': [116, 425]
-            }
+
+            pixel_boundaries = dict(zip(images.keys(), [[0, 600]] * len(images)))
+            for k, v in manual_alignments.items():
+                pixel_boundaries[k] = v
+
             new_anchor = regions.anchor.map_untransformed_to_untransformed_fov(raster, source_points=np.array([
                 [min_boundary, 0],
                 [max_boundary, 0]
@@ -136,35 +147,36 @@ if True:
             pass
             ##
             # fig, (ax0, ax1) = plt.subplots(2, 1, constrained_layout=True, figsize=(5, 10))
-            from mpl_toolkits.axes_grid1 import ImageGrid
-            fig = plt.figure()
-            ax0, ax1 = ImageGrid(fig, 111, nrows_ncols=(2, 1), axes_pad=0.1)
-            ax0.sharex(ax1)
-            # fig.subplots_adjust(hspace=0.20)
-            s["tomo-seq"]["image"].plot(ax=ax0)
-            ax0.axvline(x=pixel_boundaries[sample_name][0], c='r', linestyle='--')
-            ax0.axvline(x=pixel_boundaries[sample_name][1], c='r', linestyle='--')
-            ax0.set_title(sample_name)
-            s["tomo-seq"]["expression"].plot(11, ax=ax1, show_colorbar=False, show_scalebar=False, show_title=False)
-            # regions_covering.masks.plot(fill_colors=None, outline_colors='w', ax=ax1)
-            plt.suptitle(f'flip = {flip}')
-            l_x = (200, 450)
-            l_y = (30, 130)
-            ax0.set_ylim(l_y)
-            ax1.set_ylim(l_y)
-            ax0.set_xlim(l_x)
-            ax1.set_xlim(l_x)
-            plt.show()
+            if False or sample_name == 'b3-LWF-17-12hpa':
+                fig = plt.figure()
+                ax0, ax1 = ImageGrid(fig, 111, nrows_ncols=(2, 1), axes_pad=0.1)
+                ax0.sharex(ax1)
+                # fig.subplots_adjust(hspace=0.20)
+                s["tomo-seq"]["image"].plot(ax=ax0)
+                ax0.axvline(x=pixel_boundaries[sample_name][0], c='r', linestyle='--')
+                ax0.axvline(x=pixel_boundaries[sample_name][1], c='r', linestyle='--')
+                ax0.set_title(sample_name)
+                s["tomo-seq"]["expression"].plot(11, ax=ax1, show_colorbar=False, show_scalebar=False, show_title=False)
+                # regions_covering.masks.plot(fill_colors=None, outline_colors='w', ax=ax1)
+                plt.suptitle(f'flip = {flip}')
+                # l_x = (200, 450)
+                # l_y = (30, 130)
+                # ax0.set_ylim(l_y)
+                # ax1.set_ylim(l_y)
+                # ax0.set_xlim(l_x)
+                # ax1.set_xlim(l_x)
+                plt.show()
             ##
-            fig, ax = plt.subplots(1)
-            s["tomo-seq"]["image"].plot(ax=ax)
-            ax.axvline(x=pixel_boundaries[sample_name][0], c='r', linestyle='--')
-            ax.axvline(x=pixel_boundaries[sample_name][1], c='r', linestyle='--')
-            s["tomo-seq"]["expression"].plot(11, ax=ax, show_colorbar=False, show_scalebar=False, alpha=0.5)
-            # regions_covering.masks.plot(fill_colors=None, outline_colors='w', ax=ax1)
-            # plt.xlim((150, 600))
-            plt.show()
-            print('')
+            if False:
+                fig, ax = plt.subplots(1)
+                s["tomo-seq"]["image"].plot(ax=ax)
+                ax.axvline(x=pixel_boundaries[sample_name][0], c='r', linestyle='--')
+                ax.axvline(x=pixel_boundaries[sample_name][1], c='r', linestyle='--')
+                s["tomo-seq"]["expression"].plot(11, ax=ax, show_colorbar=False, show_scalebar=False, alpha=0.5)
+                # regions_covering.masks.plot(fill_colors=None, outline_colors='w', ax=ax1)
+                # plt.xlim((150, 600))
+                plt.show()
+                print('')
             pass
 
 
@@ -226,7 +238,7 @@ if True:
 ##
 # outfile = os.path.join(root, "smu", f"{sample_name}.h5smu")
 # s = smu.SpatialMuData(outfile, backingmode="w")
-if True:
+if False:
     l = os.listdir(os.path.join(root, 'smu'))
     n = len(l)
     fig, axes = plt.subplots(5, 4, figsize=(20, 20))
@@ -253,3 +265,69 @@ if True:
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.show()
     pass
+
+##
+img_name = 'MAX_20210830_HCR_sample2_C1and9_003.lif - TileScan 001_TileScan_001_Merging.png'
+img = np.array(Image.open(os.path.join(root, 'raw/single_molecule', img_name)))
+img = np.fliplr(img)
+sample_name = 'b3-LWF-17-12hpa'
+
+raster = smu.Raster(X=img)
+# plt.imshow(img)
+# plt.show()
+
+s = smu.SpatialMuData(os.path.join(root, f'smu/{sample_name}.h5smu'))
+x0 = manual_alignments[sample_name][0]
+x1 = manual_alignments[sample_name][1]
+new_anchor = raster.anchor.map_untransformed_to_untransformed_fov(s['tomo-seq']['image'], source_points=np.array([
+    [155, 0],
+    [2690, 0]
+]), target_points=np.array([
+    [x0, 0],
+    [x1, 0]
+]))
+raster._anchor = new_anchor
+
+mask = np.array(Image.open(os.path.join(root, 'raw/single_molecule/mask.png')))
+mask[mask != 255] = 0
+mask = mask[:, :, 3]
+raster_mask = smu.RasterMasks(mask=mask)
+regions = smu.Regions(masks=raster_mask, anchor=new_anchor)
+
+s_fish = smu.SpatialMuData(os.path.join(root, 'smu/fish.h5smu'), backingmode='w')
+s_fish['fish'] = smu.SpatialModality()
+s_fish['fish']['image'] = raster
+if 'covered' in s_fish['fish']:
+    del s_fish['fish']['covered']
+s_fish['fish']['covered'] = regions
+s_fish
+##
+import pandas as pd
+df0 = pd.read_csv(os.path.join(root, 'raw/single_molecule/foot_gene_highlight.csv'))
+# hard coded, maybe better to have a convenience function to show this from the data
+half_slice = 2.5
+df0['coord'] = df0.pos.apply(lambda x: x0 + half_slice + (x1 - x0 - 2 * half_slice) * (x - 1) / 57)
+df0
+##
+fig = plt.figure()
+ax0, ax1, ax2 = ImageGrid(fig, 111, nrows_ncols=(3, 1), axes_pad=0.1)
+ax1.sharex(ax0)
+ax2.sharex(ax0)
+s["tomo-seq"]["image"].plot(ax=ax0)
+# ax0.axvline(x=x0, c='r', linestyle='--')
+# ax0.axvline(x=x1, c='r', linestyle='--')
+ax0.set_title(sample_name)
+s_fish["fish"]["image"].plot(ax=ax1, show_colorbar=False, show_scalebar=False, show_title=False)
+x = s_fish['fish']['covered'].masks.data
+boolean_mask = x == 255
+contours = skimage.measure.find_contours(boolean_mask, 0.7)
+for contour in contours:
+    contour = np.fliplr(contour)
+    transformed = s_fish['fish']['covered'].anchor.transform_coordinates(contour)
+    ax1.plot(transformed[:, 0], transformed[:, 1], linewidth=1, color='gray', linestyle='--')
+s["tomo-seq"]["expression"].plot(6, ax=ax2, show_colorbar=False)
+ax2.plot(df0['coord'].to_numpy(), df0['expr'].to_numpy()[::-1] * 100, '-', c='w')
+# ax0.set_xlim((x0, x1))
+plt.show()
+print('')
+pass

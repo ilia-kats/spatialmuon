@@ -1000,19 +1000,22 @@ class RasterMasks(Masks):
 
         if type(fov) == "Regions":
             raise NotImplementedError()
-        x = fov.X
+        x = fov.X[...]
+        x = x.astype(np.float32)
         if type(fov) == "Raster" and len(x.shape) != 3:
             raise NotImplementedError()
         ome = np.require(x, requirements=["C"])
         vigra_ome = vigra.taggedView(ome, "xyc")
         masks = self.data
         masks = masks.astype(np.uint32)
+        ##
         features = vigra.analysis.extractRegionFeatures(
             vigra_ome,
             labels=masks,
             ignoreLabel=0,
             features=["Count", "Maximum", "Mean", "Sum", "Variance", "RegionCenter"],
         )
+        ##
         features = {k: v for k, v in features.items()}
         masks_with_obs = copy.copy(self)
         original_labels = masks_with_obs.obs["original_labels"].to_numpy()

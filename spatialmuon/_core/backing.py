@@ -102,7 +102,6 @@ class BackedDictProxy(UserDict):
 
         self._key = key
         self.validatefun = validatefun
-        self._grp = None
 
         for k, v in items.items():
             self.__setitem__(k, v)
@@ -117,28 +116,29 @@ class BackedDictProxy(UserDict):
     def backing(self):
         pass
 
-    def _initgrp(self):
-        if self._grp is None:
-            if self._key is not None:
-                self._grp = self.backing.require_group(self._key)
-            else:
-                self._grp = self.backing
+    @property
+    def grp(self):
+        if self._key is not None:
+            return self.backing.require_group(self._key)
+        else:
+            return self.backing
 
     def __setitem__(self, key: str, value: BackableObject):
+        super().__setitem__(key, value)
         if self.validatefun is not None:
             valid = self.validatefun(self, key, value)
             if valid is not None:
                 raise ValueError(valid)
         if self.is_backed:
-            self._initgrp()
-            if key in self._grp and value.backing != self._grp[key] or key not in self._grp:
-                value.set_backing(self._grp, key)
+            if key not in self.grp:
+                value.set_backing(self.grp, key)
         else:
-            print("to set a breakpoint and study the code")
-        super().__setitem__(key, value)
+            # only the python dict (the superclass) is updated, not the file; the file gets updated in the case
+            # in which this object (or a parent object invoking the backing downstream) is assigned to a
+            # parent object that is backed
+            pass
 
     def __delitem__(self, key: str):
         super().__delitem__(key)
         if self.is_backed:
-            self._initgrp()
-            del self._grp[key]
+            del self.grp[key]

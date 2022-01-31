@@ -55,18 +55,19 @@ def create_smu_files(hires_images=False):
 
             source_points = None
             target_points = None
-            if sample == '152807':
+            if sample == "152807":
                 source_points = np.array([[4675, 19252], [26610, 36954]])
                 target_points = np.array([[172, 695], [913, 1294]])
 
             assert source_points is not None and target_points is not None
             anchor = spatialmuon.Anchor.map_untransformed_to_untransformed_fov(
-                s["visium"]["image"],
-                source_points=source_points,
-                target_points=target_points
+                s["visium"]["image"], source_points=source_points, target_points=target_points
             )
-            raster = spatialmuon.Raster(X=hires, coordinate_unit=ss[sample]['visium']['image'].coordinate_unit,
-                                        anchor=anchor)
+            raster = spatialmuon.Raster(
+                X=hires,
+                coordinate_unit=ss[sample]["visium"]["image"].coordinate_unit,
+                anchor=anchor,
+            )
             ss[sample]["visium"]["hires_image"] = raster
             # print(f'writing the image: {time.time() - start}')
 

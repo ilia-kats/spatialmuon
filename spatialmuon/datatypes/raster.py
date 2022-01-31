@@ -72,7 +72,7 @@ class Raster(FieldOfView):
 
     @property
     def X(self) -> Union[np.ndarray, h5py.Dataset]:
-        if self.isbacked:
+        if self.is_backed:
             return self.backing["X"]
         else:
             return self._X
@@ -195,7 +195,7 @@ class Raster(FieldOfView):
             # self._X = None
         else:
             print("who is calling me?")
-            assert self.isbacked
+            assert self.is_backed
 
     def _write(self, grp):
         super()._write(grp)

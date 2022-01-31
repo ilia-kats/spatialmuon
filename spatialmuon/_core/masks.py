@@ -312,7 +312,7 @@ class ShapeMasks(Masks, MutableMapping):
 
         # radius is either one number, either a 1d vector either the same shape as the centers
 
-        if self.isbacked:
+        if self.is_backed:
             if (
                 masks_centers is not None
                 or masks_radii is not None
@@ -390,7 +390,7 @@ class ShapeMasks(Masks, MutableMapping):
 
     def __getitem__(self, key) -> Polygon:
         raise NotImplementedError()
-        # if self.isbacked:
+        # if self.is_backed:
         #     return (self.backing[key]["center"], self.backing[key]["radius"])
         # else:
         #     return self._data[key]
@@ -399,7 +399,7 @@ class ShapeMasks(Masks, MutableMapping):
         raise NotImplementedError()
         # if self.ndim is not None and self.ndim != len(value[0]):
         #     raise ValueError(f"value must have dimensionality {self.ndim}, but has {len(value[0])}")
-        # if self.isbacked:
+        # if self.is_backed:
         #     grp = self.backing.create_group(key)
         #     grp.create_dataset("center", data=value[0])
         #     grp.create_dataset("radius", data=np.array([value[1]]))
@@ -408,7 +408,7 @@ class ShapeMasks(Masks, MutableMapping):
 
     def __delitem__(self, key: str):
         raise NotImplementedError()
-        # if self.isbacked:
+        # if self.is_backed:
         #     del self.backing[key]
         # else:
         #     del self._data[key]
@@ -416,21 +416,21 @@ class ShapeMasks(Masks, MutableMapping):
     def __len__(self):
         assert self._masks_centers is not None
         return len(self._masks_centers)
-        # if self.isbacked:
+        # if self.is_backed:
         #     return len(self.backing)
         # else:
         #     return len(self._data)
 
     def __contains__(self, item):
         raise NotImplementedError()
-        # if self.isbacked:
+        # if self.is_backed:
         #     return item in self.backing
         # else:
         #     return item in self._data
 
     def __iter__(self):
         raise NotImplementedError()
-        # if self.isbacked:
+        # if self.is_backed:
         #     return iter(self.backing)
         # else:
         #     return iter(self._data)
@@ -474,7 +474,7 @@ class ShapeMasks(Masks, MutableMapping):
             self._write(grp)
         else:
             print("who is calling me?")
-            assert self.isbacked
+            assert self.is_backed
 
     def _write(self, grp: h5py.Group):
         super()._write(grp)
@@ -543,7 +543,7 @@ class PolygonMasks(Masks, MutableMapping):
         # TODO: define private variables
         # TODO: check lenghts are ok
 
-        if self.isbacked:
+        if self.is_backed:
             if masks is not None or masks_labels is not None:
                 raise ValueError("attempting to specify masks for a non-empty backing storage")
             else:
@@ -554,7 +554,7 @@ class PolygonMasks(Masks, MutableMapping):
             pass
 
         # if masks is not None:
-        #     if self.isbacked and len(self.backing) > 0:
+        #     if self.is_backed and len(self.backing) > 0:
         #         raise ValueError("trying to set masks on a non-empty backing store")
         #     for key, mask in masks:
         #         if isinstance(mask, Polygon):
@@ -575,14 +575,14 @@ class PolygonMasks(Masks, MutableMapping):
 
     def __getitem__(self, key) -> Polygon:
         raise NotImplementedError()
-        # if self.isbacked:
+        # if self.is_backed:
         #     return Polygon(self.backing[key][:])
         # else:
         #     return self._data[key]
 
     def __setitem__(self, key: str, value: Union[np.ndarray, Polygon]):
         raise NotImplementedError()
-        # if self.isbacked:
+        # if self.is_backed:
         #     if isinstance(value, Polygon):
         #         value = np.asarray(value.exterior.coords)
         #     else:
@@ -604,7 +604,7 @@ class PolygonMasks(Masks, MutableMapping):
 
     def __delitem__(self, key: str):
         raise NotImplementedError()
-        # if self.isbacked:
+        # if self.is_backed:
         #     del self.backing[key]
         # else:
         #     del self._data[key]
@@ -615,14 +615,14 @@ class PolygonMasks(Masks, MutableMapping):
 
     def __contains__(self, item):
         raise NotImplementedError()
-        # if self.isbacked:
+        # if self.is_backed:
         #     return item in self.backing
         # else:
         #     return item in self._data
 
     def __iter__(self):
         raise NotImplementedError()
-        # if self.isbacked:
+        # if self.is_backed:
         #     return iter(self.backing)
         # else:
         #     return iter(self._data)
@@ -673,7 +673,7 @@ class MeshMasks(Masks, MutableMapping):
         super().__init__(backing)
         self._data = {}
         if masks is not None:
-            if self.isbacked and len(self.backing) > 0:
+            if self.is_backed and len(self.backing) > 0:
                 raise ValueError("trying to set masks on a non-empty backing store")
             self.update(masks)
 
@@ -682,7 +682,7 @@ class MeshMasks(Masks, MutableMapping):
         return 3
 
     def __getitem__(self, key) -> Trimesh:
-        if self.isbacked:
+        if self.is_backed:
             return Trimesh(
                 vertices=self.backing[key]["vertices"][()], faces=self.backing[key]["faces"][()]
             ).fix_normals()
@@ -690,7 +690,7 @@ class MeshMasks(Masks, MutableMapping):
             return self._data[key]
 
     def __setitem__(self, key: str, value: Union[Trimesh, tuple[np.ndarray, np.ndarray]]):
-        if self.isbacked:
+        if self.is_backed:
             if isinstance(value, Trimesh):
                 vertices = value.vertices
                 faces = value.faces
@@ -718,25 +718,25 @@ class MeshMasks(Masks, MutableMapping):
             )
 
     def __delitem__(self, key: str):
-        if self.isbacked:
+        if self.is_backed:
             del self.backing[key]
         else:
             del self._data[key]
 
     def __len__(self):
-        if self.isbacked:
+        if self.is_backed:
             return len(self.backing)
         else:
             return len(self._data)
 
     def __contains__(self, item):
-        if self.isbacked:
+        if self.is_backed:
             return item in self._backing
         else:
             return item in self._data
 
     def __iter__(self):
-        if self.isbacked:
+        if self.is_backed:
             return iter(self.backing)
         else:
             return iter(self._data)
@@ -793,7 +793,7 @@ class RasterMasks(Masks):
         super().__init__(backing=backing)
         self._mask = None
 
-        if self.isbacked:
+        if self.is_backed:
             if mask is not None:
                 if self.backing.size > 0:
                     raise ValueError("attempting to set masks on a non-empty backing store")
@@ -871,7 +871,7 @@ class RasterMasks(Masks):
 
     @property
     def data(self) -> Union[np.ndarray, h5py.Dataset]:
-        if self.isbacked:
+        if self.is_backed:
             return self.backing["imagemask"][...]
         else:
             return self._mask
@@ -936,7 +936,7 @@ class RasterMasks(Masks):
             # self._mask = None
         else:
             print("who is calling me?")
-            assert self.isbacked
+            assert self.is_backed
 
     def _write(self, grp: h5py.Group):
         grp.create_dataset("imagemask", data=self._mask, compression="gzip", compression_opts=9)
@@ -1020,7 +1020,6 @@ class RasterMasks(Masks):
         # return original_labels, x, y
         return x, y
 
-
     def accumulate_features(self, fov: Union["Raster", "Regions"]):
         from spatialmuon.datatypes.regions import Regions
 
@@ -1067,7 +1066,7 @@ class RasterMasks(Masks):
 
     def extract_tiles(self, raster: "Raster", tile_dim: int):
         DEBUG_WITH_PLOTS = False
-        mask_labels = set(self.obs['original_labels'].to_list())
+        mask_labels = set(self.obs["original_labels"].to_list())
         ome = raster.X
         # here I need to find the bounding box from the masks and extract the pixels below
         real_labels = set(np.unique(self.data).tolist())

@@ -54,19 +54,17 @@ class Anchor_TestClass(unittest.TestCase):
     def test_compute_alignment_translation_scale(self):
         ##
         des = np.zeros((100, 100, 3), dtype=np.float)
-        des[60:, 80:, :] = np.array([1., 0., 0.])
+        des[60:, 80:, :] = np.array([1.0, 0.0, 0.0])
         des_anchor = Anchor(origin=np.array([50, 50]), vector=np.array([2, 0]))
         des_fov = spatialmuon.Raster(X=des, anchor=des_anchor)
 
         src = np.ones((60, 30, 3), dtype=np.float)
-        src[:, :, np.array([0, 2])] = 0.
-        src_anchor = Anchor.map_untransformed_to_untransformed_fov(des_fov, source_points=np.array([
-            [15, 30],
-            [30, 60]
-        ]), target_points=np.array([
-            [90, 80],
-            [100, 100]
-        ]))
+        src[:, :, np.array([0, 2])] = 0.0
+        src_anchor = Anchor.map_untransformed_to_untransformed_fov(
+            des_fov,
+            source_points=np.array([[15, 30], [30, 60]]),
+            target_points=np.array([[90, 80], [100, 100]]),
+        )
         src_fov = spatialmuon.Raster(X=src, anchor=src_anchor)
         _, (ax0, ax1) = plt.subplots(1, 2)
         des_fov.plot(ax=ax0)

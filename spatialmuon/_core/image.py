@@ -32,7 +32,7 @@ class Image(BackableObject):
         self._translation = None
         self._images = {}
 
-        if self.isbacked:
+        if self.is_backed:
             resolutions = []
             for img in self.backing.values():
                 resolutions.append([img.shape[1], img.shape[0]])
@@ -86,7 +86,7 @@ class Image(BackableObject):
             self._pxdim = px_dimensions
             self._rotation = rotation
             self._translation = translation
-            if self.isbacked:
+            if self.is_backed:
                 self._write(self.backing)
                 self._write_attributes(self.backing)
             else:
@@ -113,7 +113,7 @@ class Image(BackableObject):
             else:
                 pass  # TODO
         else:
-            if self.isbacked:
+            if self.is_backed:
                 res = self._available_resolutions[idx[0], :]
                 return self.backing[f"{res[0]}x{res[1]}"][:]
             else:
@@ -143,7 +143,7 @@ class Image(BackableObject):
     def _set_backing(self, obj: Optional[h5py.Group]):
         if obj is not None:
             self._write(obj)
-        elif self.isbacked:
+        elif self.is_backed:
             for img in self.backing:
                 self._images[(img.shape[1], img.shape[0])] = img[:]
 

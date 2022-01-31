@@ -39,8 +39,8 @@ def regions_raster_plot(
     show_colorbar: bool = True,
     show_scalebar: bool = True,
     suptitle: Optional[str] = None,
-    alpha: float = 1.,
-    bounding_box: Optional[dict] = None
+    alpha: float = 1.0,
+    bounding_box: Optional[dict] = None,
 ):
     if not (isinstance(channels, list) or isinstance(channels, str) or isinstance(channels, int)):
         raise ValueError(
@@ -162,7 +162,7 @@ def regions_raster_plot(
             cmap=cmap,
             ax=axs,
             alpha=alpha,
-            bounding_box=bounding_box
+            bounding_box=bounding_box,
         )
         if show_title:
             if method == "overlap":
@@ -179,7 +179,7 @@ def regions_raster_plot(
             else:
                 raise ValueError()
             axs.set_title(title)
-        if show_legend and not (method == 'rgba' and isinstance(instance, spatialmuon.Raster)):
+        if show_legend and not (method == "rgba" and isinstance(instance, spatialmuon.Raster)):
             _legend = []
             if method == "overlap":
                 for idx, c in enumerate(cmap):

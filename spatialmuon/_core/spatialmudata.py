@@ -56,7 +56,7 @@ class SpatialMuData(BackableObject, BackedDictProxy):
                 backing = h5py.File(backing, "r+")
 
         super().__init__(backing, key="mod", items=modalities)
-        if self.isbacked:
+        if self.is_backed:
             for m, mod in self.backing["mod"].items():
                 self[m] = SpatialModality(backing=mod)
         elif modalities is not None:

@@ -116,7 +116,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
             center_to_center = 25.411068101069596
             radius = center_to_center * 55 / 100 / 2
             coords = coords * meta["tissue_hires_scalef"]
-            anchor = spatialmuon.Anchor(vector=np.array([center_to_center / 100, 0.]))
+            anchor = spatialmuon.Anchor(vector=np.array([center_to_center / 100, 0.0]))
 
             # the samples are offset by 10 μm in the Z axis according to the paper
             # I have no idea how much that is in pixels
@@ -126,13 +126,17 @@ with tempfile.TemporaryDirectory() as tmpdir:
                 masks_shape="circle", masks_centers=coords, masks_radii=radius, masks_labels=labels
             )
             # scale = 6.698431978755106
-            cfov = spatialmuon.Regions(X=X, var=var, masks=masks, anchor=anchor, coordinate_unit="um")
+            cfov = spatialmuon.Regions(
+                X=X, var=var, masks=masks, anchor=anchor, coordinate_unit="um"
+            )
             modality[fovname] = cfov
 
             img = Image.open(os.path.join(cdir, "spatial", "tissue_hires_image.png"))
             hires_img = np.asarray(img)
             img.close()
-            modality[f"{fovname}H&E"] = spatialmuon.Raster(X=hires_img, anchor=anchor, coordinate_unit='um')
+            modality[f"{fovname}H&E"] = spatialmuon.Raster(
+                X=hires_img, anchor=anchor, coordinate_unit="um"
+            )
             # cfov.images["H&E"] = spatialmuon.Image(image=hires_img)
 
             pbar.update()

@@ -41,7 +41,7 @@ class Converter:
         return res
 
     def regions_to_anndata(self, regions: spatialmuon.datatypes.regions.Regions) -> anndata.AnnData:
-        var = regions.var.set_index('channel_name')
+        var = regions.var.set_index("channel_name")
         adata = anndata.AnnData(X=regions.X, var=var)
         coords = regions.masks.obs[["region_center_y", "region_center_x"]].to_numpy()
         adata.obsm["spatial"] = coords
@@ -53,10 +53,10 @@ class Converter:
         assert os.path.isdir(path)
         # visium_dir = os.path.join(path, 'outs')
         visium_dir = path
-        count_matrix_file = os.path.join(visium_dir, 'filtered_feature_bc_matrix.h5')
-        image_file = os.path.join(visium_dir, 'spatial/tissue_hires_image.png')
-        coords_file = os.path.join(visium_dir, 'spatial/tissue_positions_list.csv')
-        scale_factors_file = os.path.join(visium_dir, 'spatial/scalefactors_json.json')
+        count_matrix_file = os.path.join(visium_dir, "filtered_feature_bc_matrix.h5")
+        image_file = os.path.join(visium_dir, "spatial/tissue_hires_image.png")
+        coords_file = os.path.join(visium_dir, "spatial/tissue_positions_list.csv")
+        scale_factors_file = os.path.join(visium_dir, "spatial/scalefactors_json.json")
         for f in [count_matrix_file, image_file, coords_file, scale_factors_file]:
             assert os.path.isfile(f)
 
@@ -91,9 +91,9 @@ class Converter:
                     "pxl_row_in_fullres",
                 ),
             )
-                .set_index("barcode")
-                .loc[barcodes]
-                .drop("in_tissue", axis=1)
+            .set_index("barcode")
+            .loc[barcodes]
+            .drop("in_tissue", axis=1)
         )
         coords = tissue_positions[["pxl_row_in_fullres", "pxl_col_in_fullres"]].to_numpy()
         obs = tissue_positions.drop(["pxl_row_in_fullres", "pxl_col_in_fullres"], axis=1)
@@ -103,9 +103,9 @@ class Converter:
 
         # center_to_center = meta['spot_diameter_fullres'] / 55 * 100 * meta['tissue_hires_scalef']
         # radius = center_to_center * 55 / 100 / 2
-        radius = meta['spot_diameter_fullres'] * meta['tissue_hires_scalef'] / 2
+        radius = meta["spot_diameter_fullres"] * meta["tissue_hires_scalef"] / 2
         coords = coords * meta["tissue_hires_scalef"]
-        anchor = spatialmuon.Anchor(vector=np.array([radius / (55 / 2), 0.]))
+        anchor = spatialmuon.Anchor(vector=np.array([radius / (55 / 2), 0.0]))
 
         # the samples are offset by 10 μm in the Z axis according to the paper
         # I have no idea how much that is in pixels
@@ -115,16 +115,20 @@ class Converter:
             masks_shape="circle", masks_centers=coords, masks_radii=radius, masks_labels=labels
         )
         # scale = 6.698431978755106
-        cfov = spatialmuon.datatypes.regions.Regions(X=X, var=var, masks=masks, anchor=anchor, coordinate_unit='um')
-        modality['expression'] = cfov
+        cfov = spatialmuon.datatypes.regions.Regions(
+            X=X, var=var, masks=masks, anchor=anchor, coordinate_unit="um"
+        )
+        modality["expression"] = cfov
 
         img = Image.open(os.path.join(image_file))
         hires_img = np.asarray(img)
         img.close()
         if np.min(hires_img) < 0 or np.max(hires_img) > 1:
-            assert hires_img.dtype == np.dtype('uint8')
+            assert hires_img.dtype == np.dtype("uint8")
             hires_img = hires_img / 255
-        modality[f"image"] = spatialmuon.datatypes.raster.Raster(X=hires_img, anchor=anchor, coordinate_unit='um')
+        modality[f"image"] = spatialmuon.datatypes.raster.Raster(
+            X=hires_img, anchor=anchor, coordinate_unit="um"
+        )
         return modality
 
         # outfname = os.path.join(path, 'visium.h5smu')
@@ -136,14 +140,16 @@ class Converter:
         # smudata["visium"] = modality
         # return smudata
 
-if __name__ == '__main__':
-    f = '/Users/macbook/temp'
+
+if __name__ == "__main__":
+    f = "/Users/macbook/temp"
     modality = Converter().read_visium10x(f)
-    smu = spatialmuon.SpatialMuData('/Users/macbook/temp/test.h5smu', backingmode='w')
+    smu = spatialmuon.SpatialMuData("/Users/macbook/temp/test.h5smu", backingmode="w")
     import matplotlib.pyplot as plt
+
     plt.figure(figsize=(20, 20))
     ax = plt.gca()
-    smu['visium'] = modality
-    smu['visium']['image'].plot(ax=ax, alpha=0.4)
-    smu['visium']['expression'].plot(0, ax=ax)
+    smu["visium"] = modality
+    smu["visium"]["image"].plot(ax=ax, alpha=0.4)
+    smu["visium"]["expression"].plot(0, ax=ax)
     plt.show()

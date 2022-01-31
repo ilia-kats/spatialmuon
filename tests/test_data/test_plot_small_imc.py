@@ -141,7 +141,7 @@ class PlotSmallImc_TestClass(unittest.TestCase):
         feature = "mean"
         fig, ax = plt.subplots(1)
         d["imc"][feature].plot(channels=0, preprocessing=np.arcsinh, suptitle=feature, ax=ax)
-        d['imc']['masks'].masks.plot(fill_colors=None, outline_colors='k', ax=ax)
+        d["imc"]["masks"].masks.plot(fill_colors=None, outline_colors="k", ax=ax)
         plt.show()
         for k in accumulated.keys():
             del d["imc"][k]

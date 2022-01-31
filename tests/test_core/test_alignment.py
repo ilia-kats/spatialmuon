@@ -14,11 +14,11 @@ fpath = test_data_dir / "scaled_visium.h5smu"
 class Alignment_TestClass(unittest.TestCase):
     def test_plot(self):
         s = spatialmuon.SpatialMuData(fpath)
-        s['visium']['expression'].plot(99)
-        s['visium']['image'].plot()
-        s['visium']['image2x'].plot()
-        s['visium']['image_crop'].plot()
-        s['visium']['image2x_crop'].plot()
+        s["visium"]["expression"].plot(99)
+        s["visium"]["image"].plot()
+        s["visium"]["image2x"].plot()
+        s["visium"]["image_crop"].plot()
+        s["visium"]["image2x_crop"].plot()
         pass
 
 

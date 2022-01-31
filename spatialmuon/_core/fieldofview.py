@@ -116,7 +116,7 @@ class FieldOfView(BackableObject, BoundingBoxable):
         #     self._write(grp)
         # else:
         #     print('who is calling me?')
-        #     assert self.isbacked
+        #     assert self.is_backed
 
     # in classes inherithing from FieldOfView, this function is the only thing called in __init__() before calling
     # super().__init__(). This becase the __init__() in FieldOfView needs to know which is the dimensionality of the
@@ -236,7 +236,7 @@ class FieldOfView(BackableObject, BoundingBoxable):
         # print(f'new_xlim = {new_xlim}, new_ylim = {new_ylim}')
         # pass
 
-    def set_lims_to_bounding_box(self, bb: BoundingBox=None, ax=None):
+    def set_lims_to_bounding_box(self, bb: BoundingBox = None, ax=None):
         if ax is None:
             ax = plt.gca()
         if bb is None:

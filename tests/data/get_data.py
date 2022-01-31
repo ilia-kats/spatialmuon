@@ -51,9 +51,9 @@ def get_small_imc_aligned():
         data = data[np.ix_(*[range(0, i, 2) for i in data.shape])]
         assert data.shape == (20, 30)
         d["imc"]["masks"].masks._mask = data
-        d['imc']['masks'].masks._obs = None
-        d['imc']['masks'].masks._backing = None
-        d['imc']['masks'].masks.update_obs_from_masks()
+        d["imc"]["masks"].masks._obs = None
+        d["imc"]["masks"].masks._backing = None
+        d["imc"]["masks"].masks.update_obs_from_masks()
         new_regions = copy.copy(d["imc"]["masks"])
         del d["imc"]["masks"]
         d["imc"]["masks"] = new_regions

@@ -60,4 +60,3 @@ def plot_channel_raster(
     im = ax.imshow(x, alpha=alpha, cmap=cmap, **kwargs)
 
     return im
-

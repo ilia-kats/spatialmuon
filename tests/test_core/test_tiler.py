@@ -31,6 +31,10 @@ class Tiler_TestClass(unittest.TestCase):
         print("oooo")
 
     def test_can_create_tiles_from_shape_masks(self):
+        self.skipTest(
+            "not implemented"
+        )
+        return
         d = spatialmuon.SpatialMuData(backing=fpath_visium)
         raster = d["visium"]["image"]
         masks = d["visium"]["expression"].masks

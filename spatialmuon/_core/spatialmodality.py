@@ -16,7 +16,7 @@ class SpatialModality(BackableObject, BackedDictProxy):
         fovs: Optional[dict] = None,
     ):
         super().__init__(backing)
-        if self.isbacked:
+        if self.is_backed:
             for f, fov in self.backing.items():
                 try:
                     self[f] = FieldOfView(backing=fov)

@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
+
 # from ncls import NCLS
 from trimesh import Trimesh
 import h5py
@@ -64,7 +65,7 @@ class SingleMolecule(FieldOfView):
     # flake8: noqa: C901
     def _data_subset(self, yidx=None, genes=None):
         # only works with list[int] and 1D arrays at the moment
-        if self.isbacked:
+        if self.is_backed:
             if yidx is None:
                 if genes is not None:
                     if isinstance(genes, str):
@@ -172,7 +173,7 @@ class SingleMolecule(FieldOfView):
             # self._data = None
         else:
             print("who is calling me?")
-            assert self.isbacked
+            assert self.is_backed
             # self._data = self.data
             # self._index.set_backing(None)
 

@@ -62,13 +62,14 @@ class PyramidContainer:
 if __name__ == "__main__":
     large_img = "/data/spatialmuon/datasets/visium_endometrium/raw/hires_images/152806_40x_highest_res_image.jpg"
     PIL.Image.MAX_IMAGE_PIXELS = 5000000000
-    print('loading a large image... ', end='')
+    print("loading a large image... ", end="")
     im = PIL.Image.open(large_img)
     array = np.array(im)
-    print('done')
+    print("done")
     ##
     import spatialmuon as smu
-    with h5py.File('/data/l989o/temp/big_fov.h5smu', 'w') as f5:
+
+    with h5py.File("/data/l989o/temp/big_fov.h5smu", "w") as f5:
         s = smu.Raster(X=array, backing=f5)
         pass
     ##

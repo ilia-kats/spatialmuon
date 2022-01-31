@@ -416,7 +416,7 @@ class Anchor(BackableObject):
         scale_factor = n_src / n_des
 
         cos = np.dot(v_src, v_des) / (n_src * n_des)
-        sin = (v_src[0] * v_des[1] - v_src[1] * v_des[0])  / (n_src * n_des)
+        sin = (v_src[0] * v_des[1] - v_src[1] * v_des[0]) / (n_src * n_des)
         assert np.isclose(cos * cos + sin * sin, 1)
         rotation_vector = np.array([cos, sin])
         translation_vector = des_a - src_a / scale_factor

@@ -491,6 +491,8 @@ class ShapeMasks(Masks, MutableMapping):
         raise NotImplementedError()
 
     def extract_tiles(self, raster: "Raster", tile_dim: int):
+        ome = raster.X
+
         raise NotImplementedError()
 
     def _plot(
@@ -996,6 +998,29 @@ class RasterMasks(Masks):
                     transformed = self.anchor.transform_coordinates(contour)
                     ax.plot(transformed[:, 0], transformed[:, 1], linewidth=1, color=outline_color)
 
+    def compute_centers(self):
+        masks = self.data
+        masks = masks.astype(np.uint32)
+        ome = np.require(np.zeros_like(masks)[..., np.newaxis], requirements=["C"])
+        vigra_ome = vigra.taggedView(ome, "xyc")
+        ##
+        features = vigra.analysis.extractRegionFeatures(
+            vigra_ome,
+            labels=masks,
+            ignoreLabel=0,
+            features=["RegionCenter"],
+        )
+        ##
+        features = {k: v for k, v in features.items()}
+        masks_with_obs = copy.copy(self)
+        original_labels = masks_with_obs.obs["original_labels"].to_numpy()
+        x = features["RegionCenter"][original_labels, 1]
+        y = features["RegionCenter"][original_labels, 0]
+        # original_labels = self.obs["original_labels"].to_numpy()
+        # return original_labels, x, y
+        return x, y
+
+
     def accumulate_features(self, fov: Union["Raster", "Regions"]):
         from spatialmuon.datatypes.regions import Regions
 
@@ -1024,8 +1049,8 @@ class RasterMasks(Masks):
             "region_center_x" not in masks_with_obs.obs
             and "region_center_y" not in masks_with_obs.obs
         ):
-            masks_with_obs.obs["region_center_x"] = features["RegionCenter"][original_labels, 0]
-            masks_with_obs.obs["region_center_y"] = features["RegionCenter"][original_labels, 1]
+            masks_with_obs.obs["region_center_x"] = features["RegionCenter"][original_labels, 1]
+            masks_with_obs.obs["region_center_y"] = features["RegionCenter"][original_labels, 0]
         if "count" not in masks_with_obs.obs:
             masks_with_obs.obs["count"] = features["Count"][original_labels]
         d = {}
@@ -1042,11 +1067,9 @@ class RasterMasks(Masks):
 
     def extract_tiles(self, raster: "Raster", tile_dim: int):
         DEBUG_WITH_PLOTS = False
-        accumulated = self.accumulate_features(raster)
-        obs = accumulated["mean"].obs
-        xy = obs[["region_center_x", "region_center_y"]].to_numpy()
-        m = raster.X[...]
-        mask_labels = set(obs["original_labels"].to_list())
+        mask_labels = set(self.obs['original_labels'].to_list())
+        ome = raster.X
+        # here I need to find the bounding box from the masks and extract the pixels below
         real_labels = set(np.unique(self.data).tolist())
         if 0 in real_labels:
             real_labels.remove(0)
@@ -1060,9 +1083,8 @@ class RasterMasks(Masks):
             desc="extracting tiles",
             total=len(mask_labels),
         ):
-            ome = m
             masks = self.data
-            center = xy[i, :]
+            # center = xy[i, :]
             # compute the bounding box of the mask
             z = masks == mask_label
             z_center = center_of_mass(z)

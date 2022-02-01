@@ -62,16 +62,23 @@ class SpatialMuData(BackableObject, BackedDictProxy):
         elif modalities is not None:
             self.update(modalities)
 
-    def _set_backing(self, grp: Union[None, h5py.Group]):
-        super()._set_backing(grp)
-        if grp is not None:
-            self._write_attributes(grp)
-            parent = grp.require_group("mod")
-            for m, mod in self.items():
-                mod.set_backing(parent, m)
-        else:
-            for mod in self.values():
-                mod.set_backing(None)
+    @property
+    def _backed_children(self) -> Dict[str, "BackableObject"]:
+        d = {}
+        for k, v in self.items():
+            d[k] = v
+        return d
+
+    # def _set_backing(self, grp: Union[None, h5py.Group]):
+    #     super()._set_backing(grp)
+    #     if grp is not None:
+    #         self._write_attributes(grp)
+    #         parent = grp.require_group("mod")
+    #         for m, mod in self.items():
+    #             mod.set_backing(parent, m)
+    #     else:
+    #         for mod in self.values():
+    #             mod.set_backing(None)
 
     @staticmethod
     def _encodingtype():
@@ -89,9 +96,10 @@ class SpatialMuData(BackableObject, BackedDictProxy):
         obj.attrs["encoder"] = "spatialmuon"
         obj.attrs["encoder-version"] = __version__
 
-    def _write(self, grp):
-        for m, mod in self.items():
-            mod.write(grp.require_group("mod"), m)
+    def _write_impl(self, grp):
+        pass
+        # for m, mod in self.items():
+        #     mod._write(grp.require_group("mod"), m)
 
     def __repr__(self):
         repr_str = "SpatialMuData object\n"

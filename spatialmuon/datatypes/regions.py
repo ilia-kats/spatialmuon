@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union, Literal, Callable
+from typing import Optional, Union, Literal, Callable, List, Dict
 from enum import Enum, auto
 import warnings
 
@@ -69,11 +69,11 @@ class Regions(FieldOfView):
             # self._index = SpatialIndex(
             #     backing=backing["index"], dimension=backing["coordinates"].shape[1], **index_kwargs
             # )
-            self.masks = Masks(backing=backing["masks"])
+            self['masks'] = Masks(backing=backing["masks"])
             attrs = backing.attrs
         else:
             self._X = X
-            self.masks = masks
+            self['masks'] = masks
             # self._index = SpatialIndex(coordinates=self._coordinates, **index_kwargs)
 
             # for key, mask in self.backing["masks"].items():
@@ -81,7 +81,7 @@ class Regions(FieldOfView):
 
         # we don't want to validate stuff coming from HDF5, this may break I/O
         # but mostly we can't validate for a half-initalized object
-        self.masks.validatefun = self.__validate_mask
+        # self.masks.validatefun = self.__validate_mask
 
     @staticmethod
     def __validate_mask(fov, key, mask):
@@ -166,6 +166,10 @@ class Regions(FieldOfView):
     def _encodingversion() -> str:
         return "0.1.0"
 
+    @property
+    def _backed_children(self) -> Dict["BackableObject"]:
+        return {'masks': self.masks}
+
     def _set_backing(self, grp: Optional[h5py.Group]):
         super()._set_backing(grp)
         if grp is not None:
@@ -173,7 +177,7 @@ class Regions(FieldOfView):
             # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
             # but to be safe let's set it to None explicity here
             self._backing = None
-            self._write(grp)
+            self._write_impl(grp)
             self.masks.set_backing(grp, "masks")
             # self._X = None
             # self._index.set_backing(grp, "index")
@@ -184,8 +188,8 @@ class Regions(FieldOfView):
             # self._index.set_backing(None)
             # self.masks.set_backing(None)
 
-    def _write(self, grp: h5py.Group):
-        super()._write(grp)
+    def _write_impl(self, grp: h5py.Group):
+        super()._write_impl(grp)
         if self._X is not None:
             if self.compressed_storage:
                 write_attribute(
@@ -197,7 +201,7 @@ class Regions(FieldOfView):
                 write_attribute(grp, "X", self._X)
                 # grp.create_dataset('X', data=self._X)
 
-        # self._index.write(grp, "index")
+        # self._index._write(grp, "index")
 
     def _write_attributes_impl(self, obj):
         pass

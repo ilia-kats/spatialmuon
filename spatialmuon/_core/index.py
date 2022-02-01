@@ -230,7 +230,7 @@ class SpatialIndex(BackableObject):
             self._write_attributes(value)
         self._storage.backing = value
 
-    def _write(self, grp):
+    def _write_impl(self, grp):
         self._storage.to_hdf5(grp)
 
     def set_coordinates(self, coordinates: np.ndarray, progressbar: bool = False, **kwargs):

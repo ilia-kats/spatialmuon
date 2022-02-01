@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union, Literal, Callable
+from typing import Optional, Union, Literal, Callable, List, Dict
 import warnings
 
 import math
@@ -184,21 +184,12 @@ class Raster(FieldOfView):
     def _encodingversion():
         return "0.1.0"
 
-    def _set_backing(self, grp: Optional[h5py.Group]):
-        super()._set_backing(grp)
-        if grp is not None:
-            assert isinstance(grp, h5py.Group)
-            # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
-            # but to be safe let's set it to None explicity here
-            self._backing = None
-            self._write(grp)
-            # self._X = None
-        else:
-            print("who is calling me?")
-            assert self.is_backed
+    @property
+    def _backed_children(self) -> Dict[str, "BackableObject"]:
+        return {}
 
-    def _write(self, grp):
-        super()._write(grp)
+    def _write_impl(self, grp):
+        super()._write_impl(grp)
         if self.compressed_storage:
             grp.create_dataset("X", data=self.X, compression="gzip", compression_opts=9)
         else:
@@ -206,10 +197,8 @@ class Raster(FieldOfView):
 
     def _write_attributes_impl(self, obj):
         super()._write_attributes_impl(obj)
-        if self._px_distance is not None:
-            obj.attrs["px_distance"] = self._px_distance
-        if self._px_dimensions is not None:
-            obj.attrs["px_dimensions"] = self._px_dimensions
+        obj.attrs["px_distance"] = self.px_distance
+        obj.attrs["px_dimensions"] = self.px_dimensions
 
     # TODO: this function shares code with Regions._plot_in_grid(), unify better at some point putting for instance
     #  the shared code in datatypes_utils.py

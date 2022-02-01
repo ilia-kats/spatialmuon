@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from importlib.metadata import entry_points
-from typing import Optional, Union, Literal
+from typing import Optional, Union, Literal, Dict
 import warnings
 import matplotlib.pyplot as plt
 
@@ -14,7 +14,7 @@ from anndata._io.utils import read_attribute, write_attribute
 from anndata.utils import make_index_unique
 import pandas as pd
 
-from spatialmuon._core.backing import BackableObject
+from spatialmuon._core.backing import BackableObject, BackedDictProxy
 from spatialmuon._core.anchor import Anchor
 from spatialmuon._core.bounding_box import BoundingBoxable, BoundingBox
 
@@ -104,29 +104,20 @@ class FieldOfView(BackableObject, BoundingBoxable):
         # disabled by default since it is slowe
         self.compressed_storage = False
 
-    def _set_backing(self, grp):
-        super()._set_backing(grp)
+    @property
+    def _backed_children(self) -> Dict[str, "BackableObject"]:
         assert self._anchor is not None
-        self._anchor.set_backing(grp, "anchor")
-        # if grp is not None:
-        #     assert isinstance(grp, h5py.Group)
-        #     # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
-        #     # but to be safe let's set it to None explicity here
-        #     self._backing = None
-        #     self._write(grp)
-        # else:
-        #     print('who is calling me?')
-        #     assert self.is_backed
+        return {'anchor': self._anchor}
 
     # in classes inherithing from FieldOfView, this function is the only thing called in __init__() before calling
     # super().__init__(). This becase the __init__() in FieldOfView needs to know which is the dimensionality of the
     # data (2D vs 3D), in order to initialize a default value for self.ancors, and this requires information
     # contained in the arguments passed to __init__() of the subclass (but not passed to the superclass). Then,
     # after __init__() from FieldOfView is executed, in FieldOfView the ndim property will only make use of
-    # self.anchora, so subclasses can know their dimensionality by asking the superclass. An alternative approach
-    # would be to implement ndim as an abstract method, but in this way there is no way if super().__init__() is
-    # called in the beginning of the __init__() of subclasses, then there is no way to ask the subclass about ndim,
-    # because the subclass is not initialized yet
+    # self.anchor, so subclasses can know their dimensionality by asking the superclass. An alternative approach
+    # would be to implement ndim as an abstract method, but in this way, if super().__init__() is
+    # called in the beginning of the __init__() of subclasses as standard in Python, then there is no way to ask the
+    # subclass about ndim, because the subclass is not initialized yet
     def update_n_dim_in_anchor(self, ndim: Optional[int], backing, **kwargs) -> Optional[Anchor]:
         assert not (backing is not None and "anchor" in backing and "anchor" in kwargs)
         if backing is not None and "anchor" in backing:
@@ -205,7 +196,7 @@ class FieldOfView(BackableObject, BoundingBoxable):
         if self.coordinate_unit is not None:
             obj.attrs["coordinate_unit"] = self.coordinate_unit
 
-    def _write(self, obj: h5py.Group):
+    def _write_impl(self, obj: h5py.Group):
         if self.compressed_storage:
             write_attribute(
                 obj, "var", self._var, dataset_kwargs={"compression": "gzip", "compression_opts": 9}

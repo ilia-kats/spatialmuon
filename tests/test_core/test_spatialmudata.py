@@ -22,7 +22,7 @@ class SpatialMuData_TestClass(unittest.TestCase):
         c = Converter()
 
         os.unlink(fpath_h5smu_example)
-        smudata = SpatialMuData(fpath_h5smu_example, backingmode="r+")
+        smudata = SpatialMuData(fpath_h5smu_example, backingmode="w")
 
         mod = SpatialModality()
         mod["ome"] = c.raster_from_tiff(fpath_ome_example)
@@ -36,7 +36,7 @@ class SpatialMuData_TestClass(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    if DEBUGGING:
+    if not DEBUGGING:
         unittest.main()
     else:
-        pass
+        SpatialMuData_TestClass().test_can_create_SpatialMuData()

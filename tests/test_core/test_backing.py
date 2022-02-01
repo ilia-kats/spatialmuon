@@ -4,6 +4,7 @@ import tempfile
 import os
 import uuid
 import numpy as np
+import copy
 from tests.testing_utils import initialize_testing
 
 test_data_dir, DEBUGGING = initialize_testing()
@@ -47,6 +48,17 @@ class Backing_TestClass(unittest.TestCase):
                 nonlocal s
                 ss[case] = s
 
+            # for checking that by modifying any fov in any object we are not modifying things in other objects
+            def how_many_fovs():
+                for s in ss.values():
+                    f = s["a"]["a"]
+                    f._X = np.random.rand(3, 3, 3)
+                reprs = set()
+                for s in ss.values():
+                    f = s["a"]["a"]
+                    reprs.add(str(f._X))
+                return len(reprs)
+
             # below we are not taking care of listing all the possible cases, but to cover a reasonable portion of them
 
             # --- cases where all objects are created from scratch ---
@@ -55,86 +67,108 @@ class Backing_TestClass(unittest.TestCase):
             s["a"] = m
             m["a"] = f
             store("a0")
+            assert how_many_fovs() == 1
 
             s, m, f = smf()
             m["a"] = f
             s["a"] = m
             store("a1")
+            assert how_many_fovs() == 2
 
             # case b: as above, but non-backed storage
             s, m, f = smf(backed=False)
             s["a"] = m
             m["a"] = f
             store("b0")
+            print(id(f))
+            assert how_many_fovs() == 3
 
             s, m, f = smf(backed=False)
             m["a"] = f
             s["a"] = m
             store("b1")
+            assert how_many_fovs() == 4
 
             # --- cases where fovs are borrowed from other objects ---
-            # case c: as case a, but fov is (a backed storage) coming from case a1
+            # case c: as case a, but fov is (a backed storage) coming from case a0
             s, m, _ = smf()
             s["a"] = m
-            m["a"] = ss["a0"]['a']['a']
+            m["a"] = ss["a0"]["a"]["a"]
             store("c0")
+            assert how_many_fovs() == 5
 
             s, m, _ = smf()
-            m["a"] = ss["a0"]['a']['a']
+            m["a"] = ss["a0"]["a"]["a"]
             s["a"] = m
             store("c1")
+            assert how_many_fovs() == 6
 
-            # case d: as case a, but fov is (a backed storage) coming from case a2
+            # case d: as case a, but fov is (a backed storage) coming from case a1
             s, m, _ = smf()
             s["a"] = m
-            m["a"] = ss["a1"]['a']['a']
+            m["a"] = ss["a1"]["a"]["a"]
             store("d0")
+            assert how_many_fovs() == 7
 
             s, m, _ = smf()
-            m["a"] = ss["a1"]['a']['a']
+            m["a"] = ss["a1"]["a"]["a"]
             s["a"] = m
             store("d1")
+            assert how_many_fovs() == 8
 
-            # case e: as case a, but fov is (a non-backed storage) coming from case b1
+            # case e: as case a, but fov is (a non-backed storage) coming from case b0
+            # here we need to copy the inner object as there is no current way for spatial muon to know if a fov
+            # being copied belongs to another object when the copied object is not backed
             s, m, _ = smf()
             s["a"] = m
-            m["a"] = ss["b0"]['a']['a']
+            m["a"] = copy.copy(ss["b0"]["a"]["a"])
             store("e0")
+            print(id(s['a']['a']))
+            print(id(ss['b0']['a']['a']))
+            assert how_many_fovs() == 9
 
             s, m, _ = smf()
-            m["a"] = ss["b0"]['a']['a']
+            m["a"] = copy.copy(ss["b0"]["a"]["a"])
             s["a"] = m
             store("e1")
-
-            # case f: as case a, but fov is (a non-backed storage) coming from case b2
+            assert how_many_fovs() == 10
+            # case f: as case a, but fov is (a non-backed storage) coming from case b1
+            # here we need to copy the inner object as there is no current way for spatial muon to know if a fov
+            # being copied belongs to another object when the copied object is not backed
             s, m, _ = smf()
             s["a"] = m
-            m["a"] = ss["b1"]['a']['a']
+            m["a"] = copy.copy(ss["b1"]["a"]["a"])
             store("f0")
+            assert how_many_fovs() == 11
 
             s, m, _ = smf()
-            m["a"] = ss["b1"]['a']['a']
+            m["a"] = copy.copy(ss["b1"]["a"]["a"])
             s["a"] = m
             store("f1")
+            assert how_many_fovs() == 12
 
             # --- cases where both mods and fovs are borrowed from other objects ---
             # case g: as case a, but not both mod and fov are borrowed, respectively, from case f0 and f1,
             s, _, _ = smf()
-            s["a"] = ss["f0"]['a']
+            s["a"] = ss["f0"]["a"]
             store("g0")
-
+            assert how_many_fovs() == 13
             s, _, _ = smf()
-            s["a"] = ss["f1"]['a']
+            s["a"] = ss["f1"]["a"]
             store("g1")
-
+            assert how_many_fovs() == 14
             # case h: as case b, but not both mod and fov are borrowed, respectively, from case g0 and g1,
             s, _, _ = smf()
-            s["a"] = ss["g0"]['a']
+            s["a"] = ss["g0"]["a"]
             store("h0")
-
+            assert how_many_fovs() == 15
             s, _, _ = smf()
-            s["a"] = ss["g1"]['a']
+            s["a"] = ss["g1"]["a"]
             store("h1")
+            assert how_many_fovs() == 16
+            # TODO: add tests: mod borrowed from a non-backed object
+            # TODO: add tests for masks and anchors (in another test function)
+            # TODO: add tests that currently make the other tests fail
             ##
             # check that all the objects contain the same things
             reprs = set()
@@ -142,25 +176,17 @@ class Backing_TestClass(unittest.TestCase):
                 reprs.add(str(s))
             assert len(reprs) == 1
             ##
-            # check that by modifying any fov in any object we are not modifying things in other objects
-            for s in ss.values():
-                f = s['a']['a']
-                f._X = np.random.rand(3, 3, 3)
-            reprs = set()
-            for s in ss.values():
-                f = s['a']['a']
-                reprs.add(str(f._X))
-            assert len(reprs) == len(ss)
+            assert how_many_fovs() == len(ss)
             ##
             # check that creating a fov for each mod does not create fovs in other mods that were borrowed from
             # other objects
             for s in ss.values():
-                m = s['a']
+                m = s["a"]
                 f = new_fov()
                 m[str(uuid.uuid4())] = f
 
             for s in ss.values():
-                assert len(s['a'].keys()) == 2
+                assert len(s["a"].keys()) == 2
             ##
             print("ooooo")
             print("ooooo")

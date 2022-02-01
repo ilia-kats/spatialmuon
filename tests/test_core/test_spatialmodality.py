@@ -45,14 +45,12 @@ class SpatialModality_creation(unittest.TestCase):
         coords = np.abs(np.random.normal(size=(N, 2)))
 
         fovname = "myfov"
-        fovidx = 0
 
         radius = 1.0
 
         smudata = spatialmuon.SpatialMuData(tmp_dir_name)
         smudata["Visium"] = modality = spatialmuon.SpatialModality()
 
-        spots_dict = {o: ((x, y), radius) for (o, (x, y)) in zip(obs.index.tolist(), coords)}
         masks = spatialmuon.ShapeMasks(
             masks_shape="circle", masks_centers=coords, masks_radii=radius, masks_labels=labels
         )
@@ -69,7 +67,8 @@ class SpatialModality_creation(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    if DEBUGGING:
+    if not DEBUGGING:
         unittest.main()
     else:
-        pass
+        # SpatialModality_creation().test_can_create_SpatialModality_from_Raster()
+        SpatialModality_creation().test_can_create_SpatialModality_from_Regions()

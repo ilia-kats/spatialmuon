@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from typing import Optional, Union
+from typing import Optional, Union, Dict
 import warnings
 from spatialmuon._core.backing import BackableObject
 import h5py
@@ -63,10 +63,11 @@ class Anchor(BackableObject):
             else:
                 self._vector = vector
 
-    def _set_backing(self, value: Optional[Union[h5py.Group, h5py.Dataset]] = None):
-        self._write(value)
+    @property
+    def _backed_children(self) -> Dict[str, "BackableObject"]:
+        return {}
 
-    def _write(self, obj: Union[h5py.Group, h5py.Dataset]):
+    def _write_impl(self, obj: Union[h5py.Group, h5py.Dataset]):
         obj.create_dataset("origin", data=self.origin)
         obj.create_dataset("vector", data=self.vector)
 

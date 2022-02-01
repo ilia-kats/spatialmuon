@@ -87,7 +87,7 @@ class Image(BackableObject):
             self._rotation = rotation
             self._translation = translation
             if self.is_backed:
-                self._write(self.backing)
+                self._write_impl(self.backing)
                 self._write_attributes(self.backing)
             else:
                 self._images[(image.shape[1], image.shape[0])] = image
@@ -133,7 +133,7 @@ class Image(BackableObject):
         if self._translation is not None:
             attrs["translation"] = self._translation
 
-    def _write(self, obj: h5py.Group):
+    def _write_impl(self, obj: h5py.Group):
         for res, img in self._images.items():
             dsetname = f"{res[0]}x{res[1]}"
             if dsetname in obj:
@@ -142,7 +142,7 @@ class Image(BackableObject):
 
     def _set_backing(self, obj: Optional[h5py.Group]):
         if obj is not None:
-            self._write(obj)
+            self._write_impl(obj)
         elif self.is_backed:
             for img in self.backing:
                 self._images[(img.shape[1], img.shape[0])] = img[:]

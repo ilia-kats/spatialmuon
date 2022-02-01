@@ -58,10 +58,10 @@ def write_h5smu(filename: PathLike, smudata: SpatialMuData):
     from .. import __version__, __spatialmudataversion__
 
     with h5py.File(filename, "w", userblock_size=512, libver="latest") as f:
-        smudata.write(f)
+        smudata._write(f)
 
     with open(filename, "br+") as outfile:
         fname = "SpatialMuData (format-version={};".format(__spatialmudataversion__)
         fname += "creator=spatialmuon;"
         fname += "creator-version={})".format(__version__)
-        outfile.write(fname.encode("utf-8"))
+        outfile._write(fname.encode("utf-8"))

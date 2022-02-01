@@ -1,7 +1,9 @@
+from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from collections import UserDict
-from typing import Optional, Union, Callable
+from typing import Optional, Union, Callable, List, Dict
+import copy
 import warnings
 
 import h5py
@@ -40,49 +42,81 @@ class BackableObject(ABC):
     def is_backed(self) -> bool:
         return self.backing is not None
 
+    @property
+    @abstractmethod
+    def _backed_children(self) -> Dict[str, "BackableObject"]:
+        pass
+
     def set_backing(
         self, parent: Optional[Union[h5py.Group, h5py.Dataset]] = None, key: Optional[str] = None
     ):
+        # if parent is not None:
+        #     obj = parent.require_group(key) if key is not None else parent
+        #     self._write_attributes(obj)
+        # else:
+        #     obj = None
+        # self._set_backing(obj)
         if parent is not None:
+            obj = self._write(parent, key=key)
+            for k, v in self._backed_children.items():
+                child_obj = v.set_backing(obj._backing, k)
+                if id(child_obj) != id(self[k]):
+                    super().__setitem__(k, child_obj)
+            if obj is None and self._backing is not None and self._backing.name == "/":
+                assert False, "Branch never tested, set a breakpoint and study"
+                # TODO: BUG: corrupted h5smu files after os._exit(0)
+                # curerntly if we call for instance os._exit(0) after having modified a spatialmuon object, there can be
+                # problems in saving the data to disk and the object can get corrupted (see the h5clear code in
+                # spatialmudata.py). This could be because we need to close the object manually. Notice that in the
+                # following we are closing the object only if the condition of the if are met, not in the general case.
+                # This could be the source of the problem. Note also that if we close also obj, we need to open in again
+                # before calling set_backing. That could be the right approach
+                self._backing.close()
+            # at this point self._backing can be either None, in that case we just set it to obj, or it can be referring
+            # to a portion of an hdf5 file, like when we have (say) some RasterMasks from a Region and we copy them to
+            # another Region object. In that case, the following line is what makes the new Region have a RasterMask
+            # object that is pointing to the new portion of the hdf5 file
+            # self._backing = obj
+            return obj
+        else:
+            assert False, "branch never tested"
+            assert self.is_backed
+        # TODO: check propagation to childs is done
+
+    def _write(self, parent: h5py.Group, key: str):
+        if self.is_backed:
+            # if we are copying from a different file or from a different location in the file
+            if self.backing.file != parent.file or self.backing.name != os.path.join(parent.name, key):
+                # if the key is already present in the parent is not because the object was already populated but
+                # because the shallow copy was called before
+                # example: we have a backed mod with a fov inside, and we copy the mod into a new SpatialMuData backed
+                # object.
+                # Then, when copy the mod into the SpatialMuData object, the shallow copy will create already the
+                # group for the fov, but it will be empty, since it will be populated from another call of _write(),
+                # invoked from set_backing() in the "for k, v in self._backed_children.items()" loop
+                if key in parent:
+                    assert len(parent[key]) == 0
+                    # actually attributes are copied from subgroups, so this assertion would be false, but it is fine
+                    # since we are gonna rewrite them in the parent.copy(...) call below
+                    # assert len(parent[key].attrs) == 0
+                    # let's clean the target object otherwise the copy can't be performed
+                    del parent[key]
+                parent.copy(self.backing, key, shallow=True)
+                new_backable = copy.copy(self)
+                new_backable._backing = parent[key]
+                return new_backable
+                # return parent[key]
+            else:
+                assert False, "to study the code 1"
+        else:
             obj = parent.require_group(key) if key is not None else parent
             self._write_attributes(obj)
-        else:
-            obj = None
-        self._set_backing(obj)
-        if obj is None and self._backing is not None and self._backing.name == "/":
-            warnings.warn("who is calling this?")
-            # TODO: BUG: corrupted h5smu files after os._exit(0)
-            # curerntly if we call for instance os._exit(0) after having modified a spatialmuon object, there can be
-            # problems in saving the data to disk and the object can get corrupted (see the h5clear code in
-            # spatialmudata.py). This could be because we need to close the object manually. Notice that in the
-            # following we are closing the object only if the condition of the if are met, not in the general case.
-            # This could be the source of the problem. Note also that if we close also obj, we need to open in again
-            # before calling set_backing. That could be the right approach
-            self._backing.close()
-        # at this point self._backing can be either None, in that case we just set it to obj, or it can be referring
-        # to a portion of an hdf5 file, like when we have (say) some RasterMasks from a Region and we copy them to
-        # another Region object. In that case, the following line is what makes the new Region have a RasterMask
-        # object that is pointing to the new portion of the hdf5 file
-        self._backing = obj
+            self._write_impl(obj)
+            self._backing = obj
+            return self
 
     @abstractmethod
-    def _set_backing(self, value: Optional[Union[h5py.Group, h5py.Dataset]] = None):
-        pass
-
-    def write(self, parent: h5py.Group, key: Optional[str] = None):
-        obj = parent.require_group(key) if key is not None else parent
-        if self.is_backed:
-            if self.backing.file != obj.file or self.backing.name != obj.name:
-                print("to study the code 0")
-                obj.parent.copy(self.backing, os.path.basename(obj.name))
-            else:
-                print("to study the code 1")
-        else:
-            self._write_attributes(obj)
-            self._write(obj)
-
-    @abstractmethod
-    def _write(self, obj: Union[h5py.Group, h5py.Dataset]):
+    def _write_impl(self, obj: Union[h5py.Group, h5py.Dataset]):
         pass
 
 
@@ -124,19 +158,23 @@ class BackedDictProxy(UserDict):
             return self.backing
 
     def __setitem__(self, key: str, value: BackableObject):
-        super().__setitem__(key, value)
+        value_in_memory = value
         if self.validatefun is not None:
             valid = self.validatefun(self, key, value)
             if valid is not None:
                 raise ValueError(valid)
         if self.is_backed:
             if key not in self.grp:
-                value.set_backing(self.grp, key)
+                value_in_memory = value.set_backing(self.grp, key)
         else:
             # only the python dict (the superclass) is updated, not the file; the file gets updated in the case
             # in which this object (or a parent object invoking the backing downstream) is assigned to a
             # parent object that is backed
             pass
+        print('oooo')
+        print('oooo')
+        print('ooo')
+        super().__setitem__(key, value_in_memory)
 
     def __delitem__(self, key: str):
         super().__delitem__(key)

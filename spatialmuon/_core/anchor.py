@@ -63,10 +63,6 @@ class Anchor(BackableObject):
             else:
                 self._vector = vector
 
-    # @property
-    # def _backed_children(self) -> Dict[str, "BackableObject"]:
-    #     return {}
-
     def _write_impl(self, obj: Union[h5py.Group, h5py.Dataset]):
         obj.create_dataset("origin", data=self.origin)
         obj.create_dataset("vector", data=self.vector)

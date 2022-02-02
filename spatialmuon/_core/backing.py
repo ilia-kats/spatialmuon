@@ -63,12 +63,6 @@ class BackableObject(ABC, UserDict):
     def set_backing(
         self, parent: Optional[Union[h5py.Group, h5py.Dataset]] = None, key: Optional[str] = None
     ):
-        # if parent is not None:
-        #     obj = parent.require_group(key) if key is not None else parent
-        #     self._write_attributes(obj)
-        # else:
-        #     obj = None
-        # self._set_backing(obj)
         if parent is not None:
             obj = self._write(parent, key=key)
             for k, v in self.items():
@@ -85,11 +79,6 @@ class BackableObject(ABC, UserDict):
                 # This could be the source of the problem. Note also that if we close also obj, we need to open in again
                 # before calling set_backing. That could be the right approach
                 self._backing.close()
-            # at this point self._backing can be either None, in that case we just set it to obj, or it can be referring
-            # to a portion of an hdf5 file, like when we have (say) some RasterMasks from a Region and we copy them to
-            # another Region object. In that case, the following line is what makes the new Region have a RasterMask
-            # object that is pointing to the new portion of the hdf5 file
-            # self._backing = obj
             return obj
         else:
             assert False, "branch never tested"

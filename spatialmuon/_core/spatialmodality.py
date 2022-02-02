@@ -34,34 +34,11 @@ class SpatialModality(BackableObject):
     def _encodingversion():
         return "0.1.0"
 
-    # @property
-    # def _backed_children(self) -> Dict[str, "BackableObject"]:
-    #     d = {}
-    #     for f, fov in self.items():
-    #         d[f] = fov
-    #     return d
-
-    # TODO: the else branch of _set_backing has no equivalent in _backed_childer, check that it is all right/when
-    #  that is called in a previous commit
-    # def _set_backing(self, grp: Optional[h5py.Group] = None):
-    #     super()._set_backing(grp)
-    #     if grp is not None:
-    #         self._write_attributes(grp)
-    #         for f, fov in self.items():
-    #             fov.set_backing(grp, f)
-    #     else:
-    #         for fov in self.values():
-    #             fov.set_backing(None)
-
     def _write_attributes_impl(self, grp: h5py.Group):
         pass
 
     def _write_impl(self, obj: Union[h5py.Group, h5py.Dataset]):
         pass
-
-    # def _write_impl(self, grp):
-    #     for f, fov in self.items():
-    #         fov._write(grp, f)
 
     # flake8: noqa: C901
     def plot(

@@ -140,9 +140,6 @@ class Masks(BackableObject, BoundingBoxable):
             dataset_kwargs={"compression": "gzip", "compression_opts": 9},
         )
 
-    # def _set_backing(self, grp: Optional[h5py.Group] = None):
-    #     self._write_data(grp)
-
     def __repr__(self, mask_type="masks"):
         repr_str = f"│   ├── {self.ndim}D {mask_type} with {self.n_obs} obs: {', '.join(self.obs)}"
         repr_str = "│   └──".join(repr_str.rsplit("│   ├──", 1))
@@ -463,21 +460,6 @@ class ShapeMasks(Masks, MutableMapping):
     def _encodingversion():
         return "0.1.0"
 
-    # def _set_backing(self, grp: Optional[h5py.Group]):
-    #     super()._set_backing(grp)
-    #     if grp is not None:
-    #         assert isinstance(grp, h5py.Group)
-    #         # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
-    #         # but to be safe let's set it to None explicity here
-    #         self._backing = None
-    #         self._write_impl(grp)
-    #     else:
-    #         print("who is calling me?")
-    #         assert self.is_backed
-    # @property
-    # def _backed_children(self) -> Dict[str, "BackableObject"]:
-    #     return {}
-
     def _write_impl(self, grp: h5py.Group):
         super()._write_impl(grp)
         grp.create_dataset("masks_centers", data=self._masks_centers)
@@ -764,15 +746,15 @@ class MeshMasks(Masks, MutableMapping):
     def _encodingversion():
         return "0.1.0"
 
-    def _set_backing(self, value: h5py.Group):
-        raise NotImplementedError()
-        super()._set_backing(value)
-        if value is None and self.backed:
-            for k in self.keys():
-                self._data[k] = self[k]
-        elif value is not None:
-            self._write_impl(value)
-            self._data.clear()
+    # def _set_backing(self, value: h5py.Group):
+    #     raise NotImplementedError()
+    #     super()._set_backing(value)
+    #     if value is None and self.backed:
+    #         for k in self.keys():
+    #             self._data[k] = self[k]
+    #     elif value is not None:
+    #         self._write_impl(value)
+    #         self._data.clear()
 
     def _write_impl(self, obj: h5py.Group):
         raise NotImplementedError()
@@ -931,24 +913,6 @@ class RasterMasks(Masks):
     @staticmethod
     def _encodingversion():
         return "0.1.0"
-
-    @property
-    def _backed_children(self) -> Dict[str, "BackableObject"]:
-        return {}
-
-    #
-    # def _set_backing(self, grp: Optional[h5py.Group]):
-    #     super()._set_backing(grp)
-    #     if grp is not None:
-    #         assert isinstance(grp, h5py.Group)
-    #         # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
-    #         # but to be safe let's set it to None explicity here
-    #         self._backing = None
-    #         self._write_impl(grp)
-    #         # self._mask = None
-    #     else:
-    #         print("who is calling me?")
-    #         assert self.is_backed
 
     def _write_impl(self, grp: h5py.Group):
         super()._write_impl(grp)

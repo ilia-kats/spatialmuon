@@ -104,11 +104,6 @@ class FieldOfView(BackableObject, BoundingBoxable):
         # disabled by default since it is slowe
         self.compressed_storage = False
 
-    # @property
-    # def _backed_children(self) -> Dict[str, "BackableObject"]:
-    #     assert self._anchor is not None
-    #     return {'anchor': self._anchor}
-
     # in classes inherithing from FieldOfView, this function is the only thing called in __init__() before calling
     # super().__init__(). This becase the __init__() in FieldOfView needs to know which is the dimensionality of the
     # data (2D vs 3D), in order to initialize a default value for self.ancors, and this requires information

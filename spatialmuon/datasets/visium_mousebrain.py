@@ -21,17 +21,18 @@ import h5py
 import spatialmuon
 from spatialmuon.datasets._utils import download, unzip, md5
 
+
 # DEBUG = False
 DEBUG = True
 
-DOWNLOAD = True
+DOWNLOAD = False
 if DEBUG:
     DOWNLOAD = False
 
 if len(sys.argv) > 1:
     outfname = sys.argv[1]
 else:
-    outfname = "visium.h5smu"
+    outfname = "/data/spatialmuon/datasets/visium_mousebrain/smu/visium.h5smu"
 
 with tempfile.TemporaryDirectory() as tmpdir:
     if not DOWNLOAD:
@@ -50,8 +51,8 @@ with tempfile.TemporaryDirectory() as tmpdir:
     if os.path.isfile(outfname):
         os.unlink(outfname)
 
-    smudata = spatialmuon.SpatialMuData(outfname)
-    smudata["Visium"] = modality = spatialmuon.SpatialModality(coordinate_unit="px")
+    smudata = spatialmuon.SpatialMuData(outfname, backingmode="w")
+    smudata["Visium"] = modality = spatialmuon.SpatialModality()
 
     fovdir = os.path.join(tmpdir, "mouse_brain_visium_wo_cloupe_data", "rawdata")
     fovs = [f for f in os.listdir(fovdir) if not f.startswith(".")]
@@ -68,7 +69,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
                 barcodes = matrix["barcodes"].asstr()[()]
 
-                var = pd.DataFrame(index=matrix["features/name"].asstr()[()])
+                var = pd.DataFrame(dict(channel_name=matrix["features/name"].asstr()[()]))
                 var["id"] = matrix["features/id"].asstr()[()]
                 for fname in matrix["features/_all_tag_keys"].asstr()[()]:
                     feat = matrix[f"features/{fname}"]
@@ -97,17 +98,34 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
             with open(os.path.join(cdir, "spatial", "scalefactors_json.json"), "r") as f:
                 meta = json.load(f)
-            radius = 0.5 * meta["spot_diameter_fullres"] * meta["tissue_hires_scalef"]
+            # wrong
+            # radius = 0.5 * meta["spot_diameter_fullres"] * meta["tissue_hires_scalef"]
+            # computed manually by considering pairwise differences of the xaxis, using the following code and some
+            # extra easy steps
+            # import matplotlib.pyplot as plt
+            # plt.scatter(coords[:, 0], coords[:, 1], s=1)
+            # plt.gca().set_aspect('equal')
+            # plt.gca().set(xlim=(1000, 1100), ylim=(800, 1000))
+            # x = coords[:, 0]
+            # x = x[(x > 1000) * (x < 1100)]
+            # diff = (x[:, np.newaxis] - x[np.newaxis, :]).flatten()
+            # plt.show()
+            # plt.hist(x, bins=100)
+            # plt.show()
+
+            center_to_center = 25.411068101069596
+            radius = center_to_center * 55 / 100 / 2
             coords = coords * meta["tissue_hires_scalef"]
 
             # the samples are offset by 10 μm in the Z axis according to the paper
             # I have no idea how much that is in pixels
             # So just do 10 px
-            spots_dict = {o: ((x, y), radius) for (o, (x, y)) in zip(obs.index.tolist(), coords)}
-            masks = ShapeMasks(masks_dict=spots_dict, obs=obs)
-            cfov = spatialmuon.Regions(
-                X=X, var=var, translation=[0, 0, fovidx * 10], scale=6.698431978755106, masks=masks
+            labels = obs.index.tolist()
+            masks = ShapeMasks(
+                masks_shape="circle", masks_centers=coords, masks_radii=radius, masks_labels=labels
             )
+            # scale = 6.698431978755106
+            cfov = spatialmuon.Regions(X=X, var=var, masks=masks, coordinate_unit="um")
             modality[fovname] = cfov
 
             img = Image.open(os.path.join(cdir, "spatial", "tissue_hires_image.png"))
@@ -118,6 +136,5 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
             pbar.update()
             if DEBUG:
-                if fovidx > 1:
-                    print("debugging: stopping at the first slide")
-                    break
+                print("debugging: stopping at the first slide")
+                break

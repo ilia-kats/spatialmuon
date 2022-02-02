@@ -13,13 +13,13 @@ class SpatialMuData(BackableObject, BackedDictProxy):
         self,
         backing: Union[str, PathLike, h5py.Group] = None,
         modalities: Optional[Dict[str, SpatialModality]] = None,
-        backingmode: Literal["r", "r+"] = "r+",
+        backingmode: Literal["r", "r+", "w"] = "r+",
     ):
         from .. import __version__, __spatialmudataversion__
 
         if isinstance(backing, PathLike) or isinstance(backing, str):
-            assert backingmode in ["r", "r+"], "Argument `backingmode` must be r or r+"
-            if path.isfile(backing):
+            assert backingmode in ["r", "r+", "w"], "Argument `backingmode` must be r, r+ or w"
+            if path.isfile(backing) and backingmode != "w":
                 if is_h5smu(backing):
                     try:
                         backing = h5py.File(backing, backingmode)

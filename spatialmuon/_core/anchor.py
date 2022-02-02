@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
+from typing import Optional, Union
+import warnings
+from spatialmuon._core.backing import BackableObject
+import h5py
+from spatialmuon.utils import _read_hdf5_attribute
 
 
-class Anchor:
+class Anchor(BackableObject):
     """This class is used to orient spatial data in a globale coordinate space.
 
     Spatial modalities can be aligned and oriented to eachother in a m:n fashion
@@ -14,26 +18,63 @@ class Anchor:
     fly based on two anchors. The given components refer to a global coordinate
     system so that no individual references for each alignment pair have to be
     saved.
-
-    Attributes:
-        likes_spam: A boolean indicating if we like SPAM or not.
-        eggs: An integer count of the eggs we have laid.
     """
 
     def __init__(
-        self, ndim: int, origin: Optional[np.ndarray] = None, vector: Optional[np.ndarray] = None
+        self,
+        ndim: Optional[int] = None,
+        origin: Optional[np.ndarray] = None,
+        vector: Optional[np.ndarray] = None,
+        backing: Optional[Union[h5py.Group, h5py.Dataset]] = None,
     ):
-        if origin is None:
-            self._origin = np.array([0] * ndim)
+        super().__init__(backing)
+        if backing is not None:
+            if ndim is not None or origin is not None or vector is not None:
+                raise ValueError("trying to set attributes for a non-empty backing store")
+            else:
+                self._origin = backing["origin"]
+                self._vector = backing["vector"]
+                self._ndim = _read_hdf5_attribute(backing.attrs, "ndim")
         else:
-            self.origin = origin
+            if ndim is None and origin is None and vector is None:
+                raise ValueError("at least one parameter should be specified")
 
-        if vector is None:
-            self._vector = np.array([1] + ([0] * (ndim - 1)))
-        else:
-            self.vector = vector
+            if ndim is not None:
+                self._ndim = ndim
 
-        self._ndim = ndim
+            if origin is None:
+                self._origin = np.array([0] * ndim)
+            else:
+                self._origin = origin
+                if ndim is not None:
+                    assert len(origin) == ndim
+                self._ndim = len(origin)
+
+            if vector is None:
+                self._vector = np.array([1] + ([0] * (self.ndim - 1)))
+            else:
+                self._vector = vector
+                if ndim is not None:
+                    assert len(vector) == ndim
+                self._ndim = len(vector)
+
+    def _set_backing(self, value: Optional[Union[h5py.Group, h5py.Dataset]] = None):
+        self._write(value)
+
+    def _write(self, obj: Union[h5py.Group, h5py.Dataset]):
+        obj.create_dataset("origin", data=self.origin)
+        obj.create_dataset("vector", data=self.vector)
+
+    def _write_attributes_impl(self, obj: Union[h5py.Dataset, h5py.Group]):
+        obj.attrs["ndim"] = self.ndim
+
+    @staticmethod
+    def _encodingtype() -> str:
+        return "anchor"
+
+    @staticmethod
+    def _encodingversion() -> str:
+        return "0.1.0"
 
     def __str__(self):
         return "{}\n├─ndim: {}\n├─origin: {}\n└─vector: {}".format(
@@ -52,10 +93,8 @@ class Anchor:
         origin = np.array([0] * ndim)
         vector = np.array([1] + ([0] * (ndim - 1)))
         """
-        if self._ndim is None:
-            return self.ndim
-        else:
-            return self._ndim
+        assert self._ndim is not None
+        return self._ndim
 
     @property
     def origin(self) -> np.ndarray:
@@ -73,10 +112,8 @@ class Anchor:
               X       |       Y       |       Z       | Not implemented
 
         """
-        if self._origin is None:
-            return self.origin
-        else:
-            return self._origin
+        assert self._origin is not None
+        return self._origin
 
     @origin.setter
     def origin(self, new_origin: np.ndarray):
@@ -109,10 +146,8 @@ class Anchor:
               X       |       Y       |       Z       | Not implemented
 
         """
-        if self._vector is None:
-            return self.vector
-        else:
-            return self._vector
+        assert self._vector is not None
+        return self._vector
 
     @vector.setter
     def vector(self, new_vector: np.ndarray):
@@ -129,7 +164,8 @@ class Anchor:
             raise ValueError("Length of 'new_vector' must be same as current 'ndim'.")
         self.vector = new_vector[: self.ndim]
 
-    def move_origin(self, axis: str = "all", distance: int = 0):
+    # flake8: noqa: C901
+    def move_origin(self, axis: str = "all", distance: Union[int, float] = 0):
         """Additively translates components of the Anchor's 'origin'.
 
         Instead of defining a new 'origin' in the Anchor, the components can
@@ -137,15 +173,15 @@ class Anchor:
 
         Parameters:
           axis (str): Axis along which to shift (valid: all, x, y, z)
-          distance (int): Distance to shift along axis
+          distance (float): Distance to shift along axis
 
         """
 
         if not isinstance(axis, str):
             raise TypeError("Please specify a str for 'axis'.")
 
-        if not isinstance(distance, int):
-            raise TypeError("Please specify an int for 'distance'.")
+        if not (isinstance(distance, float) or isinstance(distance, int)):
+            raise TypeError("Please specify an int or float for 'distance'.")
 
         if self.ndim == 1:
 
@@ -181,7 +217,7 @@ class Anchor:
             else:
                 raise ValueError("Invalid choice for 'axis', use (all/x/y/z).")
 
-    def rotate_vector(self, angle: int = 0):
+    def rotate_vector(self, angle: Union[int, float] = 0):
         """Rotates components of the Anchor's 'vector'.
 
         Instead of setting a new 'vector' in the Anchor, the existing 'vector'
@@ -198,8 +234,8 @@ class Anchor:
 
         # todo(ttreis): Implement 3D rotation once we have a usecase
 
-        if not isinstance(angle, int):
-            raise TypeError("Please specify an int for 'angle'.")
+        if not (isinstance(angle, int) or isinstance(angle, float)):
+            raise TypeError("Please specify an int or float for 'angle'.")
 
         if self.ndim == 1:
             raise ValueError("Rotating in 1D space is useless.")

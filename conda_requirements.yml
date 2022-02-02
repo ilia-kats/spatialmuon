@@ -1,0 +1,28 @@
+name: spatialmuon-dev
+
+channels:
+  - anaconda
+  - conda-forge
+  - bioconda
+dependencies:
+  - python >= 3.9
+  - black
+  - flake8
+  - rtree
+  - h5py
+  - pandas
+  - shapely
+  - matplotlib
+  - trimesh
+  - anndata
+  - scanpy
+  - tifffile
+  - scikit-image
+  - vigra
+  - geopandas
+  - ncls
+  - napari
+  - louvain
+  - pip:
+ 	  - squidpy
+      - matplotlib-show_scalebar

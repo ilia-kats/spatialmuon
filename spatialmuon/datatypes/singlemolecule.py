@@ -6,10 +6,11 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
-from ncls import NCLS
+# from ncls import NCLS
 from trimesh import Trimesh
 import h5py
 from anndata._io.utils import read_attribute, write_attribute
+from spatialmuon._core.anchor import Anchor
 
 from .. import FieldOfView, SpatialIndex
 from ..utils import read_dataframe_subset, preprocess_3d_polygon_mask
@@ -35,6 +36,10 @@ class SingleMolecule(FieldOfView):
         index_kwargs: dict = {},
         **kwargs,
     ):
+        # specify ndim in the commented line
+        raise NotImplementedError()
+        # kwargs['anchor'] = self.update_n_dim_in_anchor(ndim=raise NotImplementedError(), backing=backing, **kwargs)
+        super().__init__(backing, **kwargs)
         if backing is not None:
             self._index = SpatialIndex(
                 backing=backing["index"],
@@ -46,11 +51,15 @@ class SingleMolecule(FieldOfView):
             self._index = SpatialIndex(coordinates=np.vstack(self._data.geometry), **index_kwargs)
         else:
             raise ValueError("no coordinates and no backing store given")
-        super().__init__(backing, **kwargs)
 
     @property
     def data(self):
         return self._data_subset()
+
+    @property
+    def _untransformed_bounding_box(self) -> dict[str, float]:
+        raise NotImplementedError()
+        return dict()
 
     # flake8: noqa: C901
     def _data_subset(self, yidx=None, genes=None):
@@ -117,37 +126,31 @@ class SingleMolecule(FieldOfView):
         genes: Optional[Union[str, list[str]]] = None,
         polygon_method: Literal["discard", "project"] = "discard",
     ):
-        if mask is not None:
-            if self.ndim == 2:
-                if not isinstance(mask, Polygon):
-                    raise TypeError("Only polygon masks can be applied to 2D FOVs")
-                idx = sorted(self._index.intersection(mask.bounds))
-                sub = self._data_subset(idx, genes)
-                inters = sub.intersection(mask)
-                return sub[~inters.is_empty]
-            else:
-                if isinstance(mask, Polygon):
-                    bounds = preprocess_3d_polygon_mask(
-                        mask, np.vstack(self.data.geometry), polygon_method
-                    )
-                    idx = sorted(self._index.intersection(bounds))
-                    sub = self._data_subset(idx, genes).intersection(mask)
-                    return sub[~sub.is_empty]
-                elif isinstance(mask, Trimesh):
-                    idx = sorted(self._index.intersection(mask.bounds.reshape(-1)))
-                    sub = self._data_subset(idx, genes)
-                    return sub.iloc[mask.contains(np.vstack(sub.geometry)), :]
-                else:
-                    raise TypeError("unknown masks type")
-        elif genes is not None:
-            return self._data_subset(genes=genes)
-
-    @property
-    def ndim(self):
-        if self.isbacked:
-            return self.backing["coordinates"].shape[1]
-        else:
-            return self._data.shape[1]
+        raise NotImplementedError()
+        # if mask is not None:
+        #     if self.ndim == 2:
+        #         if not isinstance(mask, Polygon):
+        #             raise TypeError("Only polygon masks can be applied to 2D FOVs")
+        #         idx = sorted(self._index.intersection(mask.bounds))
+        #         sub = self._data_subset(idx, genes)
+        #         inters = sub.intersection(mask)
+        #         return sub[~inters.is_empty]
+        #     else:
+        #         if isinstance(mask, Polygon):
+        #             bounds = preprocess_3d_polygon_mask(
+        #                 mask, np.vstack(self.data.geometry), polygon_method
+        #             )
+        #             idx = sorted(self._index.intersection(bounds))
+        #             sub = self._data_subset(idx, genes).intersection(mask)
+        #             return sub[~sub.is_empty]
+        #         elif isinstance(mask, Trimesh):
+        #             idx = sorted(self._index.intersection(mask.bounds.reshape(-1)))
+        #             sub = self._data_subset(idx, genes)
+        #             return sub.iloc[mask.contains(np.vstack(sub.geometry)), :]
+        #         else:
+        #             raise TypeError("unknown masks type")
+        # elif genes is not None:
+        #     return self._data_subset(genes=genes)
 
     @staticmethod
     def _encodingtype() -> str:
@@ -157,15 +160,21 @@ class SingleMolecule(FieldOfView):
     def _encodingversion():
         return "0.1.0"
 
-    def _set_backing(self, value):
-        super()._set_backing(value)
-        if value is not None:
-            self._write_data(value)
-            self._index.set_backing(value, "index")
-            self._data = None
+    def _set_backing(self, grp: Optional[h5py.Group]):
+        super()._set_backing(grp)
+        if grp is not None:
+            assert isinstance(grp, h5py.Group)
+            # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
+            # but to be safe let's set it to None explicity here
+            self._backing = None
+            self._write_data(grp)
+            self._index.set_backing(grp, "index")
+            # self._data = None
         else:
-            self._data = self.data
-            self._index.set_backing(None)
+            print("who is calling me?")
+            assert self.isbacked
+            # self._data = self.data
+            # self._index.set_backing(None)
 
     def _write(self, grp):
         super()._write(grp)

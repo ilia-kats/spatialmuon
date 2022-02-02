@@ -38,7 +38,8 @@ class SpatialModality_creation(unittest.TestCase):
         np.random.seed(1000)
         N, D = 100, 20
         X = np.random.normal(size=(N, D))
-        obs = pd.DataFrame(index=[f"obs_{i}" for i in range(N)])
+        labels = [f"obs_{i}" for i in range(N)]
+        obs = pd.DataFrame(index=labels)
         var = pd.DataFrame(index=[f"var_{i}" for i in range(D)])
 
         coords = np.abs(np.random.normal(size=(N, 2)))
@@ -52,19 +53,19 @@ class SpatialModality_creation(unittest.TestCase):
         smudata["Visium"] = modality = spatialmuon.SpatialModality()
 
         spots_dict = {o: ((x, y), radius) for (o, (x, y)) in zip(obs.index.tolist(), coords)}
-        masks = spatialmuon.ShapeMasks(masks_dict=spots_dict, obs=obs)
+        masks = spatialmuon.ShapeMasks(
+            masks_shape="circle", masks_centers=coords, masks_radii=radius, masks_labels=labels
+        )
         cfov = spatialmuon.Regions(
             X=X,
             var=var,
-            translation=[0, 0, fovidx * 10],
-            scale=1.23,
             masks=masks,
             coordinate_unit="px",
         )
         modality[fovname] = cfov
 
         assert smudata["Visium"][fovname].n_var == D
-        assert smudata["Visium"][fovname]._masks.n_obs == N
+        assert smudata["Visium"][fovname].masks.n_obs == N
 
 
 if __name__ == "__main__":

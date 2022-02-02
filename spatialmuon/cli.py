@@ -25,4 +25,3 @@ cli.add_command(peek)
 
 def main():
     cli()
-

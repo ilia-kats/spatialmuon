@@ -1,0 +1,31 @@
+name: pytest_env
+channels:
+  - bioconda
+  - anaconda
+  - conda-forge
+  - loopbio
+  - menpo
+  - defaults
+dependencies:
+  - pip=21.3.1
+  - vigra=1.11.1
+  - rtree=0.9.7
+  - pandas=1.3.4
+  - shapely=1.8.0
+  - ncls=0.0.63
+  - scikit-image=0.18.3
+  - tifffile=2021.11.2
+  - geopandas=0.10.2
+  - geopandas-base=0.10.2
+  - anndata=0.7.8
+  - trimesh=3.9.35
+  - matplotlib-base=3.4.3
+  - matplotlib-inline=0.1.3
+  - matplotlib-scalebar=0.7.2
+  - conda-build=3.21.7
+  - pytest=6.2.5
+  - louvain=0.7.1
+  - pip:
+    - squidpy==1.1.2
+    - h5py==3.6.0
+    - matplotlib_scalebar

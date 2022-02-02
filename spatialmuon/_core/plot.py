@@ -16,97 +16,7 @@ import warnings
 
 from scipy import ndimage
 
-# import matplotlib.font_manager as fm)
-# from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
-from matplotlib_scalebar.scalebar import ScaleBar
 import numpy as np
-
-
-# flake8: noqa: C901
-def plot_channel(
-    sm: SpatialModality,
-    fov_name: str,
-    ax: matplotlib.axes.Axes,
-    *,
-    channel: Optional[Union[str, int]] = None,
-    preprocessing: Optional[Callable] = None,
-    alpha: float = 1.0,
-    color: Optional[Union[tuple[float], str]] = None,
-    cmap: Optional[matplotlib.colors.Colormap] = matplotlib.cm.viridis,
-    random_colors: bool = False,
-    scalebar=True,
-    **kwargs,
-) -> Optional[matplotlib.cm.ScalarMappable]:
-    if fov_name not in sm:
-        raise ValueError(f"{fov_name} is not a FieldOfView of the considered SpatialModality")
-    else:
-        fov = sm[fov_name]
-
-    if random_colors:
-        assert type(fov) != spatialmuon.datatypes.raster.Raster
-        color = None
-        cmap = None
-    else:
-        if color is not None:
-            cmap = None
-        else:
-            if cmap is None:
-                raise ValueError()
-
-    if channel is not None:
-        if type(channel) == str:
-            # inefficient for many repeated calls
-            if type(fov) == spatialmuon.datatypes.array.Array:
-                if channel not in fov.var.index:
-                    raise ValueError("channel not found")
-                else:
-                    i = fov.var.index.get_loc(channel)
-            elif type(fov) == spatialmuon.datatypes.raster.Raster:
-                if channel not in fov.channel_names:
-                    raise ValueError("channel not found")
-                else:
-                    i = fov.channel_names.index(channel)
-            else:
-                raise ValueError()
-        elif type(channel) == int:
-            i = channel
-        else:
-            raise ValueError()
-    else:
-        raise ValueError("channel is None")
-
-    if type(fov) == spatialmuon.datatypes.raster.Raster:
-        scalar_mappable = plot_channel_raster(
-            fov,
-            ax,
-            channel=i,
-            preprocessing=preprocessing,
-            alpha=alpha,
-            color=color,
-            cmap=cmap,
-            **kwargs,
-        )
-    elif type(fov) == spatialmuon.datatypes.array.Array:
-        scalar_mappable = plot_channel_array(
-            fov,
-            ax,
-            channel=i,
-            preprocessing=preprocessing,
-            alpha=alpha,
-            color=color,
-            cmap=cmap,
-            random_colors=random_colors,
-            **kwargs,
-        )
-    else:
-        raise NotImplementedError()
-
-    if scalebar:
-        unit = "um" if "μ" in sm.coordinate_unit else sm.coordinate_unit
-        scalebar = ScaleBar(fov.scale, unit, box_alpha=0.8)
-        ax.add_artist(scalebar)
-
-    return scalar_mappable
 
 
 def plot_channel_raster(
@@ -211,30 +121,6 @@ def plot_channel_array(
     return scalar_mappable
 
 
-def plot_image(
-    sm: SpatialModality,
-    fov_name: str,
-    ax: matplotlib.axes.Axes,
-    rgb_channels: Optional[Union[list[str], list[int]]] = None,
-    preprocessing: Optional[Callable] = None,
-    scalebar=True,
-    **kwargs,
-):
-    if fov_name not in sm:
-        raise ValueError(f"{fov_name} is not a FieldOfView of the considered SpatialModality")
-    else:
-        fov = sm[fov_name]
-    if type(fov) == spatialmuon.datatypes.raster.Raster:
-        plot_image_raster(fov, ax, rgb_channels, preprocessing, **kwargs)
-    else:
-        raise NotImplementedError()
-
-    if scalebar:
-        unit = "um" if "μ" in sm.coordinate_unit else sm.coordinate_unit
-        scalebar = ScaleBar(fov.scale, unit, box_alpha=0.8)
-        ax.add_artist(scalebar)
-
-
 def image_to_rgb(x: np.ndarray):
     assert len(x.shape) == 3
     assert x.shape[-1] == 3
@@ -246,30 +132,3 @@ def image_to_rgb(x: np.ndarray):
     x = (x - a) / (b - a)
     x.shape = old_shape
     return x
-
-
-def plot_image_raster(
-    fov: FieldOfView,
-    ax: matplotlib.axes.Axes,
-    rgb_channels: Optional[Union[list[str], list[int]]],
-    preprocessing: Optional[Callable],
-    **kwargs,
-) -> Optional[matplotlib.image.AxesImage]:
-    n = fov.X.shape[-1]
-    if rgb_channels is None:
-        if n != 3:
-            raise ValueError("interpreting only tensors with 3 channels as rgb")
-        else:
-            i = np.array([0, 1, 2])
-    else:
-        if type(rgb_channels) == list and type(rgb_channels[0]) == str:
-            i = np.where(np.array(fov.channel_names) == rgb_channels)[0]
-        elif type(rgb_channels) == int:
-            i = np.array(rgb_channels)
-        else:
-            raise ValueError()
-    x = fov.X[...][:, :, i]
-    if preprocessing is not None:
-        x = preprocessing(x)
-    im = ax.imshow(x, **kwargs)
-    return im

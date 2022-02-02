@@ -340,10 +340,11 @@ def create_muon_spatial_object(f_ome, f_masks, outfile):
         X=np.moveaxis(ome.asarray(), 0, -1), var=var, coordinate_unit="um"
     )
     raster_masks = spatialmuon.RasterMasks(mask=masks)
-    raster_masks.update_obs_from_masks()
     regions = spatialmuon.Regions(masks=raster_masks, coordinate_unit="um")
     modality["masks"] = regions
-    print(smudata)
+    # closing the file is needed because of the bug involing h5clear
+    smudata.backing.close()
+    print(f"{os.path.join(os.getcwd(), outfile)} created")
     pass
 
 
@@ -403,7 +404,9 @@ if __name__ == "__main__":
                 print("extracting images...", file=sys.stderr)
                 unzip(imgfile, dest_dir, rm=DOWNLOAD)
                 unzip(
-                    os.path.join(dest_dir, "OMEnMasks", "ome.zip"), dest_dir, rm=DOWNLOAD,
+                    os.path.join(dest_dir, "OMEnMasks", "ome.zip"),
+                    dest_dir,
+                    rm=DOWNLOAD,
                 )
                 unzip(
                     os.path.join(dest_dir, "OMEnMasks", "Basel_Zuri_masks.zip"),

@@ -69,11 +69,12 @@ class Regions(FieldOfView):
             # self._index = SpatialIndex(
             #     backing=backing["index"], dimension=backing["coordinates"].shape[1], **index_kwargs
             # )
-            self['masks'] = Masks(backing=backing["masks"])
-            attrs = backing.attrs
+            self.masks = Masks(backing=backing["masks"], parentdataset=self)
+            # attrs = backing.attrs
         else:
             self._X = X
-            self['masks'] = masks
+            masks.parentdataset = self
+            self.masks = masks
             # self._index = SpatialIndex(coordinates=self._coordinates, **index_kwargs)
 
             # for key, mask in self.backing["masks"].items():
@@ -107,17 +108,16 @@ class Regions(FieldOfView):
 
     @property
     def masks(self):
-        return self._masks
+        return self['masks']
 
     @masks.setter
     def masks(self, new_masks):
-        self._masks = new_masks
-        self._masks.parentdataset = self
+        new_masks.parentdataset = self
+        self['masks'] = new_masks
 
     @property
     def obs(self) -> pd.DataFrame:
-        if self.masks is not None:
-            return self.masks.obs
+        return self.masks.obs
 
     def _getitem(
         self,
@@ -166,27 +166,27 @@ class Regions(FieldOfView):
     def _encodingversion() -> str:
         return "0.1.0"
 
-    @property
-    def _backed_children(self) -> Dict["BackableObject"]:
-        return {'masks': self.masks}
+    # @property
+    # def _backed_children(self) -> Dict["BackableObject"]:
+    #     return {'masks': self.masks}
 
-    def _set_backing(self, grp: Optional[h5py.Group]):
-        super()._set_backing(grp)
-        if grp is not None:
-            assert isinstance(grp, h5py.Group)
-            # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
-            # but to be safe let's set it to None explicity here
-            self._backing = None
-            self._write_impl(grp)
-            self.masks.set_backing(grp, "masks")
-            # self._X = None
-            # self._index.set_backing(grp, "index")
-        else:
-            print("who is calling me?")
-            assert self.is_backed
-            # self._X = read_attribute(grp, "X")
-            # self._index.set_backing(None)
-            # self.masks.set_backing(None)
+    # def _set_backing(self, grp: Optional[h5py.Group]):
+    #     super()._set_backing(grp)
+    #     if grp is not None:
+    #         assert isinstance(grp, h5py.Group)
+    #         # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
+    #         # but to be safe let's set it to None explicity here
+    #         self._backing = None
+    #         self._write_impl(grp)
+    #         # self.masks.set_backing(grp, "masks")
+    #         # self._X = None
+    #         # self._index.set_backing(grp, "index")
+    #     else:
+    #         print("who is calling me?")
+    #         assert self.is_backed
+    #         # self._X = read_attribute(grp, "X")
+    #         # self._index.set_backing(None)
+    #         # self.masks.set_backing(None)
 
     def _write_impl(self, grp: h5py.Group):
         super()._write_impl(grp)

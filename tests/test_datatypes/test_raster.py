@@ -24,6 +24,6 @@ class Raster_TestClass(unittest.TestCase):
 
 if __name__ == "__main__":
     if DEBUGGING:
-        unittest.main()
+        unittest.main(failfast=True)
     else:
         pass

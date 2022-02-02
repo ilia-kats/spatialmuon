@@ -49,7 +49,7 @@ def get_small_imc_aligned():
         d["imc"]["masks"]._anchor = spatialmuon.Anchor(
             origin=np.array([140, 60]), vector=np.array([0.5, 0])
         )
-        data = d["imc"]["masks"].masks.data
+        data = d["imc"]["masks"].masks.X
         # only even entries
         assert data.shape == (40, 60)
         data = data[np.ix_(*[range(0, i, 2) for i in data.shape])]

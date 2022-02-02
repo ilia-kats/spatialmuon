@@ -2,14 +2,14 @@ from typing import Optional, Union, Callable, Dict
 import warnings
 import matplotlib
 import matplotlib.cm
-from spatialmuon._core.backing import BackableObject, BackedDictProxy
+from spatialmuon._core.backing import BackableObject
 from spatialmuon._core.fieldofview import FieldOfView, UnknownEncodingException
 from spatialmuon.utils import _read_hdf5_attribute, _get_hdf5_attribute
 
 import h5py
 
 
-class SpatialModality(BackableObject, BackedDictProxy):
+class SpatialModality(BackableObject):
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,
@@ -34,12 +34,12 @@ class SpatialModality(BackableObject, BackedDictProxy):
     def _encodingversion():
         return "0.1.0"
 
-    @property
-    def _backed_children(self) -> Dict[str, "BackableObject"]:
-        d = {}
-        for f, fov in self.items():
-            d[f] = fov
-        return d
+    # @property
+    # def _backed_children(self) -> Dict[str, "BackableObject"]:
+    #     d = {}
+    #     for f, fov in self.items():
+    #         d[f] = fov
+    #     return d
 
     # TODO: the else branch of _set_backing has no equivalent in _backed_childer, check that it is all right/when
     #  that is called in a previous commit

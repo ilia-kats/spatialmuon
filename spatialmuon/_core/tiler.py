@@ -33,8 +33,6 @@ class Tiles:
             # self.raster.plot(channels=c, ax=ax)
             self.masks.plot(fill_colors="red", outline_colors="k", ax=ax, alpha=0.5)
             plt.show()
-            print("ooo")
-            print("ooo")
             ##
 
     # TODO: tiles plotted back are not pixel perfect, fix it

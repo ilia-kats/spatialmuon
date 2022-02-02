@@ -90,7 +90,7 @@ class SquidpyExternal_TestClass(unittest.TestCase):
 
 if __name__ == "__main__":
     if not DEBUGGING:
-        unittest.main()
+        unittest.main(failfast=True)
     else:
         # SquidpyExternal_TestClass().test_can_get_squidpy_data_representation()
         # SquidpyExternal_TestClass().test_can_compute_spatial_neighbors()

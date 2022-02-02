@@ -42,7 +42,7 @@ class Converter_TestClass(unittest.TestCase):
 
 if __name__ == "__main__":
     if not DEBUGGING:
-        unittest.main()
+        unittest.main(failfast=True)
     else:
         Converter_TestClass().test_can_create_Raster_from_tiff()
         Converter_TestClass().test_can_create_RasterMask_from_tiff()

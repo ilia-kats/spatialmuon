@@ -80,6 +80,6 @@ class Anchor_TestClass(unittest.TestCase):
 
 if __name__ == "__main__":
     if not DEBUGGING:
-        unittest.main()
+        unittest.main(failfast=True)
     else:
         Anchor_TestClass().test_compute_alignment_translation_scale()

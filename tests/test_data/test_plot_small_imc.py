@@ -187,7 +187,7 @@ class PlotSmallImc_TestClass(unittest.TestCase):
 
 if __name__ == "__main__":
     if not DEBUGGING:
-        unittest.main()
+        unittest.main(failfast=True)
     else:
         # PlotSmallImc_TestClass().test_can_load_smu_file()
         # PlotSmallImc_TestClass().test_can_pretty_print()

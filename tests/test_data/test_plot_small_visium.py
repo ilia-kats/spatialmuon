@@ -125,7 +125,7 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
 
 if __name__ == "__main__":
     if not DEBUGGING:
-        unittest.main()
+        unittest.main(failfast=True)
     else:
         # PlotSmallVisium_TestClass().test_can_load_smu_file()
         # PlotSmallVisium_TestClass().test_can_pretty_print()

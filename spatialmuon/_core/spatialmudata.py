@@ -3,12 +3,12 @@ from os import PathLike, path, system
 
 import h5py
 
-from .backing import BackableObject, BackedDictProxy
+from .backing import BackableObject
 from .spatialmodality import SpatialModality
 from ..utils import is_h5smu
 
 
-class SpatialMuData(BackableObject, BackedDictProxy):
+class SpatialMuData(BackableObject):
     def __init__(
         self,
         backing: Union[str, PathLike, h5py.Group] = None,
@@ -62,12 +62,12 @@ class SpatialMuData(BackableObject, BackedDictProxy):
         elif modalities is not None:
             self.update(modalities)
 
-    @property
-    def _backed_children(self) -> Dict[str, "BackableObject"]:
-        d = {}
-        for k, v in self.items():
-            d[k] = v
-        return d
+    # @property
+    # def _backed_children(self) -> Dict[str, "BackableObject"]:
+    #     d = {}
+    #     for k, v in self.items():
+    #         d[k] = v
+    #     return d
 
     # def _set_backing(self, grp: Union[None, h5py.Group]):
     #     super()._set_backing(grp)

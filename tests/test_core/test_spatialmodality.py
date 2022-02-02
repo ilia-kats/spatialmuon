@@ -68,7 +68,7 @@ class SpatialModality_creation(unittest.TestCase):
 
 if __name__ == "__main__":
     if not DEBUGGING:
-        unittest.main()
+        unittest.main(failfast=True)
     else:
         # SpatialModality_creation().test_can_create_SpatialModality_from_Raster()
         SpatialModality_creation().test_can_create_SpatialModality_from_Regions()

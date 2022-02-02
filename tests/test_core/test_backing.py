@@ -188,12 +188,10 @@ class Backing_TestClass(unittest.TestCase):
             for s in ss.values():
                 assert len(s["a"].keys()) == 2
             ##
-            print("ooooo")
-            print("ooooo")
 
 
 if __name__ == "__main__":
     if not DEBUGGING:
-        unittest.main()
+        unittest.main(failfast=True)
     else:
         Backing_TestClass().test_various_setitem_orders()

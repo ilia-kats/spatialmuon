@@ -37,6 +37,6 @@ class SpatialMuData_TestClass(unittest.TestCase):
 
 if __name__ == "__main__":
     if not DEBUGGING:
-        unittest.main()
+        unittest.main(failfast=True)
     else:
         SpatialMuData_TestClass().test_can_create_SpatialMuData()

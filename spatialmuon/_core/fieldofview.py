@@ -14,7 +14,7 @@ from anndata._io.utils import read_attribute, write_attribute
 from anndata.utils import make_index_unique
 import pandas as pd
 
-from spatialmuon._core.backing import BackableObject, BackedDictProxy
+from spatialmuon._core.backing import BackableObject
 from spatialmuon._core.anchor import Anchor
 from spatialmuon._core.bounding_box import BoundingBoxable, BoundingBox
 
@@ -76,7 +76,7 @@ class FieldOfView(BackableObject, BoundingBoxable):
                 self.coordinate_unit = _get_hdf5_attribute(
                     self.backing.attrs, "coordinate_unit", None
                 )
-                self._anchor = Anchor(backing=backing["anchor"])
+                self.anchor = Anchor(backing=backing["anchor"])
         else:
             if var is not None:
                 self.var = var
@@ -95,19 +95,19 @@ class FieldOfView(BackableObject, BoundingBoxable):
                 self.coordinate_unit = "units"
 
             if anchor is not None:
-                self._anchor = anchor
+                self.anchor = anchor
             else:
                 # in the new version of the code the function update_n_dim_in_anchor called by FieldOfView subclasses
                 # implies that ancor is not None, so this code should not be reached
-                self._anchor = Anchor(self.ndim)
+                self.anchor = Anchor(self.ndim)
                 warnings.warn("who called me?")
         # disabled by default since it is slowe
         self.compressed_storage = False
 
-    @property
-    def _backed_children(self) -> Dict[str, "BackableObject"]:
-        assert self._anchor is not None
-        return {'anchor': self._anchor}
+    # @property
+    # def _backed_children(self) -> Dict[str, "BackableObject"]:
+    #     assert self._anchor is not None
+    #     return {'anchor': self._anchor}
 
     # in classes inherithing from FieldOfView, this function is the only thing called in __init__() before calling
     # super().__init__(). This becase the __init__() in FieldOfView needs to know which is the dimensionality of the
@@ -158,29 +158,35 @@ class FieldOfView(BackableObject, BoundingBoxable):
         shares this global coordinate system and aligns to eachother in it.
 
         """
-        assert self._anchor is not None
-        return self._anchor
+        # assert self._anchor is not None
+        # return self._anchor
+        assert 'anchor' in self
+        return self['anchor']
 
-    def __getitem__(self, index):
-        polygon_method = "discard"
-        if not isinstance(index, tuple):
-            if isinstance(index, str) or isinstance(index, list):
-                genes = index
-                mask = None
-            else:
-                mask = index
-                genes = None
-        else:
-            mask = index[0]
-            genes = index[1]
-            if len(index) > 2:
-                polygon_method = index[2]
-        if mask == slice(None):
-            mask = None
-        if genes == slice(None):
-            genes = None
+    @anchor.setter
+    def anchor(self, new_anchor):
+        self['anchor'] = new_anchor
 
-        return self._getitem(mask, genes, polygon_method)
+    # def __getitem__(self, index):
+    #     polygon_method = "discard"
+    #     if not isinstance(index, tuple):
+    #         if isinstance(index, str) or isinstance(index, list):
+    #             genes = index
+    #             mask = None
+    #         else:
+    #             mask = index
+    #             genes = None
+    #     else:
+    #         mask = index[0]
+    #         genes = index[1]
+    #         if len(index) > 2:
+    #             polygon_method = index[2]
+    #     if mask == slice(None):
+    #         mask = None
+    #     if genes == slice(None):
+    #         genes = None
+    #
+    #     return self._getitem(mask, genes, polygon_method)
 
     @abstractmethod
     def _getitem(

@@ -328,7 +328,7 @@ s["tomo-seq"]["image"].plot(ax=ax0)
 # ax0.axvline(x=x1, c='r', linestyle='--')
 ax0.set_title(sample_name)
 s_fish["fish"]["image"].plot(ax=ax1, show_colorbar=False, show_scalebar=False, show_title=False)
-x = s_fish["fish"]["covered"].masks.data
+x = s_fish["fish"]["covered"].masks.X
 boolean_mask = x == 255
 contours = skimage.measure.find_contours(boolean_mask, 0.7)
 for contour in contours:

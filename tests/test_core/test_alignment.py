@@ -25,6 +25,6 @@ class Alignment_TestClass(unittest.TestCase):
 
 if __name__ == "__main__":
     if not DEBUGGING:
-        unittest.main()
+        unittest.main(failfast=True)
     else:
         Alignment_TestClass().test_plot()

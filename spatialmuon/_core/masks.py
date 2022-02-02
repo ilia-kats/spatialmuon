@@ -56,7 +56,7 @@ class SpotShape(Enum):
 
 
 class Masks(BackableObject, BoundingBoxable):
-    def __new__(cls, *, backing: Optional[h5py.Group] = None, **kwargs):
+    def __new__(cls, *, backing: Optional[h5py.Group] = None, parentdataset = None, **kwargs):
         if backing is not None:
             masktype = _read_hdf5_attribute(backing.attrs, "encoding-type")
             if masktype == "masks-polygon":
@@ -76,9 +76,10 @@ class Masks(BackableObject, BoundingBoxable):
         self,
         obs: Optional[pd.DataFrame] = None,
         backing: Optional[Union[h5py.Group, h5py.Dataset]] = None,
+        parentdataset = None
     ):
         super().__init__(backing)
-        self._parentdataset = None
+        self._parentdataset = parentdataset
         if backing is not None:
             self._obs = read_attribute(backing["obs"])
         else:
@@ -104,9 +105,9 @@ class Masks(BackableObject, BoundingBoxable):
     def ndim(self):
         pass
 
-    @abstractmethod
-    def __getitem__(self, key):
-        pass
+    # @abstractmethod
+    # def __getitem__(self, key):
+    #     pass
 
     @abstractmethod
     def __len__(self):
@@ -301,12 +302,13 @@ class ShapeMasks(Masks, MutableMapping):
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,
+        parentdataset=None,
         masks_centers: Optional[np.array] = None,
         masks_radii: Optional[Union[float, np.array]] = None,
         masks_shape: Optional[Literal["circle", "square"]] = None,
         masks_labels: Optional[list[str]] = None,
     ):
-        super().__init__(backing=backing)
+        super().__init__(backing=backing, parentdataset=parentdataset)
 
         self._masks_centers: Optional[np.ndarray] = None
         self._masks_radii: Optional[np.ndarray] = None
@@ -391,30 +393,30 @@ class ShapeMasks(Masks, MutableMapping):
         assert len(self._masks_centers.shape) == 2
         return self._masks_centers.shape[1]
 
-    def __getitem__(self, key) -> Polygon:
-        raise NotImplementedError()
-        # if self.is_backed:
-        #     return (self.backing[key]["center"], self.backing[key]["radius"])
-        # else:
-        #     return self._data[key]
-
-    def __setitem__(self, key: str, value: tuple[tuple[float], float]):
-        raise NotImplementedError()
-        # if self.ndim is not None and self.ndim != len(value[0]):
-        #     raise ValueError(f"value must have dimensionality {self.ndim}, but has {len(value[0])}")
-        # if self.is_backed:
-        #     grp = self.backing.create_group(key)
-        #     grp.create_dataset("center", data=value[0])
-        #     grp.create_dataset("radius", data=np.array([value[1]]))
-        # else:
-        #     self._data[key] = value
-
-    def __delitem__(self, key: str):
-        raise NotImplementedError()
-        # if self.is_backed:
-        #     del self.backing[key]
-        # else:
-        #     del self._data[key]
+    # def __getitem__(self, key) -> Polygon:
+    #     raise NotImplementedError()
+    #     # if self.is_backed:
+    #     #     return (self.backing[key]["center"], self.backing[key]["radius"])
+    #     # else:
+    #     #     return self._data[key]
+    #
+    # def __setitem__(self, key: str, value: tuple[tuple[float], float]):
+    #     raise NotImplementedError()
+    #     # if self.ndim is not None and self.ndim != len(value[0]):
+    #     #     raise ValueError(f"value must have dimensionality {self.ndim}, but has {len(value[0])}")
+    #     # if self.is_backed:
+    #     #     grp = self.backing.create_group(key)
+    #     #     grp.create_dataset("center", data=value[0])
+    #     #     grp.create_dataset("radius", data=np.array([value[1]]))
+    #     # else:
+    #     #     self._data[key] = value
+    #
+    # def __delitem__(self, key: str):
+    #     raise NotImplementedError()
+    #     # if self.is_backed:
+    #     #     del self.backing[key]
+    #     # else:
+    #     #     del self._data[key]
 
     def __len__(self):
         assert self._masks_centers is not None
@@ -424,19 +426,19 @@ class ShapeMasks(Masks, MutableMapping):
         # else:
         #     return len(self._data)
 
-    def __contains__(self, item):
-        raise NotImplementedError()
-        # if self.is_backed:
-        #     return item in self.backing
-        # else:
-        #     return item in self._data
+    # def __contains__(self, item):
+    #     raise NotImplementedError()
+    #     # if self.is_backed:
+    #     #     return item in self.backing
+    #     # else:
+    #     #     return item in self._data
 
-    def __iter__(self):
-        raise NotImplementedError()
-        # if self.is_backed:
-        #     return iter(self.backing)
-        # else:
-        #     return iter(self._data)
+    # def __iter__(self):
+    #     raise NotImplementedError()
+    #     # if self.is_backed:
+    #     #     return iter(self.backing)
+    #     # else:
+    #     #     return iter(self._data)
 
     @property
     def _untransformed_bounding_box(self) -> BoundingBox:
@@ -452,12 +454,6 @@ class ShapeMasks(Masks, MutableMapping):
         x_max, y_max = np.max(extended_coords, axis=0)
         bb = BoundingBox(x0=x_min, x1=x_max, y0=y_min, y1=y_max)
         return bb
-
-    def items(self):
-        raise NotImplementedError()
-
-    def values(self):
-        raise NotImplementedError()
 
     @staticmethod
     def _encodingtype():
@@ -478,9 +474,9 @@ class ShapeMasks(Masks, MutableMapping):
     #     else:
     #         print("who is calling me?")
     #         assert self.is_backed
-    @property
-    def _backed_children(self) -> Dict[str, "BackableObject"]:
-        return {}
+    # @property
+    # def _backed_children(self) -> Dict[str, "BackableObject"]:
+    #     return {}
 
     def _write_impl(self, grp: h5py.Group):
         super()._write_impl(grp)
@@ -538,10 +534,11 @@ class PolygonMasks(Masks, MutableMapping):
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,
+        parentdataset=None,
         masks: Optional[dict[str, Union[np.ndarray, Polygon]]] = None,
         masks_labels: Optional[list[str]] = None,
     ):
-        super().__init__(backing)
+        super().__init__(backing, parentdataset=parentdataset)
 
         self._data = {}
 
@@ -674,9 +671,10 @@ class MeshMasks(Masks, MutableMapping):
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,
+        parentdataset=None,
         masks: Optional[dict[str, Union[Trimesh, tuple[np.ndarray, np.ndarray]]]] = None,
     ):
-        super().__init__(backing)
+        super().__init__(backing, parentdataset=parentdataset)
         self._data = {}
         if masks is not None:
             if self.is_backed and len(self.backing) > 0:
@@ -792,13 +790,14 @@ class RasterMasks(Masks):
     def __init__(
         self,
         backing: Optional[h5py.Dataset] = None,
+        parentdataset=None,
         mask: Optional[np.ndarray] = None,
         shape: Optional[Union[tuple[int, int], tuple[int, int, int]]] = None,
         dtype: Optional[type] = None,
         px_dimensions: Optional[np.ndarray] = None,
         px_distance: Optional[np.ndarray] = None,
     ):
-        super().__init__(backing=backing)
+        super().__init__(backing=backing, parentdataset=parentdataset)
         self._mask = None
 
         if self.is_backed:
@@ -839,7 +838,7 @@ class RasterMasks(Masks):
 
     @property
     def ndim(self):
-        return self.data.ndim
+        return self.X.ndim
 
     @property
     def px_dimensions(self) -> np.ndarray:
@@ -857,11 +856,11 @@ class RasterMasks(Masks):
 
     @property
     def shape(self):
-        return self.data.shape
+        return self.X.shape
 
     @property
     def dtype(self):
-        return self.data.dtype
+        return self.X.dtype
 
     # TODO: this code is almost identical to the one in raster.py, do something to avoid redundancy
     @property
@@ -869,7 +868,7 @@ class RasterMasks(Masks):
         assert self.ndim in [2, 3]
         if self.ndim == 3:
             raise NotImplementedError()
-        h, w = self.data.shape[:2]
+        h, w = self.X.shape[:2]
         px_dimensions = self.px_dimensions
         px_distance = self.px_distance
         actual_h = float(h) * px_dimensions[0] + (h - 1) * (px_distance[0] - 1)
@@ -878,14 +877,14 @@ class RasterMasks(Masks):
         return bounding_box
 
     @property
-    def data(self) -> Union[np.ndarray, h5py.Dataset]:
+    def X(self) -> Union[np.ndarray, h5py.Dataset]:
         if self.is_backed:
             return self.backing["imagemask"][...]
         else:
             return self._mask
 
     def __len__(self):
-        return np.max(self.data)
+        return np.max(self.X)
 
     # flake8: noqa: C901
     def __getitem__(self, key):
@@ -969,9 +968,9 @@ class RasterMasks(Masks):
             raise ValueError(
                 "replacing the old obs is only performed when obs is an empty DataFrame or it is None"
             )
-        if self.data is None:
+        if self.X is None:
             raise ValueError("no mask data has been specified")
-        m = self.data
+        m = self.X
         assert np.all(m >= 0)
         unique_masks = np.unique(m).tolist()
         # remove eventual background label
@@ -988,13 +987,13 @@ class RasterMasks(Masks):
         original_labels = self.obs["original_labels"].to_numpy()
         original_labels = np.insert(original_labels, 0, 0)
         contiguous_labels = np.arange(len(original_labels))
-        x = self.data
+        x = self.X
         if not np.all(original_labels == contiguous_labels):
             # probably not the most efficient, but probably also fine
             lut = np.zeros(max(original_labels) + 1, dtype=np.int)
             for i, o in enumerate(original_labels):
                 lut[o] = i
-            x = lut[self.data]
+            x = lut[self.X]
         bb = self.bounding_box
         extent = [bb.x0, bb.x1, bb.y0, bb.y1]
         ax.imshow(fill_color_array[x], interpolation="none", extent=extent, origin="lower")
@@ -1010,7 +1009,7 @@ class RasterMasks(Masks):
                     ax.plot(transformed[:, 0], transformed[:, 1], linewidth=1, color=outline_color)
 
     def compute_centers(self):
-        masks = self.data
+        masks = self.X
         masks = masks.astype(np.uint32)
         ome = np.require(np.zeros_like(masks)[..., np.newaxis], requirements=["C"])
         vigra_ome = vigra.taggedView(ome, "xyc")
@@ -1042,7 +1041,7 @@ class RasterMasks(Masks):
             raise NotImplementedError()
         ome = np.require(x, requirements=["C"])
         vigra_ome = vigra.taggedView(ome, "xyc")
-        masks = self.data
+        masks = self.X
         masks = masks.astype(np.uint32)
         ##
         features = vigra.analysis.extractRegionFeatures(
@@ -1080,7 +1079,7 @@ class RasterMasks(Masks):
         mask_labels = set(self.obs["original_labels"].to_list())
         ome = raster.X
         # here I need to find the bounding box from the masks and extract the pixels below
-        real_labels = set(np.unique(self.data).tolist())
+        real_labels = set(np.unique(self.X).tolist())
         if 0 in real_labels:
             real_labels.remove(0)
         assert mask_labels == real_labels
@@ -1093,7 +1092,7 @@ class RasterMasks(Masks):
             desc="extracting tiles",
             total=len(mask_labels),
         ):
-            masks = self.data
+            masks = self.X
             # center = xy[i, :]
             # compute the bounding box of the mask
             z = masks == mask_label

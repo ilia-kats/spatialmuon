@@ -191,7 +191,8 @@ class Backing_TestClass(unittest.TestCase):
             ##
 
     def test_on_demand_save(self):
-        return True
+        self.skipTest("save apis changed, this test has to be rewritten using commit_changes()")
+        return
         with tempfile.TemporaryDirectory() as td:
             ##
             fpath = os.path.join(td, "a.h5smu")

@@ -2,6 +2,7 @@ from typing import Literal
 from codecs import decode
 from os import PathLike
 import warnings
+import colorama
 
 import numpy as np
 import pandas as pd
@@ -44,7 +45,7 @@ def _get_hdf5_attribute(attrs: h5py.AttributeManager, name: str, default=None):
 
 
 def preprocess_3d_polygon_mask(
-    mask: Polygon, coords: np.ndarray, method: Literal["project", "discard"] = "discard"
+        mask: Polygon, coords: np.ndarray, method: Literal["project", "discard"] = "discard"
 ):
     if method == "discard":
         bounds = list(mask.bounds)
@@ -54,7 +55,8 @@ def preprocess_3d_polygon_mask(
     elif method == "project":
         if mask.has_z:
             warnings.warn(
-                "Method is `project` but masks has 3 dimensions. Assuming that masks is in-plane with the data and skipping projection."  # noqa: E501
+                "Method is `project` but masks has 3 dimensions. Assuming that masks is in-plane with the data and skipping projection."
+                # noqa: E501
             )
         else:
             mean = coords.mean(axis=0)
@@ -116,3 +118,11 @@ def angle_between(v1: np.array, v2: np.array, output: str = "degree"):
     elif output == "radians":
 
         return rotation
+
+
+def old_school_debugging(debug: bool):
+    def print_red(s: str):
+        if debug:
+            print(f'{colorama.Fore.RED}{s}{colorama.Fore.RESET}')
+
+    return print_red

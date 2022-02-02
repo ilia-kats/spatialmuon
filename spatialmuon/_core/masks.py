@@ -277,8 +277,8 @@ class Masks(BackableObject, BoundingBoxable):
                     bbox_to_anchor=(0.5, -0.1),
                     ncol=len(_legend),
                 )
-        # when the plot is invoked with my_fov.masks.plot(), then self.parentdataset._adjust_plot_lims() is called
-        # once, when the plot is invoked with my_fov.plot(), then self.parentdataset._adjust_plot_lims() is called
+        # when the plot is invoked with my_fov.masks.plot(), then self._parentdataset._adjust_plot_lims() is called
+        # once, when the plot is invoked with my_fov.plot(), then self._parentdataset._adjust_plot_lims() is called
         # twice (one now and one in the code for plotting FieldOfView subclasses). This should not pose a problem
         if self._parentdataset is not None:
             self._parentdataset._adjust_plot_lims(ax=axs)

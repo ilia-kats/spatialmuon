@@ -80,7 +80,7 @@ class Anchor(BackableObject):
 
     def __str__(self):
         return "{}\n├─ndim: {}\n├─origin: {}\n└─vector: {}".format(
-            self.__class__.__name__, self.ndim, self.origin, self.vector
+            self.__class__.__name__, self.ndim, self.origin[...], self.vector[...]
         )
 
     @property

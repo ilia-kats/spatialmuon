@@ -130,9 +130,9 @@ if __name__ == "__main__":
         # PlotSmallVisium_TestClass().test_can_load_smu_file()
         # PlotSmallVisium_TestClass().test_can_pretty_print()
         #
-        PlotSmallVisium_TestClass().test_can_plot_image()
+        # PlotSmallVisium_TestClass().test_can_plot_image()
         #
-        PlotSmallVisium_TestClass().test_can_plot_regions_single_channel()
+        # PlotSmallVisium_TestClass().test_can_plot_regions_single_channel()
         # PlotSmallVisium_TestClass().test_can_plot_regions_non_overlapping_channels()
         #
         # PlotSmallVisium_TestClass().test_can_plot_regions_random_color()

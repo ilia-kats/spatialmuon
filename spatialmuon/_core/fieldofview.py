@@ -199,15 +199,19 @@ class FieldOfView(BackableObject, BoundingBoxable):
 
     def _write_impl(self, obj: h5py.Group):
         if self.compressed_storage:
-            write_attribute(
-                obj, "var", self._var, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
-            )
-            write_attribute(
-                obj, "uns", self.uns, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
-            )
+            if self.updating_obj('var'):
+                write_attribute(
+                    obj, "var", self._var, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
+                )
+            if self.updating_obj('uns'):
+                write_attribute(
+                    obj, "uns", self.uns, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
+                )
         else:
-            write_attribute(obj, "var", self._var)
-            write_attribute(obj, "uns", self.uns)
+            if self.updating_obj('var'):
+                write_attribute(obj, "var", self._var)
+            if self.updating_obj('uns'):
+                write_attribute(obj, "uns", self.uns)
 
     def _adjust_plot_lims(self, ax=None):
         if ax is None:

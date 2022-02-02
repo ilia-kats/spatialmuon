@@ -70,12 +70,12 @@ class Regions(FieldOfView):
             #     backing=backing["index"], dimension=backing["coordinates"].shape[1], **index_kwargs
             # )
             masks = Masks(backing=backing["masks"])
-            masks.parentdataset = self
+            masks._parentdataset = self
             self.masks = masks
             # attrs = backing.attrs
         else:
             self._X = X
-            masks.parentdataset = self
+            masks._parentdataset = self
             self.masks = masks
             # self._index = SpatialIndex(coordinates=self._coordinates, **index_kwargs)
 
@@ -90,7 +90,7 @@ class Regions(FieldOfView):
     def __validate_mask(fov, key, mask):
         if mask.ndim is not None and mask.ndim != fov.ndim:
             return f"mask with {mask.ndim} dimensions is being added to field of view with {fov.ndim} dimensions"
-        mask.parentdataset = fov
+        mask._parentdataset = fov
         return None
 
     @property
@@ -114,7 +114,7 @@ class Regions(FieldOfView):
 
     @masks.setter
     def masks(self, new_masks):
-        new_masks.parentdataset = self
+        new_masks._parentdataset = self
         self["masks"] = new_masks
 
     @property

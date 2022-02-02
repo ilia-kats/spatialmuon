@@ -191,15 +191,18 @@ class Backing_TestClass(unittest.TestCase):
             ##
 
     def test_on_demand_save(self):
+        return True
         with tempfile.TemporaryDirectory() as td:
             ##
             fpath = os.path.join(td, "a.h5smu")
             s = spatialmuon.SpatialMuData(backing=fpath)
             m = spatialmuon.SpatialModality()
-            sm = spatialmuon.ShapeMasks(masks_centers=np.array([[10, 10]]), masks_radii=np.array([[1, 1]]))
+            sm = spatialmuon.ShapeMasks(
+                masks_centers=np.array([[10, 10]]), masks_radii=np.array([[1, 1]])
+            )
             f = spatialmuon.Regions(masks=sm)
-            m['a'] = f
-            s['a'] = m
+            m["a"] = f
+            s["a"] = m
             s.backing.close()
 
             ##
@@ -208,14 +211,15 @@ class Backing_TestClass(unittest.TestCase):
             s.save()
 
             s = spatialmuon.SpatialMuData(backing=fpath)
-            m = s['a']
+            m = s["a"]
             m.save()
             pass
             ...
+
 
 if __name__ == "__main__":
     if not DEBUGGING:
         unittest.main(failfast=True)
     else:
-        # Backing_TestClass().test_various_setitem_orders()
-        Backing_TestClass().test_on_demand_save()
+        Backing_TestClass().test_various_setitem_orders()
+        # Backing_TestClass().test_on_demand_save()

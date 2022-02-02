@@ -48,7 +48,6 @@ class SpatialMuData(BackableObject):
                     fs_strategy="page",
                     fs_persist=True,
                 )
-                f.create_group("mod")
                 f.close()
                 with open(backing, "br+") as outfile:
                     fname = "SpatialMuData (format-version={};".format(__spatialmudataversion__)
@@ -57,9 +56,9 @@ class SpatialMuData(BackableObject):
                     outfile.write(fname.encode("utf-8"))
                 backing = h5py.File(backing, "r+")
 
-        super().__init__(backing, key="mod", items=modalities)
+        super().__init__(backing, items=modalities)
         if self.is_backed:
-            for m, mod in self.backing["mod"].items():
+            for m, mod in self.backing.items():
                 self[m] = SpatialModality(backing=mod)
         elif modalities is not None:
             self.update(modalities)

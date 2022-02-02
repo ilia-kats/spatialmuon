@@ -192,7 +192,10 @@ class BackableObject(ABC, UserDict):
                 value_in_memory = value.set_backing(self.backing, key)
             else:
                 osd(f"__setitem__: {key} already in {self.backing}")
-                assert False, "key already present, remove it before reassigning it"
+                assert False, (
+                    "key already present, remove it before reassigning it (we can also change this behavior "
+                    "and replace without complaining)"
+                )
         else:
             osd(f"__setitem__: non backed case")
             # only the python dict (the superclass) is updated, not the file; the file gets updated in the case

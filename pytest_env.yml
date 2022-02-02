@@ -26,7 +26,7 @@ dependencies:
   - conda-build=3.21.7
   - pytest=6.2.5
   - louvain=0.7.1
+  - colorama
   - pip:
     - squidpy==1.1.2
     - h5py==3.6.0
-      - xarray-multiscale

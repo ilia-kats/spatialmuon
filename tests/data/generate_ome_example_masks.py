@@ -1,9 +1,10 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import tifffile as tiff
-from skimage import color
-from matplotlib.patches import Rectangle
 import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+import tifffile as tiff
+from matplotlib.patches import Rectangle
+from skimage import color
 
 
 def circle(radius, center):

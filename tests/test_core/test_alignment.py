@@ -15,11 +15,12 @@ class Alignment_TestClass(unittest.TestCase):
         s["visium"]["image_crop"].plot()
         s["visium"]["image2x_crop"].plot()
         import spatialmuon
+
         s2 = spatialmuon.SpatialMuData()
-        s2['visium'] = spatialmuon.SpatialModality()
-        s2['visium2'] = spatialmuon.SpatialModality()
-        del s2['visium']
-        del s2['visium2']
+        s2["visium"] = spatialmuon.SpatialModality()
+        s2["visium2"] = spatialmuon.SpatialModality()
+        del s2["visium"]
+        del s2["visium2"]
         pass
 
 

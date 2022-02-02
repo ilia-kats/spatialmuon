@@ -1,14 +1,9 @@
 import unittest
+
 import spatialmuon
-from tests.testing_utils import initialize_testing
-from tests.data.get_data import get_small_imc, get_small_visium, get_small_imc_aligned
 from spatialmuon._core.tiler import Tiles
-import shutil
-import os
-import tempfile
-import numpy as np
-import copy
-import matplotlib.pyplot as plt
+from tests.data.get_data import get_small_imc, get_small_imc_aligned
+from tests.testing_utils import initialize_testing
 
 test_data_dir, DEBUGGING = initialize_testing()
 fpath_imc = test_data_dir / "small_imc.h5smu"
@@ -29,9 +24,7 @@ class Tiler_TestClass(unittest.TestCase):
         t = Tiles(raster=d["imc"]["ome"], masks=d["imc"]["masks"].masks, tile_dim=32)
 
     def test_can_create_tiles_from_shape_masks(self):
-        self.skipTest(
-            "not implemented"
-        )
+        self.skipTest("not implemented")
         return
         d = spatialmuon.SpatialMuData(backing=fpath_visium)
         raster = d["visium"]["image"]

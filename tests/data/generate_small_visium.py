@@ -1,11 +1,13 @@
 ##
 # this file is not a test but just a quick script for us to generate "small_imc.h5smu"
+import copy
+import os
+from pathlib import Path
+
+import numpy as np
+
 import spatialmuon as smu
 from spatialmuon._core.anchor import Anchor
-import os
-import numpy as np
-from pathlib import Path
-import copy
 
 # this file is cumbersome because at the moment subsetting and copy constructors are not yet implemented
 

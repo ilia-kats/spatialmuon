@@ -160,12 +160,12 @@ class FieldOfView(BackableObject, BoundingBoxable):
         """
         # assert self._anchor is not None
         # return self._anchor
-        assert 'anchor' in self
-        return self['anchor']
+        assert "anchor" in self
+        return self["anchor"]
 
     @anchor.setter
     def anchor(self, new_anchor):
-        self['anchor'] = new_anchor
+        self["anchor"] = new_anchor
 
     # def __getitem__(self, index):
     #     polygon_method = "discard"

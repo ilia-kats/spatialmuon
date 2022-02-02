@@ -1,8 +1,9 @@
 ##
 # this file is not a test but just a quick script for us to generate "small_imc.h5smu"
-import spatialmuon as smu
 import os
 from pathlib import Path
+
+import spatialmuon as smu
 
 this_dir = Path(__file__).parent
 fpath = this_dir / "small_imc.h5smu"

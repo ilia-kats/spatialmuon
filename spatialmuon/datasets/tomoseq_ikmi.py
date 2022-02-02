@@ -1,16 +1,14 @@
 ##
-import pandas as pd
-import scanpy as sc
-import anndata as ad
-import spatialmuon as smu
-import numpy as np
-import matplotlib.pyplot as plt
 import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import skimage
 from PIL import Image
-import math
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1 import ImageGrid
+
+import spatialmuon as smu
 
 ##
 root = "/data/spatialmuon/datasets/tomoseq_ikmi"
@@ -32,6 +30,7 @@ manual_alignments = {
     "b3-LWF-17-12hpa": [50, 398],
 }
 
+# flake8: noqa: C901
 if False:
     images = {}
     for file in os.listdir(img_root):
@@ -248,15 +247,15 @@ if False:
 # outfile = os.path.join(root, "smu", f"{sample_name}.h5smu")
 # s = smu.SpatialMuData(outfile, backingmode="w")
 if False:
-    l = os.listdir(os.path.join(root, "smu"))
-    n = len(l)
+    files = os.listdir(os.path.join(root, "smu"))
+    n = len(files)
     fig, axes = plt.subplots(5, 4, figsize=(20, 20))
     axes = axes.flatten()
     im = Image.open(os.path.join(root, "raw/ideal_nematostella_comparison.png"))
     axes[0].imshow(im)
     axes[0].axis("off")
     gene_index = 6
-    for i, ll in enumerate(l):
+    for i, ll in enumerate(files):
         f = os.path.join(root, "smu", ll)
         s = smu.SpatialMuData(f)
         gene_name = s["time-warped"]["expression"].var.iloc[gene_index]["gene_id"]
@@ -311,7 +310,6 @@ if "covered" in s_fish["fish"]:
 s_fish["fish"]["covered"] = regions
 s_fish
 ##
-import pandas as pd
 
 df0 = pd.read_csv(os.path.join(root, "raw/single_molecule/foot_gene_highlight.csv"))
 # hard coded, maybe better to have a convenience function to show this from the data

@@ -56,7 +56,7 @@ class SpotShape(Enum):
 
 
 class Masks(BackableObject, BoundingBoxable):
-    def __new__(cls, *, backing: Optional[h5py.Group] = None, parentdataset = None, **kwargs):
+    def __new__(cls, *, backing: Optional[h5py.Group] = None, parentdataset=None, **kwargs):
         if backing is not None:
             masktype = _read_hdf5_attribute(backing.attrs, "encoding-type")
             if masktype == "masks-polygon":
@@ -76,7 +76,7 @@ class Masks(BackableObject, BoundingBoxable):
         self,
         obs: Optional[pd.DataFrame] = None,
         backing: Optional[Union[h5py.Group, h5py.Dataset]] = None,
-        parentdataset = None
+        parentdataset=None,
     ):
         super().__init__(backing)
         self._parentdataset = parentdataset
@@ -651,13 +651,13 @@ class PolygonMasks(Masks, MutableMapping):
     # def _set_backing(self, value: h5py.Group):
     #     # TODO:
     #     raise NotImplementedError()
-        # super()._set_backing(value)
-        # if value is None and self.backed:
-        #     for k, v in self.backing.items():
-        #         self._data[k] = Polygon(v[:])
-        # elif value is not None:
-        #     self._write_impl(value)
-        #     self._data.clear()
+    # super()._set_backing(value)
+    # if value is None and self.backed:
+    #     for k, v in self.backing.items():
+    #         self._data[k] = Polygon(v[:])
+    # elif value is not None:
+    #     self._write_impl(value)
+    #     self._data.clear()
 
     def _write_impl(self, obj: h5py.Group):
         super()._write_impl(obj)
@@ -935,6 +935,7 @@ class RasterMasks(Masks):
     @property
     def _backed_children(self) -> Dict[str, "BackableObject"]:
         return {}
+
     #
     # def _set_backing(self, grp: Optional[h5py.Group]):
     #     super()._set_backing(grp)

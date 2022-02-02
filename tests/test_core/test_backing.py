@@ -20,6 +20,7 @@ class Backing_TestClass(unittest.TestCase):
     # Here we are not testing the behavior on all the subobjects, like the various Masks and Anchor objects,
     # dedicated tests could be added, but still, this should generalize decently to classes inheriting from
     # BackableObject and BackedDictProxy
+    # flake8: noqa: C901
     def test_various_setitem_orders(self):
         with tempfile.TemporaryDirectory() as td:
 
@@ -123,8 +124,8 @@ class Backing_TestClass(unittest.TestCase):
             s["a"] = m
             m["a"] = copy.copy(ss["b0"]["a"]["a"])
             store("e0")
-            print(id(s['a']['a']))
-            print(id(ss['b0']['a']['a']))
+            print(id(s["a"]["a"]))
+            print(id(ss["b0"]["a"]["a"]))
             assert how_many_fovs() == 9
 
             s, m, _ = smf()

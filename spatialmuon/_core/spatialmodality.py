@@ -58,6 +58,7 @@ class SpatialModality(BackableObject):
 
     def _write_impl(self, obj: Union[h5py.Group, h5py.Dataset]):
         pass
+
     # def _write_impl(self, grp):
     #     for f, fov in self.items():
     #         fov._write(grp, f)

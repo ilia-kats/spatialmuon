@@ -163,7 +163,7 @@ class SingleMolecule(FieldOfView):
 
     @property
     def _backed_children(self) -> Dict[str, "BackableObject"]:
-        return {'index': self._index}
+        return {"index": self._index}
 
     def _write_impl(self, grp):
         super()._write_impl(grp)

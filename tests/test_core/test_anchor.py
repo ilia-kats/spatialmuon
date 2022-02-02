@@ -1,10 +1,11 @@
 import unittest
-import spatialmuon
-from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
+
+import spatialmuon
 from spatialmuon._core.anchor import Anchor
 from tests.testing_utils import initialize_testing
-import matplotlib.pyplot as plt
 
 test_data_dir, DEBUGGING = initialize_testing()
 

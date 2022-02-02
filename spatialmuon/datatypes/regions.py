@@ -108,12 +108,12 @@ class Regions(FieldOfView):
 
     @property
     def masks(self):
-        return self['masks']
+        return self["masks"]
 
     @masks.setter
     def masks(self, new_masks):
         new_masks.parentdataset = self
-        self['masks'] = new_masks
+        self["masks"] = new_masks
 
     @property
     def obs(self) -> pd.DataFrame:

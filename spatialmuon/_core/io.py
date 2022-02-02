@@ -1,8 +1,11 @@
 from __future__ import annotations
 from os import PathLike
-from typing import Union, Literal
+from typing import Union, Literal, Optional
 from codecs import decode
+import os
 import warnings
+import tempfile
+import subprocess
 
 import h5py
 
@@ -59,11 +62,27 @@ def write_h5smu(filename: PathLike, smudata: "SpatialMuData"):
     from .. import __version__, __spatialmudataversion__
 
     with h5py.File(filename, "w", userblock_size=512, libver="latest") as f:
-        f.require_group('mod')
-        smudata._write_impl(f['mod'])
+        f.require_group("mod")
+        smudata._write_impl(f["mod"])
 
     with open(filename, "br+") as outfile:
         fname = "SpatialMuData (format-version={};".format(__spatialmudataversion__)
         fname += "creator=spatialmuon;"
         fname += "creator-version={})".format(__version__)
         outfile.write(fname.encode("utf-8"))
+
+
+def repack_h5smu(filename: PathLike, compression_level: Optional[int] = None):
+    if compression_level is not None:
+        assert compression_level >= 1 and compression_level <= 9
+    assert os.path.isfile(filename)
+    with tempfile.TemporaryDirectory() as td:
+        des = os.path.join(td, "repacked.h5smu")
+        if compression_level is not None:
+            ss = ["-f", f"GZIP={compression_level}"]
+        else:
+            ss = []
+        cmd = ["h5repack"] + ss + [filename, des]
+        subprocess.check_output(cmd)
+        assert os.path.isfile(des)
+        os.rename(des, filename)

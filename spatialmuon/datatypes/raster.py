@@ -47,49 +47,63 @@ class Raster(FieldOfView):
             ndim=len(X.shape) - 1 if X is not None else None, backing=backing, **kwargs
         )
         super().__init__(backing, **kwargs)
-        self._X = None
         if backing is not None:
-            self._px_distance = _get_hdf5_attribute(backing.attrs, "px_distance")
-            self._px_dimensions = _get_hdf5_attribute(backing.attrs, "px_dimensions")
+            if X is not None or px_dimensions is not None or px_distance is not None:
+                raise ValueError("attempting to specify properties for a non-empty backing store")
+            self._X = self.backing["X"]
+            self._px_dimensions = _get_hdf5_attribute(self.backing.attrs, "px_dimensions")
+            self._px_distance = _get_hdf5_attribute(self.backing.attrs, "px_distance")
         else:
-            if X is None:
+            if X is not None:
+                self.X = X
+            else:
                 raise ValueError("no data and no backing store given")
-            self._X = X
-            self._px_dimensions = px_dimensions
-            self._px_distance = px_distance
-            if self._px_dimensions is not None:
-                self._px_dimensions = np.asarray(self._px_dimensions).squeeze()
-                if self._px_dimensions.shape[0] != self.ndim or self._px_dimensions.ndim != 1:
-                    raise ValueError("pixel_size dimensionality is inconsistent with X")
-            if self._px_distance is not None:
-                self._px_distance = np.asarray(self._px_distance).squeeze()
-                if self._px_distance.shape[0] != self.ndim or self._px_distance.ndim != 1:
-                    raise ValueError("pixel_distance dimensionality is inconsistent with X")
-            n_channels = self._X.shape[-1]
+
+            if px_dimensions is not None:
+                self.px_dimensions = px_dimensions
+                if len(self.px_dimensions.squeeze()) != self.ndim:
+                    raise ValueError("px_dimensions dimensionality is inconsistent with X")
+            else:
+                self.px_dimensions = np.ones(self.ndim, np.uint8)
+
+            if px_distance is not None:
+                self.px_distance = px_distance
+                if len(self.px_distance.squeeze()) != self.ndim:
+                    raise ValueError("px_distance dimensionality is inconsistent with X")
+            else:
+                self.px_distance = np.ones(self.ndim, np.uint8)
+
+            n_channels = self.X.shape[-1]
             if "var" not in kwargs:
                 var = pd.DataFrame(dict(channel_name=range(n_channels)))
                 self.var = var
 
     @property
     def X(self) -> Union[np.ndarray, h5py.Dataset]:
-        if self.is_backed:
-            return self.backing["X"]
-        else:
-            return self._X
+        return self._X
+
+    @X.setter
+    def X(self, new_X):
+        self._X = new_X
+        self.obj_has_changed("X")
 
     @property
     def px_dimensions(self) -> np.ndarray:
-        if self._px_dimensions is None:
-            return np.ones(self.ndim, np.uint8)
-        else:
-            return self._px_dimensions
+        return self._px_dimensions
+
+    @px_dimensions.setter
+    def px_dimensions(self, new_value):
+        self._px_dimensions = new_value
+        self.obj_has_changed("px_dimensions")
 
     @property
     def px_distance(self) -> np.ndarray:
-        if self._px_distance is None:
-            return self.px_dimensions
-        else:
-            return self._px_distance
+        return self._px_distance
+
+    @px_distance.setter
+    def px_distance(self, new_value):
+        self._px_distance = new_value
+        self.obj_has_changed("px_distance")
 
     # TODO: this code is almost identical to the one in masks.py, do something to avoid redundancy
     @property
@@ -105,76 +119,76 @@ class Raster(FieldOfView):
         bounding_box = BoundingBox(x0=0.0, y0=0.0, x1=actual_w, y1=actual_h)
         return bounding_box
 
-    # flake8: noqa: C901
-    def _getitem(
-        self,
-        mask: Optional[Union[Polygon, Trimesh]] = None,
-        genes: Optional[Union[str, list[str]]] = None,
-        polygon_method: Literal["project", "discard"] = "discard",
-    ):
-        raise NotImplementedError()
-        # if mask is not None:
-        #     if self.ndim == 3:
-        #         if isinstance(mask, Polygon):
-        #             if polygon_method == "project":
-        #                 warnings.warn(
-        #                     "Method `project` not possible with raster FOVs. Using `discard`."
-        #                 )
-        #         elif isinstance(mask, Trimesh):
-        #             lb, ub = np.floor(mask.bounds[0, :]), np.ceil(mask.bounds[1, :])
-        #             data = self.X[lb[0] : ub[0], lb[1] : ub[1], lb[2] : ub[2], ...]
-        #             coords = np.stack(
-        #                 np.meshgrid(
-        #                     range(ub[0] - lb[0] + 2),
-        #                     range(ub[1] - lb[1] + 2),
-        #                     range(ub[2] - lb[2] + 2),
-        #                 ),
-        #                 axis=1,
-        #             )
-        #             coords = coords[mask.contains(coords), :]
-        #             return data[coords[:, 1], coords[:, 0], coords[:, 2], ...]
-        #     if not isinstance(mask, Polygon):
-        #         raise TypeError("Only polygon masks can be applied to 2D FOVs")
-        #     bounds = mask.bounds
-        #     bounds = np.asarray(
-        #         (np.floor(bounds[0]), np.floor(bounds[1]), np.ceil(bounds[2]), np.ceil(bounds[3]))
-        #     ).astype(np.uint16)
-        #     data = self.X[bounds[1] : bounds[3], bounds[0] : bounds[2], ...]
-        #     coords = np.stack(
-        #         np.meshgrid(range(bounds[0], bounds[2] + 1), range(bounds[1], bounds[3] + 1)),
-        #         axis=-1,
-        #     ).reshape((-1, 2))
-        #     mp = MultiPoint(coords) if coords.shape[0] > 1 else Point(coords)
-        #     inters = np.asarray(mask.intersection(mp)).astype(np.uint16)
-        #     if inters.size == 0:
-        #         return inters
-        #     else:
-        #         data = data[inters[:, 1] - bounds[1], inters[:, 0] - bounds[0], ...]
-        # else:
-        #     data = self.X
-        #
-        # if genes is not None:
-        #     if self.channel_names is None:
-        #         data = data[..., genes]
-        #     else:
-        #         idx = np.argsort(self.channel_names)
-        #         sorted_names = self.channel_names[idx]
-        #         sorted_idx = np.searchsorted(sorted_names, genes)
-        #         try:
-        #             yidx = idx[sorted_idx]
-        #         except IndexError:
-        #             raise KeyError(
-        #                 "elements {} not found".format(
-        #                     [
-        #                         genes[i]
-        #                         for i in np.where(np.isin(genes, self.channel_names, invert=True))[
-        #                             0
-        #                         ]
-        #                     ]
-        #                 )
-        #              )
-        #         data = data[..., yidx]
-        # return data
+    # # flake8: noqa: C901
+    # def _getitem(
+    #     self,
+    #     mask: Optional[Union[Polygon, Trimesh]] = None,
+    #     genes: Optional[Union[str, list[str]]] = None,
+    #     polygon_method: Literal["project", "discard"] = "discard",
+    # ):
+    #     raise NotImplementedError()
+    # if mask is not None:
+    #     if self.ndim == 3:
+    #         if isinstance(mask, Polygon):
+    #             if polygon_method == "project":
+    #                 warnings.warn(
+    #                     "Method `project` not possible with raster FOVs. Using `discard`."
+    #                 )
+    #         elif isinstance(mask, Trimesh):
+    #             lb, ub = np.floor(mask.bounds[0, :]), np.ceil(mask.bounds[1, :])
+    #             data = self.X[lb[0] : ub[0], lb[1] : ub[1], lb[2] : ub[2], ...]
+    #             coords = np.stack(
+    #                 np.meshgrid(
+    #                     range(ub[0] - lb[0] + 2),
+    #                     range(ub[1] - lb[1] + 2),
+    #                     range(ub[2] - lb[2] + 2),
+    #                 ),
+    #                 axis=1,
+    #             )
+    #             coords = coords[mask.contains(coords), :]
+    #             return data[coords[:, 1], coords[:, 0], coords[:, 2], ...]
+    #     if not isinstance(mask, Polygon):
+    #         raise TypeError("Only polygon masks can be applied to 2D FOVs")
+    #     bounds = mask.bounds
+    #     bounds = np.asarray(
+    #         (np.floor(bounds[0]), np.floor(bounds[1]), np.ceil(bounds[2]), np.ceil(bounds[3]))
+    #     ).astype(np.uint16)
+    #     data = self.X[bounds[1] : bounds[3], bounds[0] : bounds[2], ...]
+    #     coords = np.stack(
+    #         np.meshgrid(range(bounds[0], bounds[2] + 1), range(bounds[1], bounds[3] + 1)),
+    #         axis=-1,
+    #     ).reshape((-1, 2))
+    #     mp = MultiPoint(coords) if coords.shape[0] > 1 else Point(coords)
+    #     inters = np.asarray(mask.intersection(mp)).astype(np.uint16)
+    #     if inters.size == 0:
+    #         return inters
+    #     else:
+    #         data = data[inters[:, 1] - bounds[1], inters[:, 0] - bounds[0], ...]
+    # else:
+    #     data = self.X
+    #
+    # if genes is not None:
+    #     if self.channel_names is None:
+    #         data = data[..., genes]
+    #     else:
+    #         idx = np.argsort(self.channel_names)
+    #         sorted_names = self.channel_names[idx]
+    #         sorted_idx = np.searchsorted(sorted_names, genes)
+    #         try:
+    #             yidx = idx[sorted_idx]
+    #         except IndexError:
+    #             raise KeyError(
+    #                 "elements {} not found".format(
+    #                     [
+    #                         genes[i]
+    #                         for i in np.where(np.isin(genes, self.channel_names, invert=True))[
+    #                             0
+    #                         ]
+    #                     ]
+    #                 )
+    #              )
+    #         data = data[..., yidx]
+    # return data
 
     @staticmethod
     def _encodingtype():
@@ -184,21 +198,25 @@ class Raster(FieldOfView):
     def _encodingversion():
         return "0.1.0"
 
-    @property
-    def _backed_children(self) -> Dict[str, "BackableObject"]:
-        return {}
-
     def _write_impl(self, grp):
         super()._write_impl(grp)
         if self.compressed_storage:
-            grp.create_dataset("X", data=self.X, compression="gzip", compression_opts=9)
+            if self.has_obj_changed("X"):
+                if "X" in grp:
+                    del grp["X"]
+                grp.create_dataset("X", data=self.X, compression="gzip", compression_opts=9)
         else:
-            grp.create_dataset("X", data=self.X)
+            if self.has_obj_changed("X"):
+                if "X" in grp:
+                    del grp["X"]
+                grp.create_dataset("X", data=self.X)
 
     def _write_attributes_impl(self, obj):
         super()._write_attributes_impl(obj)
-        obj.attrs["px_distance"] = self.px_distance
-        obj.attrs["px_dimensions"] = self.px_dimensions
+        if self.has_obj_changed("px_distance"):
+            obj.attrs["px_distance"] = self.px_distance
+        if self.has_obj_changed("px_dimensions"):
+            obj.attrs["px_dimensions"] = self.px_dimensions
 
     # TODO: this function shares code with Regions._plot_in_grid(), unify better at some point putting for instance
     #  the shared code in datatypes_utils.py
@@ -378,7 +396,7 @@ class Raster(FieldOfView):
         s = self.X.shape
         x, y = s[:2]
         c = s[-1]
-        repr_str = f"{x}x{y} pixels image with {c} channels"
+        repr_str = f"(Raster) {x}x{y} pixels image with {c} channels"
         return repr_str
 
     def accumulate_features(self, masks: "Masks"):

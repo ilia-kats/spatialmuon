@@ -45,7 +45,7 @@ def _get_hdf5_attribute(attrs: h5py.AttributeManager, name: str, default=None):
 
 
 def preprocess_3d_polygon_mask(
-        mask: Polygon, coords: np.ndarray, method: Literal["project", "discard"] = "discard"
+    mask: Polygon, coords: np.ndarray, method: Literal["project", "discard"] = "discard"
 ):
     if method == "discard":
         bounds = list(mask.bounds)
@@ -123,6 +123,6 @@ def angle_between(v1: np.array, v2: np.array, output: str = "degree"):
 def old_school_debugging(debug: bool):
     def print_red(s: str):
         if debug:
-            print(f'{colorama.Fore.RED}{s}{colorama.Fore.RESET}')
+            print(f"{colorama.Fore.YELLOW}{s}{colorama.Fore.RESET}")
 
     return print_red

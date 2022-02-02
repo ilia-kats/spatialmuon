@@ -19,11 +19,13 @@ class SpatialModality(BackableObject):
         if self.is_backed:
             for f, fov in self.backing.items():
                 try:
-                    self[f] = FieldOfView(backing=fov)
+                    self._set_kv(f, FieldOfView(backing=fov))
+                    # self[f] = FieldOfView(backing=fov)
                 except UnknownEncodingException as e:
                     warnings.warn(f"Unknown field of view type {e.encoding}")
         else:
             if fovs is not None:
+                warnings.warn("code not tested")
                 self.update(fovs)
 
     @staticmethod
@@ -34,10 +36,10 @@ class SpatialModality(BackableObject):
     def _encodingversion():
         return "0.1.0"
 
-    def _write_attributes_impl(self, grp: h5py.Group):
+    def _write_impl(self, obj: Union[h5py.Group, h5py.Dataset]):
         pass
 
-    def _write_impl(self, obj: Union[h5py.Group, h5py.Dataset]):
+    def _write_attributes_impl(self, grp: h5py.Group):
         pass
 
     # flake8: noqa: C901
@@ -52,6 +54,7 @@ class SpatialModality(BackableObject):
         ] = matplotlib.cm.viridis,
     ):
 
+        raise NotImplementedError("this code needs to be adapted to the new plotting functions")
         if not (isinstance(channels, list) or isinstance(channels, str)):
             raise ValueError(
                 "'channels' must be either a single character string or a list of them."

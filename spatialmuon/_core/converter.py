@@ -36,7 +36,7 @@ class Converter:
         """Opens a .tiff and converts it to a spm.RasterMask()."""
 
         masks = np.asarray(tifffile.imread(path))
-        res = spatialmuon.RasterMasks(mask=masks)
+        res = spatialmuon.RasterMasks(X=masks)
 
         return res
 

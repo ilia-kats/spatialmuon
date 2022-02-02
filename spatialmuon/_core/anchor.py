@@ -41,34 +41,46 @@ class Anchor(BackableObject):
                 raise ValueError("at least one parameter should be specified")
 
             if ndim is not None:
+                # here we write self._ndim = ndim and then we call obj_has_changed instead of writing self.ndim =,
+                # because we don't want to provide a setter for ndim; once it is set, it is forever
                 self._ndim = ndim
+                self.obj_has_changed("ndim")
             if origin is not None:
                 self._ndim = len(origin)
+                self.obj_has_changed("ndim")
                 if ndim is not None:
                     assert len(origin) == ndim
             if vector is not None:
                 self._ndim = len(vector)
+                self.obj_has_changed("ndim")
                 if ndim is not None:
                     assert len(vector) == ndim
                 if origin is not None:
                     assert len(origin) == len(vector)
 
             if origin is None:
-                self._origin = np.array([0] * self.ndim)
+                self.origin = np.array([0] * self.ndim)
             else:
-                self._origin = origin
+                self.origin = origin
 
             if vector is None:
-                self._vector = np.array([1] + ([0] * (self.ndim - 1)))
+                self.vector = np.array([1] + ([0] * (self.ndim - 1)))
             else:
-                self._vector = vector
+                self.vector = vector
 
     def _write_impl(self, obj: Union[h5py.Group, h5py.Dataset]):
-        obj.create_dataset("origin", data=self.origin)
-        obj.create_dataset("vector", data=self.vector)
+        if self.has_obj_changed("origin"):
+            if "origin" in obj:
+                del obj["origin"]
+            obj.create_dataset("origin", data=self.origin)
+        if self.has_obj_changed("vector"):
+            if "vector" in obj:
+                del obj["vector"]
+            obj.create_dataset("vector", data=self.vector)
 
     def _write_attributes_impl(self, obj: Union[h5py.Dataset, h5py.Group]):
-        obj.attrs["ndim"] = self.ndim
+        if self.has_obj_changed("ndim"):
+            obj.attrs["ndim"] = self.ndim
 
     @staticmethod
     def _encodingtype() -> str:
@@ -78,11 +90,7 @@ class Anchor(BackableObject):
     def _encodingversion() -> str:
         return "0.1.0"
 
-    def __str__(self):
-        return "{}\n├─ndim: {}\n├─origin: {}\n└─vector: {}".format(
-            self.__class__.__name__, self.ndim, self.origin[...], self.vector[...]
-        )
-
+    # no setter for ndim
     @property
     def ndim(self) -> int:
         """Number of dimensions of the Anchor point.
@@ -115,12 +123,11 @@ class Anchor(BackableObject):
 
         """
         assert self._origin is not None
-        return self._origin
+        return self._origin[...]
 
     @origin.setter
     def origin(self, new_origin: np.ndarray):
         """Updates the np.ndarray holding the 'origin'."""
-        print(2)
         if not isinstance(new_origin, np.ndarray):
             raise TypeError("Please specify a np.ndarray for 'origin'.")
         if len(new_origin) == 0:
@@ -130,7 +137,8 @@ class Anchor(BackableObject):
             warnings.warn(w)
         if len(new_origin) < self.ndim:
             raise ValueError("Length of 'new_origin' must be same as current 'ndim'.")
-        self.origin = new_origin[: self.ndim]
+        self._origin = new_origin[: self.ndim]
+        self.obj_has_changed("origin")
 
     @property
     def vector(self) -> np.ndarray:
@@ -149,20 +157,11 @@ class Anchor(BackableObject):
 
         """
         assert self._vector is not None
-        return self._vector
-
-    @property
-    def scale_factor(self) -> float:
-        return np.linalg.norm(self.vector)
-
-    @property
-    def normalized_vector(self) -> np.ndarray:
-        return self.vector / self.scale_factor
+        return self._vector[...]
 
     @vector.setter
     def vector(self, new_vector: np.ndarray):
         """Updates the np.ndarray holding the 'vector'."""
-        print(2)
         if not isinstance(new_vector, np.ndarray):
             raise TypeError("Please specify a np.ndarray for 'vector'.")
         if len(new_vector) == 0:
@@ -172,7 +171,16 @@ class Anchor(BackableObject):
             warnings.warn(w)
         if len(new_vector) < self.ndim:
             raise ValueError("Length of 'new_vector' must be same as current 'ndim'.")
-        self.vector = new_vector[: self.ndim]
+        self._vector = new_vector[: self.ndim]
+        self.obj_has_changed("vector")
+
+    @property
+    def scale_factor(self) -> float:
+        return np.linalg.norm(self.vector)
+
+    @property
+    def normalized_vector(self) -> np.ndarray:
+        return self.vector / self.scale_factor
 
     # flake8: noqa: C901
     def move_origin(self, axis: str = "all", distance: Union[int, float] = 0):
@@ -452,6 +460,11 @@ class Anchor(BackableObject):
 
     def plot(self):
         raise NotImplementedError()
+
+    def __str__(self):
+        return "{}\n├─ndim: {}\n├─origin: {}\n└─vector: {}".format(
+            self.__class__.__name__, self.ndim, self.origin, self.vector
+        )
 
     def __repr__(self):
         return str(self)

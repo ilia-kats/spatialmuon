@@ -8,7 +8,7 @@ import warnings
 import h5py
 from spatialmuon.utils import old_school_debugging
 
-osd = old_school_debugging(debug=True)
+osd = old_school_debugging(debug=False)
 
 
 class BackableObject(ABC, UserDict):
@@ -20,7 +20,7 @@ class BackableObject(ABC, UserDict):
         **kwargs,
     ):
         super().__init__()
-        self._requires_update = {}
+        self._requires_update = set()
         if items is not None:
             items.update(kwargs)
         else:
@@ -33,16 +33,29 @@ class BackableObject(ABC, UserDict):
 
         self._backing = backing
 
-    def modifying_obj(self, obj_name):
-        self._requires_update[obj_name] = True
+    def _set_kv(self, k, v):
+        super().__setitem__(k, v)
 
-    def updating_obj(self, obj_name):
-        assert obj_name in self._requires_update
-        if self._requires_update[obj_name]:
-            self._requires_update[obj_name] = False
+    def obj_has_changed(self, obj_name):
+        self._requires_update.add(obj_name)
+
+    def has_obj_changed(self, obj_name) -> bool:
+        if obj_name in self._requires_update:
+            self._requires_update.remove(obj_name)
             return True
         else:
             return False
+
+    def commit_changes_on_disk(self):
+        osd(f"commit_changes_on_disk, called on {type(self)}")
+        osd(f"commit_changes_on_disk, calling write_impl()")
+        osd(f"commit_changes_on_disk, calling write_attributes_impl()")
+        if self.is_backed:
+            self._write_impl(self.backing)
+            self._write_attributes_impl(self.backing)
+            osd("commit_changes_on_disk: looping over children")
+            for k, v in self.items():
+                v.commit_changes_on_disk()
 
     @staticmethod
     @abstractmethod
@@ -76,11 +89,11 @@ class BackableObject(ABC, UserDict):
         self, parent: Optional[Union[h5py.Group, h5py.Dataset]] = None, key: Optional[str] = None
     ):
         if parent is not None:
-            osd(f'set_backing: calling self._write with parent.name={parent.name}, and key = {key}')
+            osd(f"set_backing: calling self._write with parent.name={parent.name}, and key = {key}")
             obj = self._write(parent, key=key)
-            osd(f'set_backing: looping over children')
+            osd(f"set_backing: looping over children")
             for k, v in self.items():
-                osd(f'set_backing: k = {k}, type(v) = {type(v)}')
+                osd(f"set_backing: k = {k}, type(v) = {type(v)}")
                 child_obj = v.set_backing(obj._backing, k)
                 if id(child_obj) != id(self[k]):
                     super().__setitem__(k, child_obj)
@@ -106,11 +119,11 @@ class BackableObject(ABC, UserDict):
             if self.backing.file != parent.file or self.backing.name != os.path.join(
                 parent.name, key
             ):
-                s = f'_write: case 0'
+                s = f"_write: case 0"
                 if self.backing.file != parent.file:
-                    s += '.0: self.backing.file != parent.file'
+                    s += ".0: self.backing.file != parent.file"
                 else:
-                    s += '.1: self.backing.name != os.path.join(parent.name, key)'
+                    s += ".1: self.backing.name != os.path.join(parent.name, key)"
                 osd(s)
                 # if the key is already present in the parent is not because the object was already populated but
                 # because the shallow copy was called before
@@ -138,7 +151,9 @@ class BackableObject(ABC, UserDict):
                     else:
                         parent.require_group(os.path.join(des))
                         # parent.copy(src, des, shallow=True)
-                    osd(f'_write: {sub_key} copied {"deep" if sub_key in to_copy_deep else "shallow"}')
+                    osd(
+                        f'_write: {sub_key} copied {"deep" if sub_key in to_copy_deep else "shallow"}'
+                    )
                 ##
                 for k, v in self.backing.attrs.items():
                     parent[key].attrs[k] = v
@@ -150,7 +165,7 @@ class BackableObject(ABC, UserDict):
             else:
                 assert False, "to study the code 1"
         else:
-            osd('_write case 1')
+            osd("_write case 1")
             obj = parent.require_group(key) if key is not None else parent
             self._write_attributes(obj)
             self._write_impl(obj)
@@ -162,7 +177,10 @@ class BackableObject(ABC, UserDict):
         pass
 
     def __setitem__(self, key: str, value: BackableObject):
-        osd(f'__setitem__: called with self of type {type(self)}, value of type {type(value)}, key = {key}')
+        osd(
+            f"__setitem__: called with self of type {type(self)}, value of type {type(value)}, key = {key}"
+        )
+        value.commit_changes_on_disk()
         value_in_memory = value
         if self.validatefun is not None:
             valid = self.validatefun(self, key, value)
@@ -170,13 +188,13 @@ class BackableObject(ABC, UserDict):
                 raise ValueError(valid)
         if self.is_backed:
             if key not in self.backing:
-                osd(f'__setitem__: calling set_backing')
+                osd(f"__setitem__: calling set_backing")
                 value_in_memory = value.set_backing(self.backing, key)
             else:
-                osd(f'__setitem__: {key} already in {self.backing}')
-                # assert False, "study this branch"
+                osd(f"__setitem__: {key} already in {self.backing}")
+                assert False, "key already present, remove it before reassigning it"
         else:
-            osd(f'__setitem__: non backed case')
+            osd(f"__setitem__: non backed case")
             # only the python dict (the superclass) is updated, not the file; the file gets updated in the case
             # in which this object (or a parent object invoking the backing downstream) is assigned to a
             # parent object that is backed
@@ -188,12 +206,12 @@ class BackableObject(ABC, UserDict):
         if self.is_backed:
             del self.backing[key]
 
-    def save(self):
-        assert self.is_backed
-        osd(f'saving {self.backing.name} (backed file: {self.backing.filename})')
-        # if self.backing.name == self.backing.parent.name:
-        #     assert self.backing.name == '/'
-        #     assert False, "save should be overridden by SpatialMuData and be handled by spatialmuon._core.io.py"
-        parent = self.backing.parent
-        key = os.path.basename(self.backing.name)
-        self.set_backing(parent=parent, key=key)
+    # def save(self):
+    #     assert self.is_backed
+    #     osd(f"saving {self.backing.name} (backed file: {self.backing.filename})")
+    #     # if self.backing.name == self.backing.parent.name:
+    #     #     assert self.backing.name == '/'
+    #     #     assert False, "save should be overridden by SpatialMuData and be handled by spatialmuon._core.io.py"
+    #     parent = self.backing.parent
+    #     key = os.path.basename(self.backing.name)
+    #     self.set_backing(parent=parent, key=key)

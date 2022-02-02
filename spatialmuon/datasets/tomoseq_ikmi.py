@@ -107,7 +107,7 @@ if False:
             s["tomo-seq"] = mod
             img = img / 255
             raster = smu.Raster(X=img)
-            raster_masks = smu.RasterMasks(mask=masks)
+            raster_masks = smu.RasterMasks(X=masks)
             expression_matrix = aa0.X.toarray()
             var = aa0.var.copy()
             var["channel_name"] = var.index.to_series().apply(lambda x: x.decode("utf8"))
@@ -198,7 +198,7 @@ if False:
             # plt.imshow(shifted)
             # plt.show()
             #
-            # raster_masks_covering = smu.RasterMasks(mask=shifted)
+            # raster_masks_covering = smu.RasterMasks(X=shifted)
             # regions_covering = smu.Regions(masks=raster_masks_covering)
 
             ##
@@ -229,7 +229,7 @@ if False:
             if "time-warped" in s:
                 del s["time-warped"]
             s["time-warped"] = mod
-            raster_masks = smu.RasterMasks(mask=masks)
+            raster_masks = smu.RasterMasks(X=masks)
             regions = smu.Regions(X=expression_matrix, masks=raster_masks, var=var)
 
             mod["expression"] = regions
@@ -299,7 +299,7 @@ raster._anchor = new_anchor
 mask = np.array(Image.open(os.path.join(root, "raw/single_molecule/mask.png")))
 mask[mask != 255] = 0
 mask = mask[:, :, 3]
-raster_mask = smu.RasterMasks(mask=mask)
+raster_mask = smu.RasterMasks(X=mask)
 regions = smu.Regions(masks=raster_mask, anchor=new_anchor)
 
 s_fish = smu.SpatialMuData(os.path.join(root, "smu/fish.h5smu"), backingmode="w")

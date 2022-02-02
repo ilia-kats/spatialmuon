@@ -66,32 +66,38 @@ class Regions(FieldOfView):
         kwargs["anchor"] = self.update_n_dim_in_anchor(ndim=ndim, backing=backing, **kwargs)
         super().__init__(backing, **kwargs)
         if backing is not None:
+            if X is not None or masks is not None:
+                raise ValueError("attempting to specify properties for a non-empty backing store")
             # self._index = SpatialIndex(
             #     backing=backing["index"], dimension=backing["coordinates"].shape[1], **index_kwargs
             # )
             masks = Masks(backing=backing["masks"])
             masks._parentdataset = self
-            self.masks = masks
-            # attrs = backing.attrs
-        else:
-            self._X = X
-            masks._parentdataset = self
-            self.masks = masks
-            # self._index = SpatialIndex(coordinates=self._coordinates, **index_kwargs)
+            self._set_kv("masks", masks)
 
-            # for key, mask in self.backing["masks"].items():
-            # self.masks[key] = spatialmuon._core.masks.Masks(backing=mask)
+            self._X = backing["X"]
+        else:
+            if masks is None:
+                raise ValueError("masks need to be specify")
+            self.masks = masks
+
+            if X is not None:
+                self.X = X
+            else:
+                self.X = np.zeros((0, len(masks)))
+
+            # self._index = SpatialIndex(coordinates=self._coordinates, **index_kwargs)
 
         # we don't want to validate stuff coming from HDF5, this may break I/O
         # but mostly we can't validate for a half-initalized object
         # self.masks.validatefun = self.__validate_mask
 
-    @staticmethod
-    def __validate_mask(fov, key, mask):
-        if mask.ndim is not None and mask.ndim != fov.ndim:
-            return f"mask with {mask.ndim} dimensions is being added to field of view with {fov.ndim} dimensions"
-        mask._parentdataset = fov
-        return None
+    # @staticmethod
+    # def __validate_mask(fov, key, mask):
+    #     if mask.ndim is not None and mask.ndim != fov.ndim:
+    #         return f"mask with {mask.ndim} dimensions is being added to field of view with {fov.ndim} dimensions"
+    #     mask._parentdataset = fov
+    #     return None
 
     @property
     def _untransformed_bounding_box(self) -> BoundingBox:
@@ -100,13 +106,17 @@ class Regions(FieldOfView):
     @property
     def X(self) -> Union[np.ndarray, spmatrix, h5py.Dataset, SparseDataset]:
         if self.is_backed:
-            X = self.backing["X"]
-            if isinstance(X, h5py.Group):
-                return SparseDataset(X)[...]
+            if isinstance(self._X, h5py.Group):
+                return SparseDataset(self._X)
             else:
-                return X
+                return self._X
         else:
             return self._X
+
+    @X.setter
+    def X(self, new_X):
+        self._X = new_X
+        self.obj_has_changed("X")
 
     @property
     def masks(self):
@@ -121,44 +131,48 @@ class Regions(FieldOfView):
     def obs(self) -> pd.DataFrame:
         return self.masks.obs
 
-    def _getitem(
-        self,
-        mask: Optional[Union[Polygon, Trimesh]] = None,
-        genes: Optional[Union[str, list[str]]] = None,
-        polygon_method: Literal["project", "discard"] = "discard",
-    ) -> AnnData:
-        raise NotImplementedError()
-        # if mask is not None:
-        #     if self.ndim == 2:
-        #         if not isinstance(mask, Polygon):
-        #             raise TypeError("Only polygon masks can be applied to 2D FOVs")
-        #         idx = sorted(self._index.intersection(mask.bounds))
-        #         obs = self.obs.iloc[idx, :].intersection(mask)
-        #         X = self.X[idx, :][~obs.is_empty, :]
-        #         obs = self.obs[~obs.is_empty]
-        #         coords = np.vstack(obs.geometry)
-        #         obs.drop(obs.geometry.name, axis=1, inplace=True)
-        #     else:
-        #         if isinstance(mask, Polygon):
-        #             bounds = preprocess_3d_polygon_mask(mask, self._coordinates, polygon_method)
-        #             idx = sorted(self._index.intersection(bounds))
-        #             sub = self._obs.iloc[idx, :].intersection(mask)
-        #             nemptyidx = ~sub.is_empty
-        #         elif isinstance(mask, Trimesh):
-        #             idx = sorted(self._index.intersection(mask.bounds.reshape(-1)))
-        #             sub = self._obs.iloc[idx, :]
-        #             nemptyidx = mask.contains(np.vstack(sub.geometry))
-        #         else:
-        #             raise TypeError("unknown masks type")
-        #         X = (self.X[idx, :][nemptyidx, :],)
-        #         obs = sub.iloc[nemptyidx, :]
-        # else:
-        #     X = self.X[()]
-        #     obs = self.obs
-        # ad = AnnData(X=X, obs=obs, var=self.var)
-        # if genes is not None:
-        #     ad = ad[:, genes]
-        # return ad
+    @obs.setter
+    def obs(self, new_obs):
+        self.masks.obs = new_obs
+
+    # def _getitem(
+    #     self,
+    #     mask: Optional[Union[Polygon, Trimesh]] = None,
+    #     genes: Optional[Union[str, list[str]]] = None,
+    #     polygon_method: Literal["project", "discard"] = "discard",
+    # ) -> AnnData:
+    #     raise NoImplementedError()
+    # if mask is not None:
+    #     if self.ndim == 2:
+    #         if not isinstance(mask, Polygon):
+    #             raise TypeError("Only polygon masks can be applied to 2D FOVs")
+    #         idx = sorted(self._index.intersection(mask.bounds))
+    #         obs = self.obs.iloc[idx, :].intersection(mask)
+    #         X = self.X[idx, :][~obs.is_empty, :]
+    #         obs = self.obs[~obs.is_empty]
+    #         coords = np.vstack(obs.geometry)
+    #         obs.drop(obs.geometry.name, axis=1, inplace=True)
+    #     else:
+    #         if isinstance(mask, Polygon):
+    #             bounds = preprocess_3d_polygon_mask(mask, self._coordinates, polygon_method)
+    #             idx = sorted(self._index.intersection(bounds))
+    #             sub = self._obs.iloc[idx, :].intersection(mask)
+    #             nemptyidx = ~sub.is_empty
+    #         elif isinstance(mask, Trimesh):
+    #             idx = sorted(self._index.intersection(mask.bounds.reshape(-1)))
+    #             sub = self._obs.iloc[idx, :]
+    #             nemptyidx = mask.contains(np.vstack(sub.geometry))
+    #         else:
+    #             raise TypeError("unknown masks type")
+    #         X = (self.X[idx, :][nemptyidx, :],)
+    #         obs = sub.iloc[nemptyidx, :]
+    # else:
+    #     X = self.X[()]
+    #     obs = self.obs
+    # ad = AnnData(X=X, obs=obs, var=self.var)
+    # if genes is not None:
+    #     ad = ad[:, genes]
+    # return ad
 
     @staticmethod
     def _encodingtype() -> str:
@@ -192,20 +206,21 @@ class Regions(FieldOfView):
 
     def _write_impl(self, grp: h5py.Group):
         super()._write_impl(grp)
-        if self._X is not None:
-            if self.compressed_storage:
+        if self.compressed_storage:
+            if self.has_obj_changed("X"):
                 write_attribute(
-                    grp, "X", self._X, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
+                    grp, "X", self.X, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
                 )
-            else:
+        else:
+            if self.has_obj_changed("X"):
                 # for debugging (waaay faster, but more space on disk), for the future let's maybe make the compression
                 # optional
-                write_attribute(grp, "X", self._X)
-                # grp.create_dataset('X', data=self._X)
+                write_attribute(grp, "X", self.X)
 
         # self._index._write(grp, "index")
 
     def _write_attributes_impl(self, obj):
+        super()._write_attributes_impl(obj)
         pass
 
     # TODO: this function shares code with Raster._plot_in_grid(), unify better at some point putting for instance
@@ -366,6 +381,6 @@ class Regions(FieldOfView):
             )
 
     def __repr__(self):
-        repr_str = f"region fov with {self.n_var} var\n"
+        repr_str = f"(Regions) with {self.n_var} var\n"
         repr_str += str(self.masks)
         return repr_str

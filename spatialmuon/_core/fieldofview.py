@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from importlib.metadata import entry_points
 from typing import Optional, Union, Literal, Dict
+from collections import UserDict
 import warnings
 import matplotlib.pyplot as plt
 
@@ -65,24 +66,22 @@ class FieldOfView(BackableObject, BoundingBoxable):
             ):
                 raise ValueError("attempting to specify properties for a non-empty backing store")
             else:
-                self.var = read_attribute(backing["var"])
+                self._var = read_attribute(backing["var"])
                 # self._var = read_attribute(backing["var"])
                 # the function writing self.uns to disk in from the anndata package, and by default doesn't store uns
                 # if it's value is {}, so we have to check for existence
                 if "uns" in self.backing:
-                    self.uns = read_attribute(self.backing["uns"])
+                    self._uns = self.backing["uns"]
                 else:
+                    # yes, we need ._uns above and .uns here
                     self.uns = {}
-                self.coordinate_unit = _get_hdf5_attribute(
-                    self.backing.attrs, "coordinate_unit", None
-                )
-                self.anchor = Anchor(backing=backing["anchor"])
+                self._coordinate_unit = _read_hdf5_attribute(self.backing.attrs, "coordinate_unit")
+                self._set_kv("anchor", Anchor(backing=backing["anchor"]))
         else:
             if var is not None:
                 self.var = var
             else:
                 self.var = pd.DataFrame()
-                # self._var = pd.DataFrame()
 
             if uns is not None:
                 self.uns = uns
@@ -99,9 +98,10 @@ class FieldOfView(BackableObject, BoundingBoxable):
             else:
                 # in the new version of the code the function update_n_dim_in_anchor called by FieldOfView subclasses
                 # implies that ancor is not None, so this code should not be reached
-                self.anchor = Anchor(self.ndim)
+                self.anchor = Anchor(self.ndi)
                 warnings.warn("who called me?")
-        # disabled by default since it is slowe
+
+        # disabled by default since it is slow
         self.compressed_storage = False
 
     # in classes inherithing from FieldOfView, this function is the only thing called in __init__() before calling
@@ -134,15 +134,34 @@ class FieldOfView(BackableObject, BoundingBoxable):
     @var.setter
     def var(self, new_var):
         self._var = new_var
-        if not self._var.index.is_unique:
+        if not self.var.index.is_unique:
             warnings.warn(
                 "Gene names are not unique. This will negatively affect indexing/subsetting. Making unique names..."
             )
-            self._var.index = make_index_unique(self._var.index)
+            self._var.index = make_index_unique(self.var.index)
+        self.obj_has_changed("var")
 
     @property
     def n_var(self) -> int:
-        return self._var.shape[0]
+        return self.var.shape[0]
+
+    @property
+    def uns(self):
+        return self._uns
+
+    @uns.setter
+    def uns(self, new_uns):
+        self._uns = new_uns
+        self.obj_has_changed("uns")
+
+    @property
+    def coordinate_unit(self):
+        return self._coordinate_unit
+
+    @coordinate_unit.setter
+    def coordinate_unit(self, new_unit):
+        self._coordinate_unit = new_unit
+        self.obj_has_changed("coordinate_unit")
 
     @property
     def anchor(self) -> Anchor:
@@ -153,9 +172,6 @@ class FieldOfView(BackableObject, BoundingBoxable):
         shares this global coordinate system and aligns to eachother in it.
 
         """
-        # assert self._anchor is not None
-        # return self._anchor
-        assert "anchor" in self
         return self["anchor"]
 
     @anchor.setter
@@ -183,35 +199,40 @@ class FieldOfView(BackableObject, BoundingBoxable):
     #
     #     return self._getitem(mask, genes, polygon_method)
 
-    @abstractmethod
-    def _getitem(
-        self,
-        mask: Optional[Union[Polygon, Trimesh]] = None,
-        genes: Optional[Union[str, list[str]]] = None,
-        polygon_method: Literal["discard", "project"] = "discard",
-    ):
-        pass
-
-    def _write_attributes_impl(self, obj: h5py.Group):
-        super()._write_attributes_impl(obj)
-        if self.coordinate_unit is not None:
-            obj.attrs["coordinate_unit"] = self.coordinate_unit
+    # @abstractmethod
+    # def _getitem(
+    #     self,
+    #     mask: Optional[Union[Polygon, Trimesh]] = None,
+    #     genes: Optional[Union[str, list[str]]] = None,
+    #     polygon_method: Literal["discard", "project"] = "discard",
+    # ):
+    #     pass
 
     def _write_impl(self, obj: h5py.Group):
         if self.compressed_storage:
-            if self.updating_obj('var'):
+            if self.has_obj_changed("var"):
                 write_attribute(
-                    obj, "var", self._var, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
+                    obj,
+                    "var",
+                    self.var,
+                    dataset_kwargs={"compression": "gzip", "compression_opts": 9},
                 )
-            if self.updating_obj('uns'):
+            if self.has_obj_changed("uns"):
                 write_attribute(
-                    obj, "uns", self.uns, dataset_kwargs={"compression": "gzip", "compression_opts": 9}
+                    obj,
+                    "uns",
+                    self.uns,
+                    dataset_kwargs={"compression": "gzip", "compression_opts": 9},
                 )
         else:
-            if self.updating_obj('var'):
-                write_attribute(obj, "var", self._var)
-            if self.updating_obj('uns'):
+            if self.has_obj_changed("var"):
+                write_attribute(obj, "var", self.var)
+            if self.has_obj_changed("uns"):
                 write_attribute(obj, "uns", self.uns)
+
+    def _write_attributes_impl(self, obj: h5py.Group):
+        if self.has_obj_changed("coordinate_unit"):
+            obj.attrs["coordinate_unit"] = self.coordinate_unit
 
     def _adjust_plot_lims(self, ax=None):
         if ax is None:

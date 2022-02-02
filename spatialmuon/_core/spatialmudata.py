@@ -7,7 +7,7 @@ import h5py
 from .backing import BackableObject
 from .spatialmodality import SpatialModality
 from ..utils import is_h5smu
-from .io import write_h5smu
+from .io import repack_h5smu
 
 
 class SpatialMuData(BackableObject):
@@ -59,8 +59,10 @@ class SpatialMuData(BackableObject):
         super().__init__(backing, items=modalities)
         if self.is_backed:
             for m, mod in self.backing.items():
-                self[m] = SpatialModality(backing=mod)
+                self._set_kv(m, SpatialModality(backing=mod))
+                # self[m] = SpatialModality(backing=mod)
         elif modalities is not None:
+            warnings.warn("code not tested")
             self.update(modalities)
 
     @staticmethod
@@ -73,14 +75,14 @@ class SpatialMuData(BackableObject):
 
         return __spatialmudataversion__
 
+    def _write_impl(self, grp):
+        pass
+
     def _write_attributes_impl(self, obj: h5py.Group):
         from .. import __version__
 
         obj.attrs["encoder"] = "spatialmuon"
         obj.attrs["encoder-version"] = __version__
-
-    def _write_impl(self, grp):
-        pass
 
     def __repr__(self):
         repr_str = "SpatialMuData object\n"
@@ -91,13 +93,9 @@ class SpatialMuData(BackableObject):
         repr_str = repr_str.rstrip("\n")
         repr_str = "\n└──".join(repr_str.rsplit("\n├──", 1))
         return repr_str
-    #
-    # def save(self):
-    #     warnings.warn('currenly saving a SpatialMuData object requires closing the .h5smu connection first, '
-    #                   'please call .close_and_save() instead; for other backable classes you can still call .save()')
 
-    # def close_and_save(self):
-    #     if self.is_backed:
-    #         filename = self.backing.filename
-    #         self.backing.close()
-    #         write_h5smu(filename=filename, smudata=self)
+    def repack(self, compression_level: Optional[int] = None):
+        assert self.is_backed
+        f = self.backing.filename
+        self.backing.close()
+        repack_h5smu(f, compression_level=compression_level)

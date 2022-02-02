@@ -15,7 +15,7 @@ f = "/data/l989o/deployed/spatialmuon/spatialmuon/datasets/debug.h5smu"
 # f = "/data/spatialmuon/datasets/imc/smu/BaselTMA_SP41_15.475kx12.665ky_10000x8500_5_20170905_107_114_X13Y4_219_a0_full.h5smu"
 d = smu.SpatialMuData(backing=f)
 ome = d["imc"]["ome"].X[...]
-raster_masks = d["imc"]["masks"].masks._backing["imagemask"][...]
+raster_masks = d["imc"]["masks"].masks._backing["X"][...]
 new_shape = (40, 60, 10)
 new_ome = ome[: new_shape[0], : new_shape[1], : new_shape[2]]
 new_raster_masks = raster_masks[: new_shape[0], : new_shape[1]]
@@ -29,7 +29,7 @@ if os.path.isfile(outfile):
 new_smu = smu.SpatialMuData(outfile)
 new_smu["imc"] = modality = smu.SpatialModality()
 modality["ome"] = smu.Raster(X=new_ome, var=new_var, coordinate_unit="um")
-raster_masks = smu.RasterMasks(mask=new_raster_masks)
+raster_masks = smu.RasterMasks(X=new_raster_masks)
 regions = smu.Regions(masks=raster_masks, coordinate_unit="um")
 modality["masks"] = regions
 print(new_smu)

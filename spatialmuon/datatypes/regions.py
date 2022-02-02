@@ -69,7 +69,9 @@ class Regions(FieldOfView):
             # self._index = SpatialIndex(
             #     backing=backing["index"], dimension=backing["coordinates"].shape[1], **index_kwargs
             # )
-            self.masks = Masks(backing=backing["masks"], parentdataset=self)
+            masks = Masks(backing=backing["masks"])
+            masks.parentdataset = self
+            self.masks = masks
             # attrs = backing.attrs
         else:
             self._X = X

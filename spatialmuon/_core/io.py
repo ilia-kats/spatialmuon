@@ -1,3 +1,4 @@
+from __future__ import annotations
 from os import PathLike
 from typing import Union, Literal
 from codecs import decode
@@ -5,7 +6,7 @@ import warnings
 
 import h5py
 
-from .spatialmudata import SpatialMuData
+import spatialmuon
 from .spatialmodality import SpatialModality
 from .fieldofview import FieldOfView, UnknownEncodingException
 from ..utils import _read_hdf5_attribute, _get_hdf5_attribute, is_h5smu
@@ -48,20 +49,21 @@ def read_h5smu(filename: PathLike, backed: Union[Literal["r", "r+"], bool, None]
     if not is_h5smu(filename):
         raise RuntimeError(f"{filename} is not a SpatialMuData file")
 
-    smudata = SpatialMuData(backing=filename, backingmode=mode)
+    smudata = spatialmuon.SpatialMuData(backing=filename, backingmode=mode)
     if not backed:
         smudata.set_backing()
     return smudata
 
 
-def write_h5smu(filename: PathLike, smudata: SpatialMuData):
+def write_h5smu(filename: PathLike, smudata: "SpatialMuData"):
     from .. import __version__, __spatialmudataversion__
 
     with h5py.File(filename, "w", userblock_size=512, libver="latest") as f:
-        smudata._write(f)
+        f.require_group('mod')
+        smudata._write_impl(f['mod'])
 
     with open(filename, "br+") as outfile:
         fname = "SpatialMuData (format-version={};".format(__spatialmudataversion__)
         fname += "creator=spatialmuon;"
         fname += "creator-version={})".format(__version__)
-        outfile._write(fname.encode("utf-8"))
+        outfile.write(fname.encode("utf-8"))

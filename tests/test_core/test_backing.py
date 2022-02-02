@@ -81,7 +81,7 @@ class Backing_TestClass(unittest.TestCase):
             s["a"] = m
             m["a"] = f
             store("b0")
-            print(id(f))
+            # print(id(f))
             assert how_many_fovs() == 3
 
             s, m, f = smf(backed=False)
@@ -124,8 +124,8 @@ class Backing_TestClass(unittest.TestCase):
             s["a"] = m
             m["a"] = copy.copy(ss["b0"]["a"]["a"])
             store("e0")
-            print(id(s["a"]["a"]))
-            print(id(ss["b0"]["a"]["a"]))
+            # print(id(s["a"]["a"]))
+            # print(id(ss["b0"]["a"]["a"]))
             assert how_many_fovs() == 9
 
             s, m, _ = smf()
@@ -190,9 +190,32 @@ class Backing_TestClass(unittest.TestCase):
                 assert len(s["a"].keys()) == 2
             ##
 
+    def test_on_demand_save(self):
+        with tempfile.TemporaryDirectory() as td:
+            ##
+            fpath = os.path.join(td, "a.h5smu")
+            s = spatialmuon.SpatialMuData(backing=fpath)
+            m = spatialmuon.SpatialModality()
+            sm = spatialmuon.ShapeMasks(masks_centers=np.array([[10, 10]]), masks_radii=np.array([[1, 1]]))
+            f = spatialmuon.Regions(masks=sm)
+            m['a'] = f
+            s['a'] = m
+            s.backing.close()
+
+            ##
+            s = spatialmuon.SpatialMuData(backing=fpath)
+            # s.close_and_save()
+            s.save()
+
+            s = spatialmuon.SpatialMuData(backing=fpath)
+            m = s['a']
+            m.save()
+            pass
+            ...
 
 if __name__ == "__main__":
     if not DEBUGGING:
         unittest.main(failfast=True)
     else:
-        Backing_TestClass().test_various_setitem_orders()
+        # Backing_TestClass().test_various_setitem_orders()
+        Backing_TestClass().test_on_demand_save()

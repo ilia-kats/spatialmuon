@@ -56,7 +56,7 @@ class SpotShape(Enum):
 
 
 class Masks(BackableObject, BoundingBoxable):
-    def __new__(cls, *, backing: Optional[h5py.Group] = None, parentdataset=None, **kwargs):
+    def __new__(cls, *, backing: Optional[h5py.Group] = None, **kwargs):
         if backing is not None:
             masktype = _read_hdf5_attribute(backing.attrs, "encoding-type")
             if masktype == "masks-polygon":
@@ -76,10 +76,9 @@ class Masks(BackableObject, BoundingBoxable):
         self,
         obs: Optional[pd.DataFrame] = None,
         backing: Optional[Union[h5py.Group, h5py.Dataset]] = None,
-        parentdataset=None,
     ):
         super().__init__(backing)
-        self._parentdataset = parentdataset
+        self._parentdataset = None
         if backing is not None:
             self._obs = read_attribute(backing["obs"])
         else:
@@ -87,14 +86,6 @@ class Masks(BackableObject, BoundingBoxable):
                 self._obs = obs
             else:
                 self._obs = pd.DataFrame()
-
-    @property
-    def parentdataset(self):
-        return self._parentdataset
-
-    @parentdataset.setter
-    def parentdataset(self, dset: FieldOfView):
-        self._parentdataset = dset
 
     @property
     def anchor(self):
@@ -289,8 +280,8 @@ class Masks(BackableObject, BoundingBoxable):
         # when the plot is invoked with my_fov.masks.plot(), then self.parentdataset._adjust_plot_lims() is called
         # once, when the plot is invoked with my_fov.plot(), then self.parentdataset._adjust_plot_lims() is called
         # twice (one now and one in the code for plotting FieldOfView subclasses). This should not pose a problem
-        if self.parentdataset is not None:
-            self.parentdataset._adjust_plot_lims(ax=axs)
+        if self._parentdataset is not None:
+            self._parentdataset._adjust_plot_lims(ax=axs)
         if ax is None:
             plt.show()
 
@@ -299,13 +290,12 @@ class ShapeMasks(Masks, MutableMapping):
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,
-        parentdataset=None,
         masks_centers: Optional[np.array] = None,
         masks_radii: Optional[Union[float, np.array]] = None,
         masks_shape: Optional[Literal["circle", "square"]] = None,
         masks_labels: Optional[list[str]] = None,
     ):
-        super().__init__(backing=backing, parentdataset=parentdataset)
+        super().__init__(backing=backing)
 
         self._masks_centers: Optional[np.ndarray] = None
         self._masks_radii: Optional[np.ndarray] = None
@@ -516,11 +506,10 @@ class PolygonMasks(Masks, MutableMapping):
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,
-        parentdataset=None,
         masks: Optional[dict[str, Union[np.ndarray, Polygon]]] = None,
         masks_labels: Optional[list[str]] = None,
     ):
-        super().__init__(backing, parentdataset=parentdataset)
+        super().__init__(backing)
 
         self._data = {}
 
@@ -653,10 +642,9 @@ class MeshMasks(Masks, MutableMapping):
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,
-        parentdataset=None,
         masks: Optional[dict[str, Union[Trimesh, tuple[np.ndarray, np.ndarray]]]] = None,
     ):
-        super().__init__(backing, parentdataset=parentdataset)
+        super().__init__(backing)
         self._data = {}
         if masks is not None:
             if self.is_backed and len(self.backing) > 0:
@@ -772,14 +760,13 @@ class RasterMasks(Masks):
     def __init__(
         self,
         backing: Optional[h5py.Dataset] = None,
-        parentdataset=None,
         mask: Optional[np.ndarray] = None,
         shape: Optional[Union[tuple[int, int], tuple[int, int, int]]] = None,
         dtype: Optional[type] = None,
         px_dimensions: Optional[np.ndarray] = None,
         px_distance: Optional[np.ndarray] = None,
     ):
-        super().__init__(backing=backing, parentdataset=parentdataset)
+        super().__init__(backing=backing)
         self._mask = None
 
         if self.is_backed:

@@ -1,3 +1,4 @@
+import warnings
 from typing import Optional, Dict, Union, Literal
 from os import PathLike, path, system
 
@@ -6,6 +7,7 @@ import h5py
 from .backing import BackableObject
 from .spatialmodality import SpatialModality
 from ..utils import is_h5smu
+from .io import write_h5smu
 
 
 class SpatialMuData(BackableObject):
@@ -80,8 +82,6 @@ class SpatialMuData(BackableObject):
 
     def _write_impl(self, grp):
         pass
-        # for m, mod in self.items():
-        #     mod._write(grp.require_group("mod"), m)
 
     def __repr__(self):
         repr_str = "SpatialMuData object\n"
@@ -92,3 +92,13 @@ class SpatialMuData(BackableObject):
         repr_str = repr_str.rstrip("\n")
         repr_str = "\n└──".join(repr_str.rsplit("\n├──", 1))
         return repr_str
+    #
+    # def save(self):
+    #     warnings.warn('currenly saving a SpatialMuData object requires closing the .h5smu connection first, '
+    #                   'please call .close_and_save() instead; for other backable classes you can still call .save()')
+
+    # def close_and_save(self):
+    #     if self.is_backed:
+    #         filename = self.backing.filename
+    #         self.backing.close()
+    #         write_h5smu(filename=filename, smudata=self)

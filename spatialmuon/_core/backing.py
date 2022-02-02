@@ -150,3 +150,16 @@ class BackableObject(ABC, UserDict):
         super().__delitem__(key)
         if self.is_backed:
             del self._grp[key]
+
+    def save(self):
+        assert self.is_backed
+        # if self.backing.name == self.backing.parent.name:
+        #     assert self.backing.name == '/'
+        #     assert False, "save should be overridden by SpatialMuData and be handled by spatialmuon._core.io.py"
+        parent = self.backing.parent
+        if self._key is not None:
+            key = self._key
+        else:
+            key = os.path.basename(self.backing.name)
+        self.set_backing(parent=parent, key=key)
+        ...

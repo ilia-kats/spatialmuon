@@ -37,6 +37,6 @@ if __name__ == "__main__":
     if not DEBUGGING:
         unittest.main(failfast=True)
     else:
-        Tiler_TestClass().test_can_create_tiles_from_raster_masks()
-        # Tiler_TestClass().test_can_create_tiles_from_aligned_raster_masks()
+        # Tiler_TestClass().test_can_create_tiles_from_raster_masks()
+        Tiler_TestClass().test_can_create_tiles_from_aligned_raster_masks()
         # Tiler_TestClass().test_can_create_tiles_from_shape_masks()

@@ -23,6 +23,7 @@ class Tiles:
         self.masks_tiles = np.stack(masks_tiles)
         assert self.raster_tiles.shape[:3] == self.masks_tiles.shape
         if True:
+            # TODO: tiles plotted back are not pixel perfect, fix it
             ##
             n = 2
             c = 0
@@ -35,11 +36,11 @@ class Tiles:
             plt.show()
             ##
 
-    # TODO: tiles plotted back are not pixel perfect, fix it
     def get_anchor_for_tile(self, index: int):
         origin = self.origins[index]
         anchor = spatialmuon.Anchor(origin=origin)
-        return anchor
+        composed = spatialmuon.Anchor.compose_anchors(anchor, self.masks.anchor)
+        return composed
 
     def raster_tile_to_raster(self, index: int):
         tile = self.raster_tiles[index]

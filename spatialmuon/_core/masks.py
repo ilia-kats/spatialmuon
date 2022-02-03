@@ -1066,7 +1066,7 @@ class RasterMasks(Masks):
         assert mask_labels == real_labels
         extracted_omes = []
         extracted_masks = []
-        z_centers = []
+        raster_centers = []
         origins = []
         for i, mask_label in tqdm(
             zip(range(len(mask_labels)), mask_labels),
@@ -1078,7 +1078,12 @@ class RasterMasks(Masks):
             # compute the bounding box of the mask
             z = masks == mask_label
             z_center = center_of_mass(z)
-            z_centers.append(np.array((z_center[1], z_center[0])))
+
+            masks_coords = np.array((z_center[1], z_center[0]))
+            global_coords = self._parentdataset.anchor.transform_coordinates(masks_coords)
+            raster_coords = raster.anchor.inverse_transform_coordinates(global_coords)
+
+            raster_centers.append(raster_coords)
             t = tile_dim
             # r = (t - 1) / 2
             # one pixel is lost but this makes computation easier
@@ -1093,28 +1098,59 @@ class RasterMasks(Masks):
                 a1 = w1[0]
                 b1 = w1[-1] + 1
             else:
-                a0 = math.floor(z_center[1] - r)
+                a0 = math.floor(masks_coords[0] - r)
                 origin_x = a0
                 a0 = max(0, a0)
-                b0 = math.ceil(z_center[1] + r)
+                b0 = math.ceil(masks_coords[0] + r)
                 b0 = min(b0, z.shape[1])
-                a1 = math.floor(z_center[0] - r)
+                a1 = math.floor(masks_coords[1] - r)
                 origin_y = a1
                 a1 = max(0, a1)
-                b1 = math.ceil(z_center[0] + r)
+                b1 = math.ceil(masks_coords[1] + r)
                 b1 = min(b1, z.shape[0])
                 # print(f'[{a1}:{b1}, {a0}:{b0}]')
             # TODO: y this is empty when the tile around the mask does not contain any point of the mask and this
             #  leads to an exception. Handle this gracefully and show a warning
             y = z[a1:b1, a0:b0]
             if DEBUG_WITH_PLOTS:
-                center_debug = np.array(center_of_mass(masks == mask_label))
-                plt.figure(figsize=(20, 20))
-                plt.imshow(z)
-                plt.scatter(z_center[1], z_center[0], color="green", s=6)
-                plt.scatter(center_debug[1], center_debug[0], color="red", s=2)
+                ##
+                print(f'masks_coords[1] = {masks_coords[1]}, masks_coords[0] = {masks_coords[0]}, r = {r}')
+                plt.figure()
+                plt.imshow(z, origin='lower')
+                plt.axvline(x=a0)
+                plt.axvline(x=b0)
+                plt.axhline(y=a1)
+                plt.axhline(y=b1)
+                plt.title(f'x: {a0}:{b0}, y: {a1}:{b1}')
                 plt.show()
-                assert np.allclose(z_center, center_debug)
+                ##
+                pass
+            assert np.sum(y) > 0
+            if DEBUG_WITH_PLOTS:
+                ##
+                back_to_global_coords = raster.anchor.transform_coordinates(raster_coords)
+                back_to_masks_coords = self._parentdataset.anchor.inverse_transform_coordinates(back_to_global_coords)
+                assert np.allclose(back_to_masks_coords, masks_coords)
+                ##
+                bb = self._parentdataset.bounding_box
+                raster_bb = raster.anchor.inverse_transform_bounding_box(bb)
+                extent = (raster_bb.x0, raster_bb.x1, raster_bb.y0, raster_bb.y1)
+                plt.figure(figsize=(10, 10))
+                plt.imshow(z, extent=extent, origin='lower')
+                plt.scatter(raster_coords[0], raster_coords[1], color="green", s=30)
+                plt.show()
+                ##
+                plt.figure(figsize=(10, 10))
+                plt.imshow(z, origin='lower')
+                plt.scatter(z_center[1], z_center[0])
+                plt.show()
+                ##
+                _, ax = plt.subplots(figsize=(10, 10))
+                raster.plot(0, ax=ax)
+                self.plot(fill_colors='random', outline_colors='k', ax=ax, alpha=0.5)
+                raster.set_lims_to_bounding_box(self.bounding_box)
+                plt.show()
+                ##
 
             y_center = np.array(center_of_mass(y))
             if DEBUG_WITH_PLOTS:
@@ -1169,7 +1205,8 @@ class RasterMasks(Masks):
             #                     f5_out[f'{split}/masks/{k}'] = y
             extracted_omes.append(square_ome)
             extracted_masks.append(square_mask)
-            origins.append(np.array([origin_x, origin_y]))
+            masks_origin = np.array([origin_x, origin_y])
+            origins.append(masks_origin)
             if DEBUG_WITH_PLOTS:
                 if i >= 4:
                     DEBUG_WITH_PLOTS = False
@@ -1188,7 +1225,7 @@ class RasterMasks(Masks):
                 mask = extracted_masks[n]
                 plt.imshow(u[mask.astype(int)])
                 plt.show()
-        return extracted_omes, extracted_masks, z_centers, origins
+        return extracted_omes, extracted_masks, raster_centers, origins
 
 
 if __name__ == "__main__":

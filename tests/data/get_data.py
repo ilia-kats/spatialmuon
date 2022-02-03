@@ -57,11 +57,11 @@ def get_small_imc_aligned():
         assert data.shape == (20, 30)
         d["imc"]["masks"].masks.X = data
         d["imc"]["masks"].masks.obs = pd.DataFrame()
-        print(d["imc"]["masks"].masks.obs)
+        # print(d["imc"]["masks"].masks.obs)
         d["imc"]["masks"].masks.update_obs_from_masks()
-        print(d["imc"]["masks"].masks.obs)
+        # print(d["imc"]["masks"].masks.obs)
         d.commit_changes_on_disk()
-        print(d["imc"]["masks"].masks.obs)
+        # print(d["imc"]["masks"].masks.obs)
         ##
         d
         # new_regions = copy.copy(d["imc"]["masks"])

@@ -8,6 +8,7 @@ channels:
   - defaults
 dependencies:
   - pip=21.3.1
+  - numpy >= 1.21
   - vigra=1.11.1
   - rtree=0.9.7
   - pandas=1.3.4
@@ -25,7 +26,7 @@ dependencies:
   - conda-build=3.21.7
   - pytest=6.2.5
   - louvain=0.7.1
+  - colorama
   - pip:
     - squidpy==1.1.2
     - h5py==3.6.0
-    - matplotlib_scalebar

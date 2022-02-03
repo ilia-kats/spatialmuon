@@ -10,27 +10,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import copy
 from pathlib import Path
+from tests.testing_utils import initialize_testing
 
-DEBUGGING = False
-try:
-    __file__
-except NameError as e:
-    if str(e) == "name '__file__' is not defined":
-        DEBUGGING = True
-    else:
-        raise e
-if sys.gettrace() is not None:
-    DEBUGGING = True
-
-if not DEBUGGING:
-    # Get current file and pre-generate paths and names
-    this_dir = Path(__file__).parent
-    fpath = this_dir / "../data/small_visium.h5smu"
-
-    matplotlib.use("Agg")
-else:
-    small_visium = "~/spatialmuon/tests/data/small_visium.h5smu"
-    fpath = os.path.expanduser(small_visium)
+test_data_dir, DEBUGGING = initialize_testing()
+fpath = test_data_dir / "small_visium.h5smu"
 
 plt.style.use("dark_background")
 
@@ -50,13 +33,16 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
         img.plot()
 
     def test_can_plot_regions_single_channel(self):
+        ##
         d = spatialmuon.SpatialMuData(backing=fpath)
         e = d["visium"]["expression"]
         plt.figure()
         ax = plt.gca()
         e.plot(channels="Rp1", ax=ax)
-        ax.set(xlim=(1650, 1700), ylim=(1500, 1600))
+        # ax.set(xlim=(1650, 1700), ylim=(1500, 1600))
+        # ax.set(xlim=(0, 30000), ylim=(0, 30000))
         plt.show()
+        ##
 
     def test_can_plot_regions_non_overlapping_channels(self):
         d = spatialmuon.SpatialMuData(backing=fpath)
@@ -139,7 +125,7 @@ class PlotSmallVisium_TestClass(unittest.TestCase):
 
 if __name__ == "__main__":
     if not DEBUGGING:
-        unittest.main()
+        unittest.main(failfast=True)
     else:
         # PlotSmallVisium_TestClass().test_can_load_smu_file()
         # PlotSmallVisium_TestClass().test_can_pretty_print()

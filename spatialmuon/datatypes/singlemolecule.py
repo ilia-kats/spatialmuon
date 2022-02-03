@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Optional, Union, Literal
+from typing import Optional, Union, Literal, Dict
 
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
+
 # from ncls import NCLS
 from trimesh import Trimesh
 import h5py
@@ -64,7 +65,7 @@ class SingleMolecule(FieldOfView):
     # flake8: noqa: C901
     def _data_subset(self, yidx=None, genes=None):
         # only works with list[int] and 1D arrays at the moment
-        if self.isbacked:
+        if self.is_backed:
             if yidx is None:
                 if genes is not None:
                     if isinstance(genes, str):
@@ -160,28 +161,12 @@ class SingleMolecule(FieldOfView):
     def _encodingversion():
         return "0.1.0"
 
-    def _set_backing(self, grp: Optional[h5py.Group]):
-        super()._set_backing(grp)
-        if grp is not None:
-            assert isinstance(grp, h5py.Group)
-            # self._backing should be reassigned from one of the caller functions (set_backing from BackableObject),
-            # but to be safe let's set it to None explicity here
-            self._backing = None
-            self._write_data(grp)
-            self._index.set_backing(grp, "index")
-            # self._data = None
-        else:
-            print("who is calling me?")
-            assert self.isbacked
-            # self._data = self.data
-            # self._index.set_backing(None)
+    @property
+    def _backed_children(self) -> Dict[str, "BackableObject"]:
+        return {"index": self._index}
 
-    def _write(self, grp):
-        super()._write(grp)
-        self._write_data(grp)
-        self._index.write(grp, "index")
-
-    def _write_data(self, grp):
+    def _write_impl(self, grp):
+        super()._write_impl(grp)
         if self._data is not None:
             grp.create_dataset(
                 "coordinates",

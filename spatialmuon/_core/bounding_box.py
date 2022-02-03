@@ -1,6 +1,58 @@
 import numpy as np
 from abc import ABC, abstractmethod
-from spatialmuon.utils import angle_between
+from typing import Optional
+from operator import xor
+import copy
+
+
+class BoundingBox:
+    def __init__(
+        self,
+        x0: float,
+        x1: float,
+        y0: float,
+        y1: float,
+        z0: Optional[float] = None,
+        z1: Optional[float] = None,
+    ):
+        assert not xor(z0 is None, z1 is None)
+        if z0 is None:
+            self.ndim = 2
+        else:
+            self.ndim = 3
+        self.x0 = x0
+        self.x1 = x1
+        self.y0 = y0
+        self.y1 = y1
+        self.z0 = z0
+        self.z1 = z1
+
+    def validate(self):
+        assert self.x0 < self.x1
+        assert self.y0 < self.y1
+        if self.ndim == 3:
+            assert self.z0 < self.z1
+
+    def __eq__(self, other):
+        equal = True
+        equal = equal and self.ndim == other.ndim
+        equal = equal and np.isclose(self.x0, other.x0)
+        equal = equal and np.isclose(self.x1, other.x1)
+        equal = equal and np.isclose(self.y0, other.y0)
+        equal = equal and np.isclose(self.y1, other.y1)
+        if self.ndim == 3:
+            equal = equal and np.isclose(self.z0, other.z0)
+            equal = equal and np.isclose(self.z1, other.z1)
+        return equal
+
+    def copy(self):
+        return copy.deepcopy(self)
+
+    def __str__(self):
+        return f"(x0: {self.x0}, x1: {self.x1}, y0: {self.y0}, y1: {self.y1})"
+
+    def __repr__(self):
+        return str(self)
 
 
 class BoundingBoxable(ABC):
@@ -13,62 +65,15 @@ class BoundingBoxable(ABC):
         pass
 
     @property
-    def bounding_box(self) -> dict[str, float]:
+    def bounding_box(self) -> BoundingBox:
         ndim = self.anchor.ndim
         assert ndim in [2, 3]
         if ndim == 3:
             raise NotImplementedError("3D case not yet implemented")
-        origin = self.anchor.origin[...]
-        vector = self.anchor.vector[...]
-        ubb = self._untransformed_bounding_box
-        self._validate_dict(ubb)
-
-        # rotation
-        # fmt: off
-        rotation_matrix = np.array([
-            [vector[0], -vector[1]],
-            [vector[1], vector[0]]
-        ])
-        # fmt: on
-        corners = np.array(
-            [
-                [ubb["x0"], ubb["y0"]],
-                [ubb["x0"], ubb["y1"]],
-                [ubb["x1"], ubb["y0"]],
-                [ubb["x1"], ubb["y1"]],
-            ]
-        ).T
-        rotated_corners = (rotation_matrix @ corners).T
-        bb = {
-            "x0": np.min(rotated_corners[:, 0]),
-            "x1": np.max(rotated_corners[:, 0]),
-            "y0": np.min(rotated_corners[:, 1]),
-            "y1": np.max(rotated_corners[:, 1]),
-        }
-        self._validate_dict(bb)
-
-        # translation
-        bb["x0"] += origin[0]
-        bb["x1"] += origin[0]
-        bb["y0"] += origin[1]
-        bb["y1"] += origin[1]
-        self._validate_dict(bb)
-
+        bb = self.anchor.transform_bounding_box(self._untransformed_bounding_box)
         return bb
 
     @property
     @abstractmethod
-    def _untransformed_bounding_box(self) -> dict[str, float]:
+    def _untransformed_bounding_box(self) -> BoundingBox:
         pass
-
-    def _validate_dict(self, d: dict[str, float]):
-        assert all([type(dd) == float or type(dd) == np.float64 for dd in d.values()])
-        ndim = self.anchor.ndim
-        assert ndim in [2, 3]
-        assert d["x0"] < d["x1"]
-        assert d["y0"] < d["y1"]
-        if ndim == 2:
-            assert len(d.keys()) == 4
-        elif ndim == 3:
-            assert d["z0"] < d["z1"]
-            assert len(d.keys()) == 6

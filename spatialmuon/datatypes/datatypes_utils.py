@@ -39,6 +39,8 @@ def regions_raster_plot(
     show_colorbar: bool = True,
     show_scalebar: bool = True,
     suptitle: Optional[str] = None,
+    alpha: float = 1.0,
+    bounding_box: Optional[dict] = None,
 ):
     if not (isinstance(channels, list) or isinstance(channels, str) or isinstance(channels, int)):
         raise ValueError(
@@ -159,6 +161,8 @@ def regions_raster_plot(
             preprocessing=preprocessing,
             cmap=cmap,
             ax=axs,
+            alpha=alpha,
+            bounding_box=bounding_box,
         )
         if show_title:
             if method == "overlap":
@@ -175,7 +179,7 @@ def regions_raster_plot(
             else:
                 raise ValueError()
             axs.set_title(title)
-        if show_legend:
+        if show_legend and not (method == "rgba" and isinstance(instance, spatialmuon.Raster)):
             _legend = []
             if method == "overlap":
                 for idx, c in enumerate(cmap):
@@ -214,10 +218,10 @@ def regions_raster_plot(
         if show_scalebar:
             unit = instance.coordinate_unit
             if unit is not None:
-                scale_factor = np.linalg.norm(instance.anchor.vector)
+                # scale_factor = instance.scale_factor
                 try:
                     scalebar = ScaleBar(
-                        scale_factor, unit, box_alpha=0.8, color="white", box_color="black"
+                        dx=1, units=unit, box_alpha=0.8, color="white", box_color="black"
                     )
                 except ValueError as e:
                     if str(e).startswith("Invalid unit (") and str(e).endswith(") with dimension"):
@@ -230,7 +234,7 @@ def regions_raster_plot(
                         custom_dimension = CustomDimension(unit=unit)
                         ##
                         scalebar = ScaleBar(
-                            scale_factor,
+                            dx=1,
                             units=unit,
                             dimension=custom_dimension,
                             box_alpha=0.8,
@@ -252,7 +256,7 @@ def regions_raster_plot(
             plt.show()
     else:
         assert method == "panels"
-        upper_limit_tiles = 50
+        upper_limit_tiles = 100
 
         if (
             isinstance(grid_size, list)
@@ -269,8 +273,8 @@ def regions_raster_plot(
                 "'grid_size' must either be a single integer or a list of two integers."
             )
         if n_tiles > upper_limit_tiles:
-            warnings.warn(
-                "The generated plot will be very large. Consider plotting it outside of spatialmuon."
+            raise RuntimeError(
+                f"Not plotting more than {upper_limit_tiles} subplots. Please plot channels to Axes manually"
             )
 
         if len(channels_to_plot) > n_tiles:
@@ -297,4 +301,5 @@ def regions_raster_plot(
             preprocessing=preprocessing,
             cmap=cmap,
             suptitle=suptitle,
+            alpha=alpha,
         )

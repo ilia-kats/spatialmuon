@@ -1,3 +1,5 @@
+# legacy code, to be gradually included into the new code codebase
+
 from __future__ import annotations
 
 from spatialmuon.utils import angle_between
@@ -58,77 +60,3 @@ def plot_channel_raster(
     im = ax.imshow(x, alpha=alpha, cmap=cmap, **kwargs)
 
     return im
-
-
-def plot_channel_array(
-    fov: FieldOfView,
-    ax: matplotlib.axes.Axes,
-    channel: int,
-    preprocessing: Callable,
-    alpha: float,
-    color: Optional[Union[tuple[float], str]],
-    cmap: Optional[matplotlib.colors.Colormap],
-    random_colors: bool,
-    **kwargs,
-) -> Optional[matplotlib.cm.ScalarMappable]:
-    x = fov.X[...][:, channel]
-    x = x.todense()
-    if preprocessing is not None:
-        x = preprocessing(x)
-    if fov._spot_shape != spatialmuon.datatypes.array.SpotShape.circle:
-        raise NotImplementedError("preliminary implementation for Visium-like data only")
-    points = fov.obs["geometry"].tolist()
-    coords = np.array([[p.x, p.y] for p in points])
-    radius = fov._spot_size
-    patches = []
-    for xy in coords:
-        patch = matplotlib.patches.Circle(xy, radius)
-        patches.append(patch)
-    collection = matplotlib.collections.PatchCollection(patches)
-    x_min, y_min = np.min(coords, axis=0)
-    x_max, y_max = np.max(coords, axis=0)
-    xlim = ax.get_xlim()
-    ylim = ax.get_ylim()
-    # hack to check if this is a newly created empty plot
-    if xlim == (0.0, 1.0) and ylim == (0.0, 1.0):
-        new_xlim = (x_min, x_max)
-        new_ylim = (y_min, y_max)
-    else:
-        new_xlim = (min(xlim[0], x_min), max(xlim[1], x_max))
-        new_ylim = (min(ylim[0], y_min), max(ylim[1], y_max))
-    ax.set_xlim(new_xlim)
-    ax.set_ylim(new_ylim)
-    ax.set_aspect("equal")
-    if random_colors:
-        collection.set_color(np.random.rand(len(x), 3))
-        scalar_mappable = None
-    elif color is not None:
-        collection.set_color(color)
-        scalar_mappable = None
-    else:
-        colors = []
-        a = x.min()
-        b = x.max()
-        norm = matplotlib.colors.Normalize(vmin=a, vmax=b)
-        scalar_mappable = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-        for row, _ in enumerate(patches):
-            value = x[row].item()
-            # color = cmap((value - a) / (b - a))
-            colors.append(value)
-        collection.set_array(np.array(colors))
-    collection.set_alpha(alpha)
-    ax.add_collection(collection, autolim=False)
-    return scalar_mappable
-
-
-def image_to_rgb(x: np.ndarray):
-    assert len(x.shape) == 3
-    assert x.shape[-1] == 3
-    old_shape = x.shape
-    new_shape = (x.shape[0] * x.shape[1], 3)
-    x.shape = new_shape
-    a = np.min(x, axis=0)
-    b = np.max(x, axis=0)
-    x = (x - a) / (b - a)
-    x.shape = old_shape
-    return x

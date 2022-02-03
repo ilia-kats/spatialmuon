@@ -1,35 +1,16 @@
 ##
 import unittest
-import os
-import sys
 import spatialmuon
 import matplotlib
 import matplotlib.cm
 import matplotlib.colors
 import matplotlib.pyplot as plt
 import numpy as np
-import copy
-from pathlib import Path
+from tests.testing_utils import initialize_testing
 
-DEBUGGING = False
-try:
-    __file__
-except NameError as e:
-    if str(e) == "name '__file__' is not defined":
-        DEBUGGING = True
-    else:
-        raise e
-if sys.gettrace() is not None:
-    DEBUGGING = True
+test_data_dir, DEBUGGING = initialize_testing()
 
-if not DEBUGGING:
-    # Get current file and pre-generate paths and names
-    this_dir = Path(__file__).parent
-    fpath = this_dir / "../data/small_imc.h5smu"
-
-    matplotlib.use("Agg")
-else:
-    fpath = os.path.expanduser("~/spatialmuon/tests/data/small_imc.h5smu")
+fpath = test_data_dir / "small_imc.h5smu"
 
 plt.style.use("dark_background")
 
@@ -160,7 +141,7 @@ class PlotSmallImc_TestClass(unittest.TestCase):
         feature = "mean"
         fig, ax = plt.subplots(1)
         d["imc"][feature].plot(channels=0, preprocessing=np.arcsinh, suptitle=feature, ax=ax)
-        # d['imc']['masks'].masks.plot(fill_colors=None, outline_colors='k', ax=ax)
+        d["imc"]["masks"].masks.plot(fill_colors=None, outline_colors="k", ax=ax)
         plt.show()
         for k in accumulated.keys():
             del d["imc"][k]
@@ -206,25 +187,25 @@ class PlotSmallImc_TestClass(unittest.TestCase):
 
 if __name__ == "__main__":
     if not DEBUGGING:
-        unittest.main()
+        unittest.main(failfast=True)
     else:
-        PlotSmallImc_TestClass().test_can_load_smu_file()
-        PlotSmallImc_TestClass().test_can_pretty_print()
-        #
-        PlotSmallImc_TestClass().test_can_plot_raster_single_channel_in_ax()
-        PlotSmallImc_TestClass().test_can_plot_raster_single_channel()
-        PlotSmallImc_TestClass().test_can_plot_raster_overlapping_channels_in_ax()
-        PlotSmallImc_TestClass().test_can_plot_raster_overlapping_channels()
-        PlotSmallImc_TestClass().test_can_plot_raster_non_overlapping_channels()
-        PlotSmallImc_TestClass().test_can_plot_raster_first_4_channels_as_rgba()
-        #
-        PlotSmallImc_TestClass().test_can_plot_regions_random_color()
-        PlotSmallImc_TestClass().test_can_plot_regions_solid_color()
-        PlotSmallImc_TestClass().test_can_plot_raster_and_regions_together()
-        #
-        PlotSmallImc_TestClass().test_can_accumulate_raster_with_raster_masks()
+        # PlotSmallImc_TestClass().test_can_load_smu_file()
+        # PlotSmallImc_TestClass().test_can_pretty_print()
+        # #
+        # PlotSmallImc_TestClass().test_can_plot_raster_single_channel_in_ax()
+        # PlotSmallImc_TestClass().test_can_plot_raster_single_channel()
+        # PlotSmallImc_TestClass().test_can_plot_raster_overlapping_channels_in_ax()
+        # PlotSmallImc_TestClass().test_can_plot_raster_overlapping_channels()
+        # PlotSmallImc_TestClass().test_can_plot_raster_non_overlapping_channels()
+        # PlotSmallImc_TestClass().test_can_plot_raster_first_4_channels_as_rgba()
+        # #
+        # PlotSmallImc_TestClass().test_can_plot_regions_random_color()
+        # PlotSmallImc_TestClass().test_can_plot_regions_solid_color()
+        # PlotSmallImc_TestClass().test_can_plot_raster_and_regions_together()
+        # #
+        # PlotSmallImc_TestClass().test_can_accumulate_raster_with_raster_masks()
         PlotSmallImc_TestClass().test_can_plot_accumulated_regions_value()
-        PlotSmallImc_TestClass().test_can_plot_accumulated_regions_first_4_channels_as_rgba()
-        PlotSmallImc_TestClass().test_can_plot_accumulated_regions_non_overlapping_channels()
-        #
-        PlotSmallImc_TestClass().test_bounding_boxes()
+        # PlotSmallImc_TestClass().test_can_plot_accumulated_regions_first_4_channels_as_rgba()
+        # PlotSmallImc_TestClass().test_can_plot_accumulated_regions_non_overlapping_channels()
+        # #
+        # PlotSmallImc_TestClass().test_bounding_boxes()

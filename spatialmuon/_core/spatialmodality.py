@@ -1,29 +1,31 @@
-from typing import Optional, Union, Callable
+from typing import Optional, Union, Callable, Dict
 import warnings
 import matplotlib
 import matplotlib.cm
-from spatialmuon._core.backing import BackableObject, BackedDictProxy
+from spatialmuon._core.backing import BackableObject
 from spatialmuon._core.fieldofview import FieldOfView, UnknownEncodingException
 from spatialmuon.utils import _read_hdf5_attribute, _get_hdf5_attribute
 
 import h5py
 
 
-class SpatialModality(BackableObject, BackedDictProxy):
+class SpatialModality(BackableObject):
     def __init__(
         self,
         backing: Optional[h5py.Group] = None,
         fovs: Optional[dict] = None,
     ):
         super().__init__(backing)
-        if self.isbacked:
+        if self.is_backed:
             for f, fov in self.backing.items():
                 try:
-                    self[f] = FieldOfView(backing=fov)
+                    self._set_kv(f, FieldOfView(backing=fov))
+                    # self[f] = FieldOfView(backing=fov)
                 except UnknownEncodingException as e:
                     warnings.warn(f"Unknown field of view type {e.encoding}")
         else:
             if fovs is not None:
+                warnings.warn("code not tested")
                 self.update(fovs)
 
     @staticmethod
@@ -34,22 +36,11 @@ class SpatialModality(BackableObject, BackedDictProxy):
     def _encodingversion():
         return "0.1.0"
 
-    def _set_backing(self, grp: Optional[h5py.Group] = None):
-        super()._set_backing(grp)
-        if grp is not None:
-            self._write_attributes(grp)
-            for f, fov in self.items():
-                fov.set_backing(grp, f)
-        else:
-            for fov in self.values():
-                fov.set_backing(None)
+    def _write_impl(self, obj: Union[h5py.Group, h5py.Dataset]):
+        pass
 
     def _write_attributes_impl(self, grp: h5py.Group):
         pass
-
-    def _write(self, grp):
-        for f, fov in self.items():
-            fov.write(grp, f)
 
     # flake8: noqa: C901
     def plot(
@@ -63,6 +54,7 @@ class SpatialModality(BackableObject, BackedDictProxy):
         ] = matplotlib.cm.viridis,
     ):
 
+        raise NotImplementedError("this code needs to be adapted to the new plotting functions")
         if not (isinstance(channels, list) or isinstance(channels, str)):
             raise ValueError(
                 "'channels' must be either a single character string or a list of them."

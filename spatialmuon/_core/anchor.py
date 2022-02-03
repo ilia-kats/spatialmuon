@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import numpy as np
-from typing import Optional, Union
+from typing import Optional, Union, Dict
 import warnings
 from spatialmuon._core.backing import BackableObject
 import h5py
 from spatialmuon.utils import _read_hdf5_attribute
+from spatialmuon._core.bounding_box import BoundingBox
 
 
 class Anchor(BackableObject):
@@ -40,33 +41,46 @@ class Anchor(BackableObject):
                 raise ValueError("at least one parameter should be specified")
 
             if ndim is not None:
+                # here we write self._ndim = ndim and then we call obj_has_changed instead of writing self.ndim =,
+                # because we don't want to provide a setter for ndim; once it is set, it is forever
                 self._ndim = ndim
-
-            if origin is None:
-                self._origin = np.array([0] * ndim)
-            else:
-                self._origin = origin
+                self.obj_has_changed("ndim")
+            if origin is not None:
+                self._ndim = len(origin)
+                self.obj_has_changed("ndim")
                 if ndim is not None:
                     assert len(origin) == ndim
-                self._ndim = len(origin)
-
-            if vector is None:
-                self._vector = np.array([1] + ([0] * (self.ndim - 1)))
-            else:
-                self._vector = vector
+            if vector is not None:
+                self._ndim = len(vector)
+                self.obj_has_changed("ndim")
                 if ndim is not None:
                     assert len(vector) == ndim
-                self._ndim = len(vector)
+                if origin is not None:
+                    assert len(origin) == len(vector)
 
-    def _set_backing(self, value: Optional[Union[h5py.Group, h5py.Dataset]] = None):
-        self._write(value)
+            if origin is None:
+                self.origin = np.array([0] * self.ndim)
+            else:
+                self.origin = origin
 
-    def _write(self, obj: Union[h5py.Group, h5py.Dataset]):
-        obj.create_dataset("origin", data=self.origin)
-        obj.create_dataset("vector", data=self.vector)
+            if vector is None:
+                self.vector = np.array([1] + ([0] * (self.ndim - 1)))
+            else:
+                self.vector = vector
+
+    def _write_impl(self, obj: Union[h5py.Group, h5py.Dataset]):
+        if self.has_obj_changed("origin"):
+            if "origin" in obj:
+                del obj["origin"]
+            obj.create_dataset("origin", data=self.origin)
+        if self.has_obj_changed("vector"):
+            if "vector" in obj:
+                del obj["vector"]
+            obj.create_dataset("vector", data=self.vector)
 
     def _write_attributes_impl(self, obj: Union[h5py.Dataset, h5py.Group]):
-        obj.attrs["ndim"] = self.ndim
+        if self.has_obj_changed("ndim"):
+            obj.attrs["ndim"] = self.ndim
 
     @staticmethod
     def _encodingtype() -> str:
@@ -76,11 +90,7 @@ class Anchor(BackableObject):
     def _encodingversion() -> str:
         return "0.1.0"
 
-    def __str__(self):
-        return "{}\n├─ndim: {}\n├─origin: {}\n└─vector: {}".format(
-            self.__class__.__name__, self.ndim, self.origin, self.vector
-        )
-
+    # no setter for ndim
     @property
     def ndim(self) -> int:
         """Number of dimensions of the Anchor point.
@@ -113,12 +123,11 @@ class Anchor(BackableObject):
 
         """
         assert self._origin is not None
-        return self._origin
+        return self._origin[...]
 
     @origin.setter
     def origin(self, new_origin: np.ndarray):
         """Updates the np.ndarray holding the 'origin'."""
-        print(2)
         if not isinstance(new_origin, np.ndarray):
             raise TypeError("Please specify a np.ndarray for 'origin'.")
         if len(new_origin) == 0:
@@ -128,7 +137,8 @@ class Anchor(BackableObject):
             warnings.warn(w)
         if len(new_origin) < self.ndim:
             raise ValueError("Length of 'new_origin' must be same as current 'ndim'.")
-        self.origin = new_origin[: self.ndim]
+        self._origin = new_origin[: self.ndim]
+        self.obj_has_changed("origin")
 
     @property
     def vector(self) -> np.ndarray:
@@ -147,12 +157,11 @@ class Anchor(BackableObject):
 
         """
         assert self._vector is not None
-        return self._vector
+        return self._vector[...]
 
     @vector.setter
     def vector(self, new_vector: np.ndarray):
         """Updates the np.ndarray holding the 'vector'."""
-        print(2)
         if not isinstance(new_vector, np.ndarray):
             raise TypeError("Please specify a np.ndarray for 'vector'.")
         if len(new_vector) == 0:
@@ -162,7 +171,16 @@ class Anchor(BackableObject):
             warnings.warn(w)
         if len(new_vector) < self.ndim:
             raise ValueError("Length of 'new_vector' must be same as current 'ndim'.")
-        self.vector = new_vector[: self.ndim]
+        self._vector = new_vector[: self.ndim]
+        self.obj_has_changed("vector")
+
+    @property
+    def scale_factor(self) -> float:
+        return np.linalg.norm(self.vector)
+
+    @property
+    def normalized_vector(self) -> np.ndarray:
+        return self.vector / self.scale_factor
 
     # flake8: noqa: C901
     def move_origin(self, axis: str = "all", distance: Union[int, float] = 0):
@@ -272,3 +290,181 @@ class Anchor(BackableObject):
                 raise ValueError("Please specify a float for 'factor'.")
 
         self._vector = np.array([i * factor for i in self.vector])
+
+    @property
+    def _rotation_matrix(self):
+        # rotation
+        # fmt: off
+        cos, sin = self.normalized_vector
+        rotation_matrix = np.array([
+            [cos, -sin],
+            [sin, cos]
+        ])
+        # fmt: on
+        return rotation_matrix
+
+    def transform_coordinates(self, coords: np.ndarray) -> np.ndarray:
+        old_shape = coords.shape
+        if len(coords.shape) in [0, 1] and len(coords) == 2:
+            coords = coords.reshape((1, 2))
+        assert len(coords.shape) == 2
+        if not coords.shape[1] == 2:
+            raise NotImplementedError("only the 2D case is currently implemented")
+
+        rotated = (self._rotation_matrix @ coords.T).T
+        scaled = rotated / self.scale_factor
+        translated = scaled + self.origin
+        translated = translated.reshape(old_shape)
+        return translated
+
+    def inverse_transform_coordinates(self, coords: np.ndarray) -> np.ndarray:
+        old_shape = coords.shape
+        if len(coords.shape) in [0, 1] and len(coords) == 2:
+            coords = coords.reshape((1, 2))
+        assert len(coords.shape) == 2
+        if not coords.shape[1] == 2:
+            raise NotImplementedError("only the 2D case is currently implemented")
+
+        translated = coords - self.origin
+        scaled = translated * self.scale_factor
+        rotated = (self._rotation_matrix @ scaled.T).T
+        rotated = rotated.reshape(old_shape)
+        return rotated
+
+    def transform_bounding_box(self, bb: BoundingBox):
+        origin = self.origin[...]
+        k = self.scale_factor
+        normalized = self.normalized_vector
+        bb.validate()
+
+        # rotation and scale
+        corners = np.array(
+            [
+                [bb.x0, bb.y0],
+                [bb.x0, bb.y1],
+                [bb.x1, bb.y0],
+                [bb.x1, bb.y1],
+            ]
+        ).T
+        rotated_corners = (self._rotation_matrix @ corners).T
+        bb_out = BoundingBox(
+            x0=np.min(rotated_corners[:, 0]) / k,
+            x1=np.max(rotated_corners[:, 0]) / k,
+            y0=np.min(rotated_corners[:, 1]) / k,
+            y1=np.max(rotated_corners[:, 1]) / k,
+        )
+        bb_out.validate()
+
+        # translation
+        bb_out.x0 += origin[0]
+        bb_out.x1 += origin[0]
+        bb_out.y0 += origin[1]
+        bb_out.y1 += origin[1]
+        bb_out.validate()
+
+        return bb_out
+
+    def inverse_transform_bounding_box(self, bb: BoundingBox):
+        origin = self.origin[...]
+        k = self.scale_factor
+        normalized = self.normalized_vector
+        bb.validate()
+        bb_out = bb.copy()
+
+        # translation
+        bb_out.x0 -= origin[0]
+        bb_out.x1 -= origin[0]
+        bb_out.y0 -= origin[1]
+        bb_out.y1 -= origin[1]
+
+        # rotation and scale
+        inverse_rotation_matrix = self._rotation_matrix.T
+        corners = np.array(
+            [
+                [bb_out.x0, bb_out.y0],
+                [bb_out.x0, bb_out.y1],
+                [bb_out.x1, bb_out.y0],
+                [bb_out.x1, bb_out.y1],
+            ]
+        ).T
+        rotated_corners = (inverse_rotation_matrix @ corners).T
+        bb_out = BoundingBox(
+            x0=np.min(rotated_corners[:, 0]) * k,
+            x1=np.max(rotated_corners[:, 0]) * k,
+            y0=np.min(rotated_corners[:, 1]) * k,
+            y1=np.max(rotated_corners[:, 1]) * k,
+        )
+        bb_out.validate()
+
+        return bb_out
+
+    # currently not supporting mirroring
+    @staticmethod
+    def map_untransformed_to_untransformed_fov(
+        target: "FieldOfView", source_points: np.ndarray, target_points: np.ndarray
+    ):
+        assert source_points.shape == target_points.shape
+        assert len(source_points.shape) == 2
+        if source_points.shape[1] != 2:
+            raise NotImplementedError("only the 2D case has been implemented")
+        if len(source_points) != 2:
+            raise NotImplementedError("please specify a pair of points for each field of view")
+        src_a = source_points[0, :]
+        src_b = source_points[1, :]
+        des_a = target_points[0, :]
+        des_b = target_points[1, :]
+
+        v_src = src_b - src_a
+        v_des = des_b - des_a
+        n_src = np.linalg.norm(v_src)
+        n_des = np.linalg.norm(v_des)
+        scale_factor = n_src / n_des
+
+        cos = np.dot(v_src, v_des) / (n_src * n_des)
+        sin = (v_src[0] * v_des[1] - v_src[1] * v_des[0]) / (n_src * n_des)
+        assert np.isclose(cos * cos + sin * sin, 1)
+        rotation_vector = np.array([cos, sin])
+        translation_vector = des_a - src_a / scale_factor
+        anchor0 = Anchor(origin=translation_vector, vector=rotation_vector * scale_factor)
+        anchor1 = target.anchor
+        composed = Anchor.compose_anchors(anchor0, anchor1)
+        return composed
+
+    @staticmethod
+    def compose_anchors(anchor0, anchor1):
+        m0 = anchor0._to_matrix()
+        m1 = anchor1._to_matrix()
+        m = m1 @ m0
+        assert np.allclose(m[2, :], np.array([0.0, 0.0, 1.0]))
+        a = Anchor._from_matrix(m)
+        return a
+
+    def _to_matrix(self):
+        x0 = self.vector[0]
+        y0 = self.vector[1]
+        x1 = self.origin[0]
+        y1 = self.origin[1]
+        s = x0 * x0 + y0 * y0
+        m = np.array([[x0 / s, -y0 / s, x1], [y0 / s, x0 / s, y1], [0, 0, 1]])
+        return m
+
+    @staticmethod
+    def _from_matrix(m: np.ndarray):
+        origin = m[:2, 2]
+        v = m[:2, 0]
+        vv = np.dot(v, v)
+        s = 1 / vv
+        vector = v * s
+        anchor = Anchor(origin=origin, vector=vector)
+        return anchor
+
+    def plot(self):
+        raise NotImplementedError()
+
+    def __str__(self):
+        return "{}\n├─ndim: {}\n├─origin: {}\n└─vector: {}".format(
+            self.__class__.__name__, self.ndim, self.origin, self.vector
+        )
+
+    def __repr__(self):
+        return str(self)

@@ -1,6 +1,7 @@
 import unittest
-import spatialmuon
 from pathlib import Path
+
+import spatialmuon
 
 # Get current file and pre-generate paths and names
 this_dir = Path(__file__).parent
@@ -22,4 +23,4 @@ class Raster_TestClass(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(failfast=True)

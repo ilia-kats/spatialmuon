@@ -13,26 +13,11 @@ from pathlib import Path
 from spatialmuon.external.squidpy_external import SquidpyExternal
 import scanpy
 import warnings
+from tests.testing_utils import initialize_testing
 
-DEBUGGING = False
-try:
-    __file__
-except NameError as e:
-    if str(e) == "name '__file__' is not defined":
-        DEBUGGING = True
-    else:
-        raise e
-if sys.gettrace() is not None:
-    DEBUGGING = True
+test_data_dir, DEBUGGING = initialize_testing()
 
-if not DEBUGGING:
-    # Get current file and pre-generate paths and names
-    this_dir = Path(__file__).parent
-    fpath = this_dir / "../data/small_imc.h5smu"
-
-    matplotlib.use("Agg")
-else:
-    fpath = os.path.expanduser("~/spatialmuon/tests/data/small_imc.h5smu")
+fpath = test_data_dir / "small_imc.h5smu"
 
 plt.style.use("dark_background")
 
@@ -75,7 +60,7 @@ class SquidpyExternal_TestClass(unittest.TestCase):
         masks = copy.copy(e.masks)
         louvain.index = masks.obs.index
         masks.obs["louvain"] = louvain
-        clustered = spatialmuon.Regions(backing=None, X=None, index_kwargs={}, masks=masks)
+        clustered = spatialmuon.Regions(backing=None, X=None, masks=masks)
         fig, ax = plt.subplots(1, figsize=(5, 5))
         d["imc"]["ome"].plot(
             channels=0, ax=ax, cmap=matplotlib.cm.get_cmap("Greys_r"), show_title=False
@@ -105,7 +90,7 @@ class SquidpyExternal_TestClass(unittest.TestCase):
 
 if __name__ == "__main__":
     if not DEBUGGING:
-        unittest.main()
+        unittest.main(failfast=True)
     else:
         # SquidpyExternal_TestClass().test_can_get_squidpy_data_representation()
         # SquidpyExternal_TestClass().test_can_compute_spatial_neighbors()

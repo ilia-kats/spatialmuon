@@ -1,12 +1,15 @@
 import unittest
-import spatialmuon
-from pathlib import Path
-import numpy as np
-from spatialmuon._core.anchor import Anchor
 
-# Get current file and pre-generate paths and names
-this_dir = Path(__file__).parent
-fpath_ome = this_dir / "../data/ome_example.tiff"
+import matplotlib.pyplot as plt
+import numpy as np
+
+import spatialmuon
+from spatialmuon._core.anchor import Anchor
+from tests.testing_utils import initialize_testing
+
+test_data_dir, DEBUGGING = initialize_testing()
+
+fpath_ome = test_data_dir / "ome_example.tiff"
 
 # TODO: Anchor is giving me AttributeError: module 'spatialmuon' has no attribute 'Anchor'. I have
 #  temporarily changed the import to be more explicit
@@ -49,8 +52,35 @@ class Anchor_TestClass(unittest.TestCase):
         a.scale_vector(2)
         self.assertTrue(np.alltrue(a.vector == np.array([2, 0])))
 
+    def test_compute_alignment_translation_scale(self):
+        ##
+        des = np.zeros((100, 100, 3), dtype=np.float)
+        des[60:, 80:, :] = np.array([1.0, 0.0, 0.0])
+        des_anchor = Anchor(origin=np.array([50, 50]), vector=np.array([2, 0]))
+        des_fov = spatialmuon.Raster(X=des, anchor=des_anchor)
+
+        src = np.ones((60, 30, 3), dtype=np.float)
+        src[:, :, np.array([0, 2])] = 0.0
+        src_anchor = Anchor.map_untransformed_to_untransformed_fov(
+            des_fov,
+            source_points=np.array([[15, 30], [30, 60]]),
+            target_points=np.array([[90, 80], [100, 100]]),
+        )
+        src_fov = spatialmuon.Raster(X=src, anchor=src_anchor)
+        _, (ax0, ax1) = plt.subplots(1, 2)
+        des_fov.plot(ax=ax0)
+        ax0.set(xlim=(0, 150), ylim=(0, 150))
+        src_fov.plot(ax=ax1)
+        ax1.set(xlim=(0, 150), ylim=(0, 150))
+        ax0.grid()
+        ax1.grid()
+        plt.show()
+        print(src_anchor)
+        ##
+
 
 if __name__ == "__main__":
-    # if not DEBUGGING:
-    unittest.main()
-    # else:
+    if not DEBUGGING:
+        unittest.main(failfast=True)
+    else:
+        Anchor_TestClass().test_compute_alignment_translation_scale()

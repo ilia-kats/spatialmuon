@@ -1,5 +1,6 @@
-from spatialmuon import Converter, SpatialMuData, SpatialModality
 from pathlib import Path
+
+from spatialmuon import Converter, SpatialMuData, SpatialModality
 
 this_dir = Path(__file__).parent
 fpath_h5smu_example = this_dir / "h5smu_example.h5smu"

@@ -1,14 +1,16 @@
+import warnings
 from typing import Optional, Dict, Union, Literal
 from os import PathLike, path, system
 
 import h5py
 
-from .backing import BackableObject, BackedDictProxy
+from .backing import BackableObject
 from .spatialmodality import SpatialModality
 from ..utils import is_h5smu
+from .io import repack_h5smu
 
 
-class SpatialMuData(BackableObject, BackedDictProxy):
+class SpatialMuData(BackableObject):
     def __init__(
         self,
         backing: Union[str, PathLike, h5py.Group] = None,
@@ -37,7 +39,7 @@ class SpatialMuData(BackableObject, BackedDictProxy):
                 else:
                     raise FileExistsError("file already exists and is not a valid SpatialMuon file")
             else:
-                print("creating a new file for the backed storage")
+                # print("creating a new file for the backed storage")
                 f = h5py.File(
                     backing,
                     "w",
@@ -46,7 +48,6 @@ class SpatialMuData(BackableObject, BackedDictProxy):
                     fs_strategy="page",
                     fs_persist=True,
                 )
-                f.create_group("mod")
                 f.close()
                 with open(backing, "br+") as outfile:
                     fname = "SpatialMuData (format-version={};".format(__spatialmudataversion__)
@@ -55,23 +56,14 @@ class SpatialMuData(BackableObject, BackedDictProxy):
                     outfile.write(fname.encode("utf-8"))
                 backing = h5py.File(backing, "r+")
 
-        super().__init__(backing, key="mod", items=modalities)
-        if self.isbacked:
-            for m, mod in self.backing["mod"].items():
-                self[m] = SpatialModality(backing=mod)
+        super().__init__(backing, items=modalities)
+        if self.is_backed:
+            for m, mod in self.backing.items():
+                self._set_kv(m, SpatialModality(backing=mod))
+                # self[m] = SpatialModality(backing=mod)
         elif modalities is not None:
+            warnings.warn("code not tested")
             self.update(modalities)
-
-    def _set_backing(self, grp: Union[None, h5py.Group]):
-        super()._set_backing(grp)
-        if grp is not None:
-            self._write_attributes(grp)
-            parent = grp.require_group("mod")
-            for m, mod in self.items():
-                mod.set_backing(parent, m)
-        else:
-            for mod in self.values():
-                mod.set_backing(None)
 
     @staticmethod
     def _encodingtype():
@@ -83,15 +75,14 @@ class SpatialMuData(BackableObject, BackedDictProxy):
 
         return __spatialmudataversion__
 
+    def _write_impl(self, grp):
+        pass
+
     def _write_attributes_impl(self, obj: h5py.Group):
         from .. import __version__
 
         obj.attrs["encoder"] = "spatialmuon"
         obj.attrs["encoder-version"] = __version__
-
-    def _write(self, grp):
-        for m, mod in self.items():
-            mod.write(grp.require_group("mod"), m)
 
     def __repr__(self):
         repr_str = "SpatialMuData object\n"
@@ -102,3 +93,9 @@ class SpatialMuData(BackableObject, BackedDictProxy):
         repr_str = repr_str.rstrip("\n")
         repr_str = "\n└──".join(repr_str.rsplit("\n├──", 1))
         return repr_str
+
+    def repack(self, compression_level: Optional[int] = None):
+        assert self.is_backed
+        f = self.backing.filename
+        self.backing.close()
+        repack_h5smu(f, compression_level=compression_level)

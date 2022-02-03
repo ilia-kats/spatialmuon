@@ -20,10 +20,10 @@ class HDF5Storage(index.CustomStorage):
         self._grp = None
         self._readonly = False
         self.backing = grp
-        self._pageid = len(self._grp) if self.isbacked else 0
+        self._pageid = len(self._grp) if self.is_backed else 0
 
     @property
-    def isbacked(self):
+    def is_backed(self):
         return self._grp is not None
 
     @property
@@ -43,7 +43,7 @@ class HDF5Storage(index.CustomStorage):
             self.deleteByteArray = self.__deleteByteArray_backed
             self._readonly = grp.file.mode == "r"
         else:
-            if self.isbacked:
+            if self.is_backed:
                 self.from_hdf5(self._grp)
             self.clear = self.__clear
             self.loadByteArray = self.__loadByteArray
@@ -54,7 +54,7 @@ class HDF5Storage(index.CustomStorage):
 
     @property
     def hasData(self):
-        return len(self._grp) > 0 if self.isbacked else len(self._pages) > 0
+        return len(self._grp) > 0 if self.is_backed else len(self._pages) > 0
 
     def create(self, returnError):
         """Called when the storage is created on the C side"""
@@ -230,7 +230,7 @@ class SpatialIndex(BackableObject):
             self._write_attributes(value)
         self._storage.backing = value
 
-    def _write(self, grp):
+    def _write_impl(self, grp):
         self._storage.to_hdf5(grp)
 
     def set_coordinates(self, coordinates: np.ndarray, progressbar: bool = False, **kwargs):

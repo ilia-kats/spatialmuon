@@ -7,10 +7,10 @@ from spatialmuon import SpatialModality, Raster
 import tifffile
 from xml.etree import ElementTree
 import tempfile
+from tests.testing_utils import initialize_testing
 
-# Get current file and pre-generate paths and names
-this_dir = Path(__file__).parent
-fpath = this_dir / "../data/ome_example.tiff"
+test_data_dir, DEBUGGING = initialize_testing()
+fpath = test_data_dir / "ome_example.tiff"
 
 
 class SpatialModality_creation(unittest.TestCase):
@@ -45,14 +45,12 @@ class SpatialModality_creation(unittest.TestCase):
         coords = np.abs(np.random.normal(size=(N, 2)))
 
         fovname = "myfov"
-        fovidx = 0
 
         radius = 1.0
 
         smudata = spatialmuon.SpatialMuData(tmp_dir_name)
         smudata["Visium"] = modality = spatialmuon.SpatialModality()
 
-        spots_dict = {o: ((x, y), radius) for (o, (x, y)) in zip(obs.index.tolist(), coords)}
         masks = spatialmuon.ShapeMasks(
             masks_shape="circle", masks_centers=coords, masks_radii=radius, masks_labels=labels
         )
@@ -69,4 +67,8 @@ class SpatialModality_creation(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    if not DEBUGGING:
+        unittest.main(failfast=True)
+    else:
+        # SpatialModality_creation().test_can_create_SpatialModality_from_Raster()
+        SpatialModality_creation().test_can_create_SpatialModality_from_Regions()

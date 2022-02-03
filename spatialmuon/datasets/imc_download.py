@@ -339,7 +339,7 @@ def create_muon_spatial_object(f_ome, f_masks, outfile):
     modality["ome"] = spatialmuon.Raster(
         X=np.moveaxis(ome.asarray(), 0, -1), var=var, coordinate_unit="um"
     )
-    raster_masks = spatialmuon.RasterMasks(mask=masks)
+    raster_masks = spatialmuon.RasterMasks(X=masks)
     regions = spatialmuon.Regions(masks=raster_masks, coordinate_unit="um")
     modality["masks"] = regions
     # closing the file is needed because of the bug involing h5clear
@@ -348,8 +348,8 @@ def create_muon_spatial_object(f_ome, f_masks, outfile):
     pass
 
 
-# DEBUG = False
 DEBUG = True
+# DEBUG = True
 
 DOWNLOAD = False
 UNZIP = False
@@ -360,8 +360,14 @@ if DEBUG:
 
 def debug_create_spatial_muon_object():
     # edit your paths here
-    f_ome = "/data/spatialmuon/datasets/imc/raw/OMEandSingleCellMasks/ome/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full.tiff"  # noqa: E501
-    f_masks = "/data/spatialmuon/datasets/imc/raw/OMEandSingleCellMasks/Basel_Zuri_masks/ZTMA208_slide_28.23kx22.4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full_maks.tiff"  # noqa: E501
+    f_ome = (
+        "/data/spatialmuon/datasets/imc/raw/OMEnMasks/ome/ZTMA208_slide_28.23kx22"
+        ".4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full.tiff"
+    )  # noqa: E501
+    f_masks = (
+        "/data/spatialmuon/datasets/imc/raw/OMEnMasks/Basel_Zuri_masks/ZTMA208_slide_28.23kx22"
+        ".4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full_maks.tiff"
+    )  # noqa: E501
     outfile = "debug.h5smu"
     create_muon_spatial_object(f_ome, f_masks, outfile)
 
@@ -381,7 +387,7 @@ if __name__ == "__main__":
                 debug_create_spatial_muon_object()
                 os._exit(0)
 
-        outfdir = "imc"
+        outfdir = "/data/spatialmion/datasets/imc/smu/"
         imgfile = os.path.join(download_dir, "images.zip")
         metadatafile = os.path.join(download_dir, "metadata.zip")
         if DOWNLOAD:

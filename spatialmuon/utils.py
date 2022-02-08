@@ -1,6 +1,5 @@
 from typing import Literal
 from codecs import decode
-from os import PathLike
 import warnings
 import colorama
 

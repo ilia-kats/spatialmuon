@@ -398,6 +398,14 @@ class Anchor(BackableObject):
 
         return bb_out
 
+    def transform_length(self, length: float):
+        k = self.scale_factor
+        return length / k
+
+    def inverse_transform_length(self, length: float):
+        k = self.scale_factor
+        return length * k
+
     # currently not supporting mirroring
     @staticmethod
     def map_untransformed_to_untransformed_fov(

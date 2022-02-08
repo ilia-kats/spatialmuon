@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-import abc
-import warnings
 from collections.abc import MutableMapping
 from abc import abstractmethod
-from typing import Optional, Union, Literal, Dict
-from scipy.ndimage import center_of_mass
+from typing import Optional, Union, Literal, TYPE_CHECKING
 
-from tqdm.auto import tqdm
 import matplotlib.pyplot as plt
 import matplotlib.colors
 import matplotlib.axes
@@ -17,20 +13,22 @@ import matplotlib.collections
 import numpy as np
 import h5py
 import copy
-import math
 from shapely.geometry import Polygon
 from trimesh import Trimesh
-from skimage.measure import find_contours, marching_cubes
+from skimage.measure import find_contours
 from anndata._io.utils import read_attribute, write_attribute
 import pandas as pd
 import skimage.measure
 import vigra
+from functools import cached_property
 from enum import Enum, auto
 
-from spatialmuon._core.fieldofview import FieldOfView
 from spatialmuon._core.backing import BackableObject
 from spatialmuon.utils import _read_hdf5_attribute, UnknownEncodingException, _get_hdf5_attribute
 from spatialmuon._core.bounding_box import BoundingBoxable, BoundingBox
+
+if TYPE_CHECKING:
+    from spatialmuon import Raster, Regions
 
 # either a color or a list of colors
 ColorsType = Optional[
@@ -95,6 +93,14 @@ class Masks(BackableObject, BoundingBoxable):
     def anchor(self, new_anchor):
         self._parentdataset.anchor = new_anchor
 
+    @property
+    def coordinate_unit(self):
+        return self._parentdataset.coordinate_unit
+
+    @coordinate_unit.setter
+    def coordinate_unit(self, o):
+        self._parentdataset.coordinate_unit = o
+
     # we don't provide a setter for ndim
     @property
     @abstractmethod
@@ -126,6 +132,15 @@ class Masks(BackableObject, BoundingBoxable):
     def n_obs(self) -> int:
         return self._obs.shape[0]
 
+    @property
+    @abstractmethod
+    def untransformed_masks_centers(self):
+        pass
+
+    @property
+    def transformed_masks_centers(self):
+        return self.anchor.transform_coordinates(self.untransformed_masks_centers[...])
+
     # def _write_data(self, grp):
     def _write_attributes_impl(self, obj: Union[h5py.Dataset, h5py.Group]):
         super()._write_attributes_impl(obj)
@@ -146,14 +161,6 @@ class Masks(BackableObject, BoundingBoxable):
         repr_str = f"│   ├── {self.ndim}D {mask_type} with {self.n_obs} obs: {', '.join(self.obs)}"
         repr_str = "│   └──".join(repr_str.rsplit("│   ├──", 1))
         return repr_str
-
-    @abstractmethod
-    def accumulate_features(self, x: Union["Raster", "Regions"]):
-        pass
-
-    @abstractmethod
-    def extract_tiles(self, raster: "Raster", tile_dim: int):
-        pass
 
     @staticmethod
     def normalize_color(x):
@@ -297,6 +304,23 @@ class Masks(BackableObject, BoundingBoxable):
         if ax is None:
             plt.show()
 
+    def accumulate_features(self, fov: Union[Raster, Regions]):
+        from spatialmuon.processing.accumulator import accumulate_features
+
+        accumulate_features(masks=self, fov=fov)
+
+    def extract_tiles(
+        self, tile_dim_in_units: Optional[float] = None, tile_dim_in_pixels: Optional[float] = None
+    ):
+        from spatialmuon.processing.tiler import Tiles
+
+        return Tiles(
+            masks=self,
+            raster=None,
+            tile_dim_in_units=tile_dim_in_units,
+            tile_dim_in_pixels=tile_dim_in_pixels,
+        )
+
 
 class ShapeMasks(Masks, MutableMapping):
     def __init__(
@@ -334,7 +358,7 @@ class ShapeMasks(Masks, MutableMapping):
                 n = masks_centers.shape[0]
                 d = masks_centers.shape[1]
                 assert d in [2, 3]
-                self.masks_centers = masks_centers
+                self.untransformed_masks_centers = masks_centers
 
                 # setting self._masks_shape
                 if masks_shape is None:
@@ -344,18 +368,20 @@ class ShapeMasks(Masks, MutableMapping):
 
                 # setting self._masks.radii
                 if isinstance(masks_radii, float):
-                    self.masks_radii = np.ones_like(self._masks_centers) * masks_radii
+                    self.untransformed_masks_radii = np.ones_like(self._masks_centers) * masks_radii
                 else:
                     assert isinstance(masks_radii, np.ndarray)
                     assert len(masks_radii) == n
                     if len(masks_radii.shape) in [0, 1]:
                         x = masks_radii.reshape((-1, 1))
-                        self.masks_radii = np.tile(x, (1, d))
+                        self.untransformed_masks_radii = np.tile(x, (1, d))
                     elif len(masks_radii.shape) == 2:
-                        self.masks_radii = masks_radii
+                        self.untransformed_masks_radii = masks_radii
                     else:
                         raise ValueError()
-                assert self.masks_radii.shape == self.masks_centers.shape
+                assert (
+                    self.untransformed_masks_radii.shape == self.untransformed_masks_centers.shape
+                )
 
                 # setting self._masks_labels
                 if masks_labels is not None:
@@ -363,8 +389,8 @@ class ShapeMasks(Masks, MutableMapping):
                     self.masks_labels = masks_labels
             else:
                 self.masks_shape = SpotShape.circle
-                self.masks_centers = np.zeros([[]])
-                self.masks_radii = np.zeros([[]])
+                self.untransformed_masks_centers = np.zeros([[]])
+                self.untransformed_masks_radii = np.zeros([[]])
                 self.masks_labels = []
             self.update_obs_from_masks()
 
@@ -374,20 +400,20 @@ class ShapeMasks(Masks, MutableMapping):
             raise ValueError(
                 "replacing the old obs is only performed when obs is an empty DataFrame or it is None"
             )
-        if len(self.masks_centers) == 0:
+        if len(self.untransformed_masks_centers) == 0:
             raise ValueError("no mask data has been specified")
         if len(self.masks_labels) == 0:
             mask_df = pd.DataFrame(data=dict(original_labels=self.masks_labels))
         else:
-            mask_df = pd.DataFrame(index=range(len(self.masks_centers)))
+            mask_df = pd.DataFrame(index=range(len(self.untransformed_masks_centers)))
         self.obs = mask_df
 
     # no setter for ndim
     @property
     def ndim(self):
-        assert len(self.masks_centers) > 0
-        assert len(self.masks_centers.shape) == 2
-        return self.masks_centers.shape[1]
+        assert len(self.untransformed_masks_centers) > 0
+        assert len(self.untransformed_masks_centers.shape) == 2
+        return self.untransformed_masks_centers.shape[1]
 
     @property
     def masks_shape(self):
@@ -399,20 +425,20 @@ class ShapeMasks(Masks, MutableMapping):
         self.obj_has_changed("masks_shape")
 
     @property
-    def masks_centers(self):
+    def untransformed_masks_centers(self):
         return self._masks_centers
 
-    @masks_centers.setter
-    def masks_centers(self, o):
+    @untransformed_masks_centers.setter
+    def untransformed_masks_centers(self, o):
         self._masks_centers = o
         self.obj_has_changed("masks_centers")
 
     @property
-    def masks_radii(self):
+    def untransformed_masks_radii(self):
         return self._masks_radii
 
-    @masks_radii.setter
-    def masks_radii(self, o):
+    @untransformed_masks_radii.setter
+    def untransformed_masks_radii(self, o):
         self._masks_radii = o
         self.obj_has_changed("masks_radii")
 
@@ -426,8 +452,8 @@ class ShapeMasks(Masks, MutableMapping):
         self.obj_has_changed("masks_labels")
 
     def __len__(self):
-        assert len(self.masks_centers) > 0
-        return len(self.masks_centers)
+        assert len(self.untransformed_masks_centers) > 0
+        return len(self.untransformed_masks_centers)
 
     # def __contains__(self, item):
     #     raise NotImplementedError()
@@ -448,8 +474,8 @@ class ShapeMasks(Masks, MutableMapping):
         ##
         extended_coords = np.concatenate(
             [
-                self.masks_centers[...] + self.masks_radii[...],
-                self.masks_centers[...] - self.masks_radii[...],
+                self.untransformed_masks_centers[...] + self.untransformed_masks_radii[...],
+                self.untransformed_masks_centers[...] - self.untransformed_masks_radii[...],
             ],
             axis=0,
         )
@@ -471,11 +497,11 @@ class ShapeMasks(Masks, MutableMapping):
         if self.has_obj_changed("masks_centers"):
             if "masks_centers" in grp:
                 del grp["masks_centers"]
-            grp.create_dataset("masks_centers", data=self.masks_centers)
+            grp.create_dataset("masks_centers", data=self.untransformed_masks_centers)
         if self.has_obj_changed("masks_radii"):
             if "masks_radii" in grp:
                 del grp["masks_radii"]
-            grp.create_dataset("masks_radii", data=self.masks_radii)
+            grp.create_dataset("masks_radii", data=self.untransformed_masks_radii)
 
     def _write_attributes_impl(self, grp: h5py.Group):
         super()._write_attributes_impl(grp)
@@ -483,15 +509,6 @@ class ShapeMasks(Masks, MutableMapping):
             grp.attrs["masks_shape"] = self.masks_shape.name
         if self.has_obj_changed("masks_labels"):
             grp.attrs["masks_labels"] = self.masks_labels
-
-    def accumulate_features(self, x: Union["Raster", "Regions"]):
-        # TODO:
-        raise NotImplementedError()
-
-    def extract_tiles(self, raster: "Raster", tile_dim: int):
-        ome = raster.X
-
-        raise NotImplementedError()
 
     def _plot(
         self,
@@ -503,9 +520,9 @@ class ShapeMasks(Masks, MutableMapping):
             raise NotImplementedError()
         patches = []
         for i in range(len(self)):
-            xy = self.masks_centers[i]
+            xy = self.untransformed_masks_centers[i]
             xy = self.anchor.transform_coordinates(xy)
-            radius = self.masks_radii[i]
+            radius = self.untransformed_masks_radii[i]
             radius /= self.anchor.scale_factor
             patch = matplotlib.patches.Ellipse(xy, width=2 * radius[0], height=2 * radius[1])
             patches.append(patch)
@@ -627,6 +644,10 @@ class PolygonMasks(Masks, MutableMapping):
         #     return iter(self._data)
 
     @property
+    def centers(self):
+        raise NotImplementedError()
+
+    @property
     def _untransformed_bounding_box(self) -> BoundingBox:
         raise NotImplementedError()
         return dict()
@@ -741,6 +762,10 @@ class MeshMasks(Masks, MutableMapping):
             return iter(self.backing)
         else:
             return iter(self._data)
+
+    @property
+    def centers(self):
+        raise NotImplementedError()
 
     @property
     def _untransformed_bounding_box(self) -> BoundingBox:
@@ -985,13 +1010,20 @@ class RasterMasks(Masks):
                 contours = skimage.measure.find_contours(boolean_mask, 0.7)
                 for contour in contours:
                     contour = np.fliplr(contour)
+                    contour += 0.5
                     transformed = self.anchor.transform_coordinates(contour)
                     ax.plot(transformed[:, 0], transformed[:, 1], linewidth=1, color=outline_color)
 
-    def compute_centers(self):
+    @property
+    def untransformed_masks_centers(self):
+        # from a tuple of 1-dim vectors to a n x 2 tensor
+        return np.vstack(self._centers).T
+
+    @cached_property
+    def _centers(self):
         masks = self.X[...]
         masks = masks.astype(np.uint32)
-        ome = np.require(np.zeros_like(masks)[..., np.newaxis], requirements=["C"])
+        ome = np.require(np.zeros_like(masks, dtype=np.float32)[..., np.newaxis], requirements=["C"])
         vigra_ome = vigra.taggedView(ome, "xyc")
         ##
         features = vigra.analysis.extractRegionFeatures(
@@ -1009,223 +1041,6 @@ class RasterMasks(Masks):
         # original_labels = self.obs["original_labels"].to_numpy()
         # return original_labels, x, y
         return x, y
-
-    def accumulate_features(self, fov: Union["Raster", "Regions"]):
-        from spatialmuon.datatypes.regions import Regions
-
-        if type(fov) == "Regions":
-            raise NotImplementedError()
-        x = fov.X[...]
-        x = x.astype(np.float32)
-        if type(fov) == "Raster" and len(x.shape) != 3:
-            raise NotImplementedError()
-        ome = np.require(x, requirements=["C"])
-        vigra_ome = vigra.taggedView(ome, "xyc")
-        masks = self.X[...]
-        masks = masks.astype(np.uint32)
-        ##
-        features = vigra.analysis.extractRegionFeatures(
-            vigra_ome,
-            labels=masks,
-            ignoreLabel=0,
-            features=["Count", "Maximum", "Mean", "Sum", "Variance", "RegionCenter"],
-        )
-        ##
-        features = {k: v for k, v in features.items()}
-        masks_with_obs = copy.copy(self)
-        original_labels = masks_with_obs.obs["original_labels"].to_numpy()
-        if (
-            "region_center_x" not in masks_with_obs.obs
-            and "region_center_y" not in masks_with_obs.obs
-        ):
-            masks_with_obs.obs["region_center_x"] = features["RegionCenter"][original_labels, 1]
-            masks_with_obs.obs["region_center_y"] = features["RegionCenter"][original_labels, 0]
-        if "count" not in masks_with_obs.obs:
-            masks_with_obs.obs["count"] = features["Count"][original_labels]
-        d = {}
-        for key in ["Maximum", "Mean", "Sum", "Variance"]:
-            regions = Regions(
-                backing=None,
-                X=features[key][original_labels, :],
-                var=fov.var,
-                masks=copy.copy(masks_with_obs),
-                coordinate_unit=fov.coordinate_unit,
-            )
-            d[key.lower()] = regions
-        return d
-
-    # flake8: noqa: C901
-    def extract_tiles(self, raster: "Raster", tile_dim: int):
-        DEBUG_WITH_PLOTS = False
-        mask_labels = set(self.obs["original_labels"].to_list())
-        ome = raster.X[...]
-        # here I need to find the bounding box from the masks and extract the pixels below
-        real_labels = set(np.unique(self.X).tolist())
-        if 0 in real_labels:
-            real_labels.remove(0)
-        assert mask_labels == real_labels
-        extracted_omes = []
-        extracted_masks = []
-        raster_centers = []
-        origins = []
-        for i, mask_label in tqdm(
-            zip(range(len(mask_labels)), mask_labels),
-            desc="extracting tiles",
-            total=len(mask_labels),
-        ):
-            masks = self.X[...]
-            # center = xy[i, :]
-            # compute the bounding box of the mask
-            z = masks == mask_label
-            z_center = center_of_mass(z)
-
-            masks_coords = np.array((z_center[1], z_center[0]))
-            global_coords = self._parentdataset.anchor.transform_coordinates(masks_coords)
-            raster_coords = raster.anchor.inverse_transform_coordinates(global_coords)
-
-            raster_centers.append(raster_coords)
-            t = tile_dim
-            # r = (t - 1) / 2
-            # one pixel is lost but this makes computation easier
-            r = math.floor(t / 2)
-            if False:
-                p0 = np.sum(z, axis=0)
-                p1 = np.sum(z, axis=1)
-                (w0,) = np.where(p0 > 0)
-                (w1,) = np.where(p1 > 0)
-                a0 = w0[0]
-                b0 = w0[-1] + 1
-                a1 = w1[0]
-                b1 = w1[-1] + 1
-            else:
-                a0 = math.floor(masks_coords[0] - r)
-                origin_x = a0
-                a0 = max(0, a0)
-                b0 = math.ceil(masks_coords[0] + r)
-                b0 = min(b0, z.shape[1])
-                a1 = math.floor(masks_coords[1] - r)
-                origin_y = a1
-                a1 = max(0, a1)
-                b1 = math.ceil(masks_coords[1] + r)
-                b1 = min(b1, z.shape[0])
-                # print(f'[{a1}:{b1}, {a0}:{b0}]')
-            # TODO: y this is empty when the tile around the mask does not contain any point of the mask and this
-            #  leads to an exception. Handle this gracefully and show a warning
-            y = z[a1:b1, a0:b0]
-            if DEBUG_WITH_PLOTS:
-                ##
-                print(f'masks_coords[1] = {masks_coords[1]}, masks_coords[0] = {masks_coords[0]}, r = {r}')
-                plt.figure()
-                plt.imshow(z, origin='lower')
-                plt.axvline(x=a0)
-                plt.axvline(x=b0)
-                plt.axhline(y=a1)
-                plt.axhline(y=b1)
-                plt.title(f'x: {a0}:{b0}, y: {a1}:{b1}')
-                plt.show()
-                ##
-                pass
-            assert np.sum(y) > 0
-            if DEBUG_WITH_PLOTS:
-                ##
-                back_to_global_coords = raster.anchor.transform_coordinates(raster_coords)
-                back_to_masks_coords = self._parentdataset.anchor.inverse_transform_coordinates(back_to_global_coords)
-                assert np.allclose(back_to_masks_coords, masks_coords)
-                ##
-                bb = self._parentdataset.bounding_box
-                raster_bb = raster.anchor.inverse_transform_bounding_box(bb)
-                extent = (raster_bb.x0, raster_bb.x1, raster_bb.y0, raster_bb.y1)
-                plt.figure(figsize=(10, 10))
-                plt.imshow(z, extent=extent, origin='lower')
-                plt.scatter(raster_coords[0], raster_coords[1], color="green", s=30)
-                plt.show()
-                ##
-                plt.figure(figsize=(10, 10))
-                plt.imshow(z, origin='lower')
-                plt.scatter(z_center[1], z_center[0])
-                plt.show()
-                ##
-                _, ax = plt.subplots(figsize=(10, 10))
-                raster.plot(0, ax=ax)
-                self.plot(fill_colors='random', outline_colors='k', ax=ax, alpha=0.5)
-                raster.set_lims_to_bounding_box(self.bounding_box)
-                plt.show()
-                ##
-
-            y_center = np.array(center_of_mass(y))
-            if DEBUG_WITH_PLOTS:
-                plt.figure()
-                plt.imshow(y)
-                plt.scatter(y_center[1], y_center[0], color="black", s=1)
-                plt.show()
-            square_ome = np.zeros((t, t, ome.shape[2]))
-            square_mask = np.zeros((t, t))
-
-            def get_coords_for_padding(des_r, src_shape, src_center):
-                des_l = 2 * des_r + 1
-
-                def f(src_l, src_c):
-                    a = src_c - des_r
-                    b = src_c + des_r
-                    if a < 0:
-                        c = -a
-                        a = 0
-                    else:
-                        c = 0
-                    if b > src_l:
-                        b = src_l
-                    src_a = a
-                    src_b = b
-                    des_a = c
-                    des_b = des_a + b - a
-                    return src_a, src_b, des_a, des_b
-
-                src0_a, src0_b, des0_a, des0_b = f(src_shape[0], int(src_center[0]))
-                src1_a, src1_b, des1_a, des1_b = f(src_shape[1], int(src_center[1]))
-                return src0_a, src0_b, src1_a, src1_b, des0_a, des0_b, des1_a, des1_b
-
-            # fmt: off
-            (
-                src0_a, src0_b, src1_a, src1_b,
-                des0_a, des0_b, des1_a, des1_b,
-            ) = get_coords_for_padding(r, y.shape, y_center)
-            # fmt: on
-
-            square_ome[des0_a:des0_b, des1_a:des1_b, :] = ome[a1:b1, a0:b0, :][
-                src0_a:src0_b, src1_a:src1_b, :
-            ]
-            square_mask[des0_a:des0_b, des1_a:des1_b] = y[src0_a:src0_b, src1_a:src1_b]
-
-            if DEBUG_WITH_PLOTS:
-                plt.figure()
-                plt.imshow(square_mask)
-                plt.scatter(r, r, color="blue", s=1)
-                plt.show()
-            #                     f5_out[f'{split}/omes/{k}'] = ome[a1: b1, a0: b0]
-            #                     f5_out[f'{split}/masks/{k}'] = y
-            extracted_omes.append(square_ome)
-            extracted_masks.append(square_mask)
-            masks_origin = np.array([origin_x, origin_y])
-            origins.append(masks_origin)
-            if DEBUG_WITH_PLOTS:
-                if i >= 4:
-                    DEBUG_WITH_PLOTS = False
-                    RECAP_PLOT = True
-        if "RECAP_PLOT" in locals():
-            for n in range(min(len(extracted_omes), 10)):
-                plt.figure()
-                x = extracted_omes[n][:, :, 0]
-                plt.imshow(x)
-                u = np.array(
-                    [
-                        [0.0, 0.0, 0.0, 0.0],
-                        [1.0, 0.0, 0.0, 1.0],
-                    ]
-                )
-                mask = extracted_masks[n]
-                plt.imshow(u[mask.astype(int)])
-                plt.show()
-        return extracted_omes, extracted_masks, raster_centers, origins
 
 
 if __name__ == "__main__":

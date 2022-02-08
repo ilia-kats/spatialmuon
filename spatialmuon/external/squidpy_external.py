@@ -1,10 +1,9 @@
 import anndata
 import squidpy
-import scanpy
 import spatialmuon
 import matplotlib.pyplot as plt
 import numpy as np
-from typing import Union, Optional, List, NewType
+from typing import Union, Optional, List
 
 
 class SquidpyExternal:
@@ -15,7 +14,7 @@ class SquidpyExternal:
             Union[spatialmuon.datatypes.raster.Raster, List[spatialmuon.datatypes.raster.Raster]]
         ] = None,
     ) -> anndata.AnnData:
-        c = spatialmuon._core.converter.Converter()
+        c = spatialmuon.processing.converter.Converter()
         adata = c.regions_to_anndata(regions)
         if raster_images is not None:
             if isinstance(raster_images, spatialmuon.datatypes.raster.Raster):

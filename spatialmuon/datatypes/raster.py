@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union, Literal, Callable, List, Dict
+from typing import Optional, Union, Literal, Callable, List, Dict, TYPE_CHECKING
 import warnings
 
 import math
@@ -29,8 +29,11 @@ from spatialmuon._core.bounding_box import BoundingBox
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib_scalebar.scalebar import ScaleBar
 
-from spatialmuon import FieldOfView
+from spatialmuon._core.fieldofview import FieldOfView
 from spatialmuon.utils import _get_hdf5_attribute
+from tqdm.auto import tqdm
+if TYPE_CHECKING:
+    from spatialmuon.datatypes.regions import Regions
 
 
 class Raster(FieldOfView):
@@ -332,7 +335,8 @@ class Raster(FieldOfView):
             if np.min(x) < 0.0 or np.max(x) > 1.0:
                 warnings.warn(
                     "the data is not in the [0, 1] range. Plotting the result of an affine transformation to "
-                    "make the data in [0, 1]."
+                    "make the data in [0, 1]. This is likely to cause different coloring if you are plotting a "
+                    "subset of the data, as the colors are determined to the local values stracted to [0, 1]"
                 )
                 old_shape = x.shape
                 x = np.reshape(x, (-1, old_shape[-1]))
@@ -399,5 +403,18 @@ class Raster(FieldOfView):
         repr_str = f"(Raster) {x}x{y} pixels image with {c} channels"
         return repr_str
 
-    def accumulate_features(self, masks: "Masks"):
-        return masks.accumulate_features(self)
+    def accumulate_features(self, masks: Masks) -> Regions:
+        from spatialmuon.processing.accumulator import accumulate_features
+        return accumulate_features(masks=masks, fov=self)
+
+
+    def extract_tiles(self, masks: Masks, tile_dim_in_units: Optional[float] = None, tile_dim_in_pixels: Optional[
+        float] = None):
+        from spatialmuon.processing.tiler import Tiles
+
+        return Tiles(
+            masks=masks,
+            raster=self,
+            tile_dim_in_units=tile_dim_in_units,
+            tile_dim_in_pixels=tile_dim_in_pixels,
+        )

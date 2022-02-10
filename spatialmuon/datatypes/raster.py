@@ -6,6 +6,8 @@ import warnings
 import math
 import numpy as np
 import h5py
+import cv2
+import copy
 from shapely.geometry import Polygon, Point, MultiPoint
 from trimesh import Trimesh
 import matplotlib
@@ -32,6 +34,7 @@ from matplotlib_scalebar.scalebar import ScaleBar
 from spatialmuon._core.fieldofview import FieldOfView
 from spatialmuon.utils import _get_hdf5_attribute
 from tqdm.auto import tqdm
+
 if TYPE_CHECKING:
     from spatialmuon.datatypes.regions import Regions
 
@@ -268,6 +271,7 @@ class Raster(FieldOfView):
         plt.show()
 
     # TODO: code very similar to Regions._plot_in_canvas(), maybe unify
+    # flake8: noqa: C901
     def _plot_in_canvas(
         self,
         channels_to_plot: list[str],
@@ -333,17 +337,20 @@ class Raster(FieldOfView):
 
             x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
             if np.min(x) < 0.0 or np.max(x) > 1.0:
-                warnings.warn(
-                    "the data is not in the [0, 1] range. Plotting the result of an affine transformation to "
-                    "make the data in [0, 1]. This is likely to cause different coloring if you are plotting a "
-                    "subset of the data, as the colors are determined to the local values stracted to [0, 1]"
-                )
-                old_shape = x.shape
-                x = np.reshape(x, (-1, old_shape[-1]))
-                a = np.min(x, axis=0)
-                b = np.max(x, axis=0)
-                x = (x - a) / (b - a)
-                x = np.reshape(x, old_shape)
+                if x.dtype == np.uint8:
+                    pass
+                else:
+                    warnings.warn(
+                        "the data is not in the [0, 1] range. Plotting the result of an affine transformation to "
+                        "make the data in [0, 1]. This is likely to cause different coloring if you are plotting a "
+                        "subset of the data, as the colors are determined to the local values stracted to [0, 1]"
+                    )
+                    old_shape = x.shape
+                    x = np.reshape(x, (-1, old_shape[-1]))
+                    a = np.min(x, axis=0)
+                    b = np.max(x, axis=0)
+                    x = (x - a) / (b - a)
+                    x = np.reshape(x, old_shape)
             im = _imshow(x=x, alpha=alpha)
         else:
             for idx, channel in enumerate(channels_to_plot):
@@ -405,11 +412,15 @@ class Raster(FieldOfView):
 
     def accumulate_features(self, masks: Masks) -> Regions:
         from spatialmuon.processing.accumulator import accumulate_features
+
         return accumulate_features(masks=masks, fov=self)
 
-
-    def extract_tiles(self, masks: Masks, tile_dim_in_units: Optional[float] = None, tile_dim_in_pixels: Optional[
-        float] = None):
+    def extract_tiles(
+        self,
+        masks: Masks,
+        tile_dim_in_units: Optional[float] = None,
+        tile_dim_in_pixels: Optional[float] = None,
+    ):
         from spatialmuon.processing.tiler import Tiles
 
         return Tiles(
@@ -418,3 +429,63 @@ class Raster(FieldOfView):
             tile_dim_in_units=tile_dim_in_units,
             tile_dim_in_pixels=tile_dim_in_pixels,
         )
+
+    def scale_raster(
+        self,
+        factor: Optional[float] = None,
+        target_w: Optional[int] = None,
+        target_h: Optional[int] = None,
+    ):
+        b = np.array([factor is None, target_w is None, target_h is None])
+        if not np.sum(b) == 2:
+            raise ValueError(
+                "one parameter is enough to determine the shape of the up/down-scaling"
+            )
+        h, w, _ = self.X.shape
+        if target_w is not None:
+            factor = target_w / w
+        elif target_h is not None:
+            factor = target_h / h
+
+        x = self.X[...]
+        s = np.array(x.shape)[:-1].astype(np.float)
+        s *= factor
+        s = np.floor(s).astype(int)
+        channels = []
+        for i in range(x.shape[-1]):
+            c = cv2.resize(x[:, :, i], dsize=s.tolist()[::-1], interpolation=cv2.INTER_CUBIC)
+            channels.append(c)
+        new_X = np.stack(channels, axis=-1)
+
+        self.X = new_X
+        new_vector = self.anchor.vector * factor
+        self.anchor.vector = new_vector
+        self.commit_changes_on_disk()
+
+    def crop(self, bounding_box: BoundingBox):
+        ##
+        x0, x1 = self.anchor.inverse_transform_coordinates(
+            np.array([bounding_box.x0, bounding_box.x1])
+        )
+        y0, y1 = self.anchor.inverse_transform_coordinates(
+            np.array([bounding_box.y0, bounding_box.y1])
+        )
+        ##
+        real_x0 = 0
+        real_x1 = self.X.shape[1]
+        real_y0 = 0
+        real_y1 = self.X.shape[0]
+
+        x0 = int(max(x0, math.floor(real_x0)))
+        x1 = int(min(x1, math.ceil(real_x1)))
+        y0 = int(max(y0, math.floor(real_y0)))
+        y1 = int(min(y1, math.ceil(real_y1)))
+
+        new_X = self.X[y0:y1, x0:x1, :]
+        new_anchor = Anchor(origin=np.array([x0, y0]), vector=self.anchor.vector)
+
+        self.X = new_X
+        self.commit_changes_on_disk()
+
+        del self["anchor"]
+        self.anchor = new_anchor

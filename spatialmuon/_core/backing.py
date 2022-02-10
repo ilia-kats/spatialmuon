@@ -6,6 +6,8 @@ from typing import Optional, Union, Callable, List, Dict
 import copy
 import warnings
 import h5py
+
+import spatialmuon
 from spatialmuon.utils import old_school_debugging
 
 osd = old_school_debugging(debug=False)
@@ -46,16 +48,78 @@ class BackableObject(ABC, UserDict):
         else:
             return False
 
-    def commit_changes_on_disk(self):
-        osd(f"commit_changes_on_disk, called on {type(self)}")
-        osd(f"commit_changes_on_disk, calling write_impl()")
-        osd(f"commit_changes_on_disk, calling write_attributes_impl()")
+    def _commit_changes_on_disk_recursively(self):
+        osd(f"_commit_changes_on_disk_recursively, called on {type(self)}")
+        osd(f"_commit_changes_on_disk_recursively, calling write_impl()")
+        osd(f"_commit_changes_on_disk_recursively, calling write_attributes_impl()")
         if self.is_backed:
             self._write_impl(self.backing)
             self._write_attributes_impl(self.backing)
-            osd("commit_changes_on_disk: looping over children")
-            for k, v in self.items():
-                v.commit_changes_on_disk()
+            osd("_commit_changes_on_disk_recursively: looping over children")
+            for v in self.values():
+                v._commit_changes_on_disk_recursively()
+
+    def commit_changes_on_disk(self):
+        self._commit_changes_on_disk_recursively()
+        if self.is_backed:
+            self.backing.file.flush()
+
+    def _load_in_memory_recursively(self):
+        for k, v in self.__dict__.items():
+            if type(v) == h5py.Dataset:
+                self.__dict__[k] = v[...]
+        for v in self.values():
+            v._load_in_memory_recursively()
+
+    def load_in_memory(self):
+        # the call to .commit_changes_on_disk() is not efficient, but it makes the code simpler
+        self.commit_changes_on_disk()
+        self._load_in_memory_recursively()
+
+    # this function should be called only when everything is in memory in this object and any point down the
+    # hierarchy, like after calling .load_in_memory()
+    def _reset_backing_storage(self):
+        self._backing = None
+        for v in self.values():
+            v._reset_backing_storage()
+
+    def _clone_at_current_level(self):
+        s = copy.copy(self)
+        for k, v in s.__dict__.items():
+            # print(f'{type(v)} ({k})')
+            import spatialmuon._core.masks
+
+            if (
+                type(v) != h5py.File
+                and type(v) != h5py.Group
+                and type(v) != h5py.Dataset
+                and not (k == "data" and type(v) == dict)
+                and not (k == "_parentdataset" and isinstance(self, spatialmuon._core.masks.Masks))
+            ):
+                s.__dict__[k] = copy.deepcopy(v)
+        return s
+
+    def _clone_recursively(self):
+        s = self._clone_at_current_level()
+        for k, v in self.items():
+            w = v._clone_recursively()
+            super().__setitem__(k, w)
+            if type(w) in [
+                spatialmuon.RasterMasks,
+                spatialmuon.ShapeMasks,
+                spatialmuon.MeshMasks,
+                spatialmuon.PolygonMasks,
+            ]:
+                w._parentdataset = self
+        return s
+
+    def clone(self):
+        # loads both in the original object and in the copied one, this could be optimized to make load only in the
+        # copied one if needed
+        self.load_in_memory()
+        s = self._clone_recursively()
+        s._reset_backing_storage()
+        return s
 
     @staticmethod
     @abstractmethod
@@ -158,7 +222,10 @@ class BackableObject(ABC, UserDict):
                 for k, v in self.backing.attrs.items():
                     parent[key].attrs[k] = v
                 ##
-                new_backable = copy.copy(self)
+                # TODO: check that this is not introducing a bug, test by copying an object and then modifying .X
+                #  inplace
+                # new_backable = copy.copy(self)
+                new_backable = self._clone_at_current_level()
                 new_backable._backing = parent[key]
                 return new_backable
                 # return parent[key]

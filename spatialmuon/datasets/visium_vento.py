@@ -51,7 +51,6 @@ def create_smu_files(hires_images=False):
             # start = time.time()
             assert hires.dtype == np.dtype("uint8")
             assert np.max(hires) > 1
-            hires = hires / 255
 
             source_points = None
             target_points = None

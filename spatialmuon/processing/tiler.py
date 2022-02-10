@@ -46,17 +46,20 @@ class Tiles:
                 self.masks, tile_dim_in_units=self.tile_dim_in_units
             )
         if True:
-            ##
-            n = 0
-            _, ax = plt.subplots(1)
-            s = self.tile_to_raster(index=n)
-            c = list(range(min(3, len(s.var))))
-            # s = self.raster_tile_to_raster(index=n)
-            s.plot(channels=c, ax=ax)
-            # self.raster.plot(channels=c, ax=ax)
-            self.masks.plot(fill_colors="red", outline_colors="k", ax=ax, alpha=0.2)
-            plt.show()
-            ##
+            self._example_plot()
+
+    def _example_plot(self):
+        ##
+        n = 0
+        _, ax = plt.subplots(1)
+        s = self.tile_to_raster(index=n)
+        c = list(range(min(3, len(s.var))))
+        # s = self.raster_tile_to_raster(index=n)
+        s.plot(channels=c, ax=ax)
+        # self.raster.plot(channels=c, ax=ax)
+        self.masks.plot(fill_colors="red", outline_colors="k", ax=ax, alpha=0.2)
+        plt.show()
+        ##
 
     @property
     def target(self):
@@ -193,7 +196,9 @@ class Tiles:
             plt.subplot(1, 3, 3)
             if len(tile.shape) == 3:
                 tile_viz = tile[..., 0]
-            plt.imshow(tile_viz, origin="lower", extent=(0, tile_viz.shape[1], 0, tile_viz.shape[0]))
+            plt.imshow(
+                tile_viz, origin="lower", extent=(0, tile_viz.shape[1], 0, tile_viz.shape[0])
+            )
             plt.scatter(r, r, color="red", s=1)
             plt.title(
                 f"x: {src1_a}:{src1_b} -> {des1_a}:{des1_b}, y: {src0_a}:{src0_b} -> {des0_a}:{des0_b}"

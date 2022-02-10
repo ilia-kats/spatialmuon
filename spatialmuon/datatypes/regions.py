@@ -384,3 +384,6 @@ class Regions(FieldOfView):
         repr_str = f"(Regions) with {self.n_var} var\n"
         repr_str += str(self.masks)
         return repr_str
+
+    def crop(self, bounding_box: BoundingBox):
+        raise NotImplementedError()

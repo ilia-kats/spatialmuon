@@ -260,3 +260,7 @@ class FieldOfView(BackableObject, BoundingBoxable):
             bb = self.bounding_box
         ax.set_xlim((bb.x0, bb.x1))
         ax.set_ylim((bb.y0, bb.y1))
+
+    @abstractmethod
+    def crop(self, bounding_box: BoundingBox):
+        pass

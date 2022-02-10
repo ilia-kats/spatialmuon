@@ -11,7 +11,7 @@ def peek(path):
     else:
         from spatialmuon import SpatialMuData
 
-        smu = SpatialMuData(backing=path, backingmode='r')
+        smu = SpatialMuData(backing=path, backingmode="r")
         print(smu)
 
 

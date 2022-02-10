@@ -57,7 +57,7 @@ class SquidpyExternal_TestClass(unittest.TestCase):
         # the higher the resolution, the more the clusters
         scanpy.tl.louvain(adata, resolution=1.1)
         louvain = adata.obs["louvain"]
-        masks = copy.copy(e.masks)
+        masks = e.masks.clone()
         louvain.index = masks.obs.index
         masks.obs["louvain"] = louvain
         clustered = spatialmuon.Regions(backing=None, X=None, masks=masks)
@@ -92,8 +92,8 @@ if __name__ == "__main__":
     if not DEBUGGING:
         unittest.main(failfast=True)
     else:
-        # SquidpyExternal_TestClass().test_can_get_squidpy_data_representation()
-        # SquidpyExternal_TestClass().test_can_compute_spatial_neighbors()
+        SquidpyExternal_TestClass().test_can_get_squidpy_data_representation()
+        SquidpyExternal_TestClass().test_can_compute_spatial_neighbors()
         SquidpyExternal_TestClass().test_cluster_with_scanpy_and_plot_with_spatialmuon()
-        # SquidpyExternal_TestClass().test_neighbors_enrichment_analysis()
+        SquidpyExternal_TestClass().test_neighbors_enrichment_analysis()
         # SquidpyExternal_TestClass().test_view_with_napari()

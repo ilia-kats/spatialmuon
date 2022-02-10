@@ -387,6 +387,8 @@ class ShapeMasks(Masks, MutableMapping):
                 if masks_labels is not None:
                     assert len(masks_labels) == n
                     self.masks_labels = masks_labels
+                else:
+                    self.masks_labels = list(map(str, range(n)))
             else:
                 self.masks_shape = SpotShape.circle
                 self.untransformed_masks_centers = np.zeros([[]])
@@ -1023,7 +1025,9 @@ class RasterMasks(Masks):
     def _centers(self):
         masks = self.X[...]
         masks = masks.astype(np.uint32)
-        ome = np.require(np.zeros_like(masks, dtype=np.float32)[..., np.newaxis], requirements=["C"])
+        ome = np.require(
+            np.zeros_like(masks, dtype=np.float32)[..., np.newaxis], requirements=["C"]
+        )
         vigra_ome = vigra.taggedView(ome, "xyc")
         ##
         features = vigra.analysis.extractRegionFeatures(
@@ -1034,7 +1038,8 @@ class RasterMasks(Masks):
         )
         ##
         features = {k: v for k, v in features.items()}
-        masks_with_obs = copy.copy(self)
+        masks_with_obs = self.clone()
+        # masks_with_obs = copy.copy(self)
         original_labels = masks_with_obs.obs["original_labels"].to_numpy()
         x = features["RegionCenter"][original_labels, 1]
         y = features["RegionCenter"][original_labels, 0]

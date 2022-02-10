@@ -123,6 +123,7 @@ class Backing_TestClass(unittest.TestCase):
             s, m, _ = smf()
             s["a"] = m
             m["a"] = copy.copy(ss["b0"]["a"]["a"])
+            # m["a"] = ss["b0"]["a"]["a"].clone()
             store("e0")
             # print(id(s["a"]["a"]))
             # print(id(ss["b0"]["a"]["a"]))
@@ -130,6 +131,7 @@ class Backing_TestClass(unittest.TestCase):
 
             s, m, _ = smf()
             m["a"] = copy.copy(ss["b0"]["a"]["a"])
+            # m["a"] = ss["b0"]["a"]["a"].clone()
             s["a"] = m
             store("e1")
             assert how_many_fovs() == 10
@@ -139,11 +141,13 @@ class Backing_TestClass(unittest.TestCase):
             s, m, _ = smf()
             s["a"] = m
             m["a"] = copy.copy(ss["b1"]["a"]["a"])
+            # m["a"] = ss["b1"]["a"]["a"].clone()
             store("f0")
             assert how_many_fovs() == 11
 
             s, m, _ = smf()
             m["a"] = copy.copy(ss["b1"]["a"]["a"])
+            # m["a"] = ss["b1"]["a"]["a"].clone()
             s["a"] = m
             store("f1")
             assert how_many_fovs() == 12
@@ -190,37 +194,94 @@ class Backing_TestClass(unittest.TestCase):
                 assert len(s["a"].keys()) == 2
             ##
 
-    def test_on_demand_save(self):
-        self.skipTest("save apis changed, this test has to be rewritten using commit_changes()")
-        return
+    @staticmethod
+    def _create_regions_in_dir(directory):
+        masks_centers = np.array([[10, 10]])
+        masks_radii = np.array([[1, 1]])
+        fpath = os.path.join(directory, "target.h5smu")
+        s = spatialmuon.SpatialMuData(backing=fpath)
+        m = spatialmuon.SpatialModality()
+        sm = spatialmuon.ShapeMasks(masks_centers=masks_centers, masks_radii=masks_radii)
+        f = spatialmuon.Regions(masks=sm)
+        m["a"] = f
+        s["a"] = m
+        return s
+
+    @staticmethod
+    def _shape_masks_differ(s0, s1):
+        x0 = s0["a"]["a"].masks.untransformed_masks_centers[...]
+        x1 = s1["a"]["a"].masks.untransformed_masks_centers[...]
+        b = np.any(x0 != x1)
+        return b
+
+    def test_cloning_to_file(self):
+        print("test_cloning_to_file")
         with tempfile.TemporaryDirectory() as td:
-            ##
-            fpath = os.path.join(td, "a.h5smu")
-            s = spatialmuon.SpatialMuData(backing=fpath)
-            m = spatialmuon.SpatialModality()
-            sm = spatialmuon.ShapeMasks(
-                masks_centers=np.array([[10, 10]]), masks_radii=np.array([[1, 1]])
+            s0 = self._create_regions_in_dir(directory=td)
+            f = os.path.join(td, "clone.h5smu")
+            s1 = s0.clone_to_file(f)
+            shape_masks = spatialmuon.ShapeMasks(
+                masks_centers=np.array([[9, 9]]), masks_radii=np.array([[1, 1]])
             )
-            f = spatialmuon.Regions(masks=sm)
-            m["a"] = f
-            s["a"] = m
-            s.backing.close()
+            del s1["a"]["a"]["masks"]
+            s1["a"]["a"].masks = shape_masks
+            assert self._shape_masks_differ(s0, s1)
 
-            ##
-            s = spatialmuon.SpatialMuData(backing=fpath)
-            # s.close_and_save()
-            s.save()
+    def test_on_demand_save(self):
+        print("test_on_demand_save")
+        with tempfile.TemporaryDirectory() as td:
+            s0 = self._create_regions_in_dir(directory=td)
+            f = os.path.join(td, "clone.h5smu")
+            s1 = s0.clone_to_file(f)
 
-            s = spatialmuon.SpatialMuData(backing=fpath)
-            m = s["a"]
-            m.save()
-            pass
-            ...
+            assert not self._shape_masks_differ(s0, s1)
+            x = np.array([[9, 9]])
+            s1["a"]["a"].masks.untransformed_masks_centers = x
+            assert self._shape_masks_differ(s0, s1)
+
+            s2 = spatialmuon.SpatialMuData(s1.backing.filename, backingmode="r")
+            assert self._shape_masks_differ(s1, s2)
+
+            s1.commit_changes_on_disk()
+            s3 = spatialmuon.SpatialMuData(s1.backing.filename, backingmode="r")
+            assert not self._shape_masks_differ(s1, s3)
+
+    def test_inplace_operations(self):
+        print("test_inplace_operations")
+        with tempfile.TemporaryDirectory() as td:
+            s0 = self._create_regions_in_dir(directory=td)
+            f = os.path.join(td, "clone.h5smu")
+            s1 = s0.clone_to_file(f)
+
+            assert not self._shape_masks_differ(s0, s1)
+            x = np.array([[9, 9]])
+            t = s1["a"]["a"].masks.untransformed_masks_centers
+            t[...] = x
+            assert self._shape_masks_differ(s0, s1)
+
+            s2 = spatialmuon.SpatialMuData(s1.backing.filename, backingmode="r")
+            assert not self._shape_masks_differ(s1, s2)
+
+    def test_copy_is_not_shallow(self):
+        with tempfile.TemporaryDirectory() as td:
+            s0 = self._create_regions_in_dir(directory=td)
+            f = os.path.join(td, "clone.h5smu")
+            s1 = spatialmuon.SpatialMuData(backing=f)
+            s1["a"] = s0["a"]
+            t = s0["a"]["a"].masks.untransformed_masks_centers
+            x = np.array([[9, 9]])
+            t[...] = x
+            s2 = spatialmuon.SpatialMuData(backing=f)
+            assert self._shape_masks_differ(s0, s2)
+            assert self._shape_masks_differ(s0, s1)
 
 
 if __name__ == "__main__":
     if not DEBUGGING:
         unittest.main(failfast=True)
     else:
-        Backing_TestClass().test_various_setitem_orders()
+        # Backing_TestClass().test_various_setitem_orders()
+        # Backing_TestClass().test_cloning_to_file()
         # Backing_TestClass().test_on_demand_save()
+        Backing_TestClass().test_inplace_operations()
+        # Backing_TestClass().test_copy_is_not_shallow()

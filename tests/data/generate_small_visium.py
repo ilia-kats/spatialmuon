@@ -34,7 +34,7 @@ d0 = modality["expression"]
 # x_cutoff = 0
 x_cutoff = 1400
 y_cutoff = 1500
-centers = d0.masks.masks_centers
+centers = d0.masks.untransformed_masks_centers
 obs_to_keep = (centers[:, 0] > x_cutoff) * (centers[:, 1] > y_cutoff)
 print(f"keeping {np.sum(obs_to_keep)} out of {len(centers)} obs")
 n_var_to_keep = 100
@@ -43,8 +43,8 @@ d0.var = d0.var.iloc[:n_var_to_keep]
 d0.X = new_X
 new_obs = d0.masks.obs[obs_to_keep]
 d0.masks.obs = new_obs
-d0.masks.masks_centers = d0.masks.masks_centers[np.where(obs_to_keep)]
-d0.masks.masks_radii = d0.masks.masks_radii[np.where(obs_to_keep)]
+d0.masks.untransformed_masks_centers = d0.masks.untransformed_masks_centers[np.where(obs_to_keep)]
+d0.masks.untransformed_masks_radii = d0.masks.untransformed_masks_radii[np.where(obs_to_keep)]
 
 vector = a1.anchor.vector
 scale_factor = a1.anchor.scale_factor

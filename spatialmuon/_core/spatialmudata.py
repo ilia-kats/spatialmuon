@@ -7,7 +7,7 @@ import h5py
 from .backing import BackableObject
 from .spatialmodality import SpatialModality
 from ..utils import is_h5smu
-from .io import repack_h5smu
+from .io import repack_h5smu, clone_h5smu
 
 
 class SpatialMuData(BackableObject):
@@ -99,3 +99,11 @@ class SpatialMuData(BackableObject):
         f = self.backing.filename
         self.backing.close()
         repack_h5smu(f, compression_level=compression_level)
+
+    def clone_to_file(self, filename: str):
+        assert self.is_backed
+        self.commit_changes_on_disk()
+        source = self.backing.filename
+        self.backing.flush()
+        clone = clone_h5smu(from_file=source, to_file=filename, smudata=self)
+        return clone

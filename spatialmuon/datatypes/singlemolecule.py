@@ -12,6 +12,7 @@ from trimesh import Trimesh
 import h5py
 from anndata._io.utils import read_attribute, write_attribute
 from spatialmuon._core.anchor import Anchor
+from spatialmuon._core.bounding_box import BoundingBox
 
 from .. import FieldOfView, SpatialIndex
 from ..utils import read_dataframe_subset, preprocess_3d_polygon_mask
@@ -186,3 +187,6 @@ class SingleMolecule(FieldOfView):
             idx = np.hstack(([0], idx.cumsum()))
             for gene, start, end in zip(genes, idx[:-1], idx[1:]):
                 ranges.create_dataset(str(gene), data=[start, end])
+
+    def crop(self, bounding_box: BoundingBox):
+        raise NotImplementedError()

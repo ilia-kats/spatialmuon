@@ -1,6 +1,5 @@
-from typing import Literal
+from typing import Literal, Optional, Union
 from codecs import decode
-from os import PathLike
 import warnings
 import colorama
 
@@ -126,3 +125,20 @@ def old_school_debugging(debug: bool):
             print(f"{colorama.Fore.YELLOW}{s}{colorama.Fore.RESET}")
 
     return print_red
+
+
+# either a color or a list of colors
+ColorsType = Optional[
+    Union[
+        str,
+        list[str],
+        np.ndarray,
+        list[np.ndarray],
+        list[int],
+        list[float],
+        list[list[int]],
+        list[list[float]],
+    ]
+]
+
+ColorType = Union[str, np.ndarray, list[int], list[float]]

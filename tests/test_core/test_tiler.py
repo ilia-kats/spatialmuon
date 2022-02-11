@@ -1,8 +1,14 @@
 import unittest
+import copy
+import numpy as np
 
-import spatialmuon
-from spatialmuon._core.tiler import Tiles
-from tests.data.get_data import get_small_imc, get_small_imc_aligned
+from spatialmuon.processing.tiler import Tiles
+from tests.data.get_data import (
+    get_small_imc,
+    get_small_imc_aligned,
+    get_small_visium,
+    get_small_scaled_visium,
+)
 from tests.testing_utils import initialize_testing
 
 test_data_dir, DEBUGGING = initialize_testing()
@@ -11,32 +17,53 @@ fpath_visium = test_data_dir / "small_visium.h5smu"
 
 
 class Tiler_TestClass(unittest.TestCase):
-    def test_can_create_tiles_from_raster_masks(self):
+    def test_can_create_masks_tiles_from_raster_masks(self):
         d = get_small_imc()
-        raster = d["imc"]["ome"]
         masks = d["imc"]["masks"].masks
-        t = Tiles(raster, masks, tile_dim=32)
+        masks.extract_tiles(tile_dim_in_units=None, tile_dim_in_pixels=32)
         pass
 
-    def test_can_create_tiles_from_aligned_raster_masks(self):
+    def test_can_create_masks_tiles_from_aligned_raster_masks(self):
         d = get_small_imc_aligned()
-        ##
-        t = Tiles(raster=d["imc"]["ome"], masks=d["imc"]["masks"].masks, tile_dim=32)
+        masks = d["imc"]["masks"].masks
+        masks.extract_tiles(tile_dim_in_units=20)
 
-    def test_can_create_tiles_from_shape_masks(self):
-        self.skipTest("not implemented")
-        return
-        d = spatialmuon.SpatialMuData(backing=fpath_visium)
+    def test_can_create_raster_tiles_from_raster_masks(self):
+        d = get_small_imc()
+        raster = d["imc"]["ome"].clone()
+        # to see what's going on
+        new_X = d["imc"]["masks"].masks.X[...][..., np.newaxis]
+        raster.X = new_X
+        masks = d["imc"]["masks"].masks
+        raster.extract_tiles(masks=masks, tile_dim_in_pixels=32)
+
+    def test_can_create_raster_tiles_from_aligned_raster_masks(self):
+        d = get_small_imc_aligned()
+        raster = d["imc"]["ome"].clone()
+        new_X = raster.X[:, :, -1:]
+        raster.X = new_X
+        raster.extract_tiles(masks=d["imc"]["masks"].masks, tile_dim_in_units=10)
+
+    def test_can_create_raster_tiles_from_shape_masks(self):
+        d = get_small_visium()
         raster = d["visium"]["image"]
         masks = d["visium"]["expression"].masks
-        t = Tiles(raster, masks, tile_dim=32)
-        pass
+        Tiles(masks=masks, raster=raster, tile_dim_in_units=55)
+
+    def test_order_of_tiles(self):
+        d = get_small_imc()
+        t0 = Tiles(masks=d["imc"]["masks"].masks, raster=d["imc"]["ome"], tile_dim_in_units=20)
+        t1 = Tiles(masks=d["imc"]["masks"].masks, raster=d["imc"]["ome"], tile_dim_in_units=20)
+        assert all(np.alltrue(o0 == o1) for o0, o1 in zip(t0.origins, t1.origins))
 
 
 if __name__ == "__main__":
     if not DEBUGGING:
         unittest.main(failfast=True)
     else:
-        Tiler_TestClass().test_can_create_tiles_from_raster_masks()
-        # Tiler_TestClass().test_can_create_tiles_from_aligned_raster_masks()
-        # Tiler_TestClass().test_can_create_tiles_from_shape_masks()
+        Tiler_TestClass().test_can_create_masks_tiles_from_raster_masks()
+        Tiler_TestClass().test_can_create_raster_tiles_from_raster_masks()
+        Tiler_TestClass().test_can_create_masks_tiles_from_aligned_raster_masks()
+        Tiler_TestClass().test_can_create_raster_tiles_from_aligned_raster_masks()
+        Tiler_TestClass().test_can_create_raster_tiles_from_shape_masks()
+        Tiler_TestClass().test_order_of_tiles()

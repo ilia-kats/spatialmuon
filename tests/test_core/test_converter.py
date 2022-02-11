@@ -1,9 +1,6 @@
-import os.path
 import unittest
 import spatialmuon
-from pathlib import Path
-import sys
-from spatialmuon._core.converter import Converter
+from spatialmuon.processing.converter import Converter
 from tests.testing_utils import initialize_testing
 
 test_data_dir, DEBUGGING = initialize_testing()

@@ -35,8 +35,8 @@ from spatialmuon.datatypes.datatypes_utils import (
 import warnings
 import anndata
 
-from .. import FieldOfView, SpatialIndex
-from ..utils import _read_hdf5_attribute, preprocess_3d_polygon_mask
+from spatialmuon import FieldOfView, SpatialIndex
+from spatialmuon.utils import _read_hdf5_attribute, preprocess_3d_polygon_mask, ColorType
 
 
 class Regions(FieldOfView):
@@ -282,6 +282,8 @@ class Regions(FieldOfView):
         ax: matplotlib.axes.Axes = None,
         alpha: float = 1.0,
         bounding_box: Optional[BoundingBox] = None,
+        fill_color: Optional[Union[Literal["channel"], ColorType]] = "channel",
+        outline_color: Optional[Union[Literal["channel"], ColorType]] = None,
     ):
         if rgba:
             indices = [
@@ -331,7 +333,15 @@ class Regions(FieldOfView):
                     z = x
                 z = normalizer(z)
                 colors = cmap(z)
-        self.masks.plot(fill_colors=colors, outline_colors=None, ax=ax, alpha=a * alpha)
+        fill_colors = colors if fill_color == "channel" else fill_color
+        outline_colors = colors if outline_color == "channel" else outline_color
+        self.masks.plot(
+            fill_colors=fill_colors,
+            outline_colors=outline_colors,
+            ax=ax,
+            alpha=a * alpha,
+            bounding_box=bounding_box,
+        )
         # im = ax.imshow(x, cmap=cmap[idx], alpha=a)
         # code explained in raster.py
         if len(channels_to_plot) == 1:
@@ -342,6 +352,8 @@ class Regions(FieldOfView):
     def plot(
         self,
         channels: Optional[Union[str, list[str], int, list[int]]] = "all",
+        fill_color: Optional[Union[Literal["channel"], ColorType]] = "channel",
+        outline_color: Optional[Union[Literal["channel"], ColorType]] = None,
         grid_size: Union[int, list[int]] = 1,
         method: PlottingMethod = "auto",
         preprocessing: Optional[Callable] = None,
@@ -366,6 +378,8 @@ class Regions(FieldOfView):
             regions_raster_plot(
                 self,
                 channels=channels,
+                fill_color=fill_color,
+                outline_color=outline_color,
                 grid_size=grid_size,
                 preprocessing=preprocessing,
                 method=method,
@@ -379,8 +393,24 @@ class Regions(FieldOfView):
                 alpha=alpha,
                 bounding_box=bounding_box,
             )
+        # the approach described below is quite convoluted, it is not needed now, but be aware that if it is needed
+        # this is a way to proceed
+        # sometimes a copy of a masks object is created and used for operations, for instance when we plot into a
+        # boundingbox we created a new masks object and we subset the obs. Still, the new masks points to the old
+        # Regions object (self), and sometimes calls functions on it that access the .masks slot, for instance
+        # self.bounding_box is accessing self.masks, so the old masks!
+        # I think that is not needed to have an access to the new masks, but if it is, we can replace the old
+        # self.masks with "new_masks" in the place in which the new masks object is created and then here we can set
+        # it back to self.
+        # In doing so we must not call self.masks = new_masks or self.masks = self since this is triggering the
+        # backing system. We should instead call super(self, UserDict).__setitem('masks', new_masks)
+        # the restoring back self should be done via old_masks = self.masks in the beggining of this function, and
+        # self.super(self, UserDict).__setitem__('masks', old_masks) at the end of this function
 
     def __repr__(self):
         repr_str = f"(Regions) with {self.n_var} var\n"
         repr_str += str(self.masks)
         return repr_str
+
+    def crop(self, bounding_box: BoundingBox):
+        raise NotImplementedError()

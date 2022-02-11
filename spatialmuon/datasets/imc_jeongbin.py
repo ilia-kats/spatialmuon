@@ -3,7 +3,7 @@ import os
 from PIL import Image
 import numpy as np
 import spatialmuon as smu
-from spatialmuon._core.converter import Converter
+from spatialmuon.processing.converter import Converter
 import pandas as pd
 
 folder = "/data/spatialmuon/datasets/imc_jeongbin/raw"

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from typing import Optional, Union, Literal, Callable, List, Dict
+from typing import Optional, Union, Literal, Callable, List, Dict, TYPE_CHECKING
 import warnings
 
 import math
 import numpy as np
 import h5py
+import cv2
+import copy
 from shapely.geometry import Polygon, Point, MultiPoint
 from trimesh import Trimesh
 import matplotlib
@@ -29,8 +31,12 @@ from spatialmuon._core.bounding_box import BoundingBox
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib_scalebar.scalebar import ScaleBar
 
-from spatialmuon import FieldOfView
+from spatialmuon._core.fieldofview import FieldOfView
 from spatialmuon.utils import _get_hdf5_attribute
+from tqdm.auto import tqdm
+
+if TYPE_CHECKING:
+    from spatialmuon.datatypes.regions import Regions
 
 
 class Raster(FieldOfView):
@@ -265,6 +271,7 @@ class Raster(FieldOfView):
         plt.show()
 
     # TODO: code very similar to Regions._plot_in_canvas(), maybe unify
+    # flake8: noqa: C901
     def _plot_in_canvas(
         self,
         channels_to_plot: list[str],
@@ -280,17 +287,15 @@ class Raster(FieldOfView):
         def get_crop(shape):
             if len(shape) != 3:
                 raise ValueError("only the 2d case (H x W x C) is currently supported")
+            nonlocal bounding_box
             if bounding_box is None:
-                return slice(None), slice(None)
+                return (slice(None), slice(None))
             else:
                 # bounding_box
                 ubb = self._untransformed_bounding_box
-                a = self.anchor.inverse_transform_bounding_box(self.bounding_box)
-                b = self._untransformed_bounding_box
-                # assert a == b, (a, b)
-                bb = self.anchor.inverse_transform_bounding_box(bounding_box)
                 assert np.isclose(ubb.x0, 0.0)
                 assert np.isclose(ubb.y0, 0.0)
+                bb = self.anchor.inverse_transform_bounding_box(bounding_box)
                 x_size = ubb.x1 - ubb.x0
                 y_size = ubb.y1 - ubb.y0
                 x0_relative = bb.x0 / x_size
@@ -303,6 +308,20 @@ class Raster(FieldOfView):
                 y0_real = round(shape[0] * y0_relative)
                 y1_real = round(shape[0] * y1_relative)
 
+                x0_real = max(0, x0_real)
+                x1_real = min(shape[1], x1_real)
+                y0_real = max(0, y0_real)
+                y1_real = min(shape[0], y1_real)
+                if x1_real <= 0 or y1_real <= 0 or x0_real >= shape[1] or y0_real >= shape[0]:
+                    warnings.warn(
+                        "the selected bounding box does not contain any portion of the raster image"
+                    )
+                    return None, None
+
+                bb_real = BoundingBox(x0=x0_real, x1=x1_real, y0=y0_real, y1=y1_real)
+                bb_real = self.anchor.transform_bounding_box(bb=bb_real)
+                bounding_box = bb_real
+
                 return slice(y0_real, y1_real), slice(x0_real, x1_real)
 
         def _imshow(x, alpha, cmap=None):
@@ -310,9 +329,7 @@ class Raster(FieldOfView):
                 bb = self.bounding_box
             else:
                 bb = bounding_box
-            extent = [bb.x0, bb.x1, bb.y0, bb.y1]
-            # assert np.isclose(bb["x1"] - bb["x0"], self.X.shape[1])
-            # assert np.isclose(bb["y1"] - bb["y0"], self.X.shape[0])
+            extent = np.array([bb.x0, bb.x1, bb.y0, bb.y1])
             im = ax.imshow(
                 x, cmap=cmap, extent=extent, origin="lower", interpolation="none", alpha=alpha
             )
@@ -326,26 +343,34 @@ class Raster(FieldOfView):
             indices = np.array(indices)
 
             crop = get_crop(self.X.shape)
+            if crop[0] is None or crop[1] is None:
+                return None
             data_to_plot = self.X[crop[0], crop[1], indices]
 
             x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
             if np.min(x) < 0.0 or np.max(x) > 1.0:
-                warnings.warn(
-                    "the data is not in the [0, 1] range. Plotting the result of an affine transformation to "
-                    "make the data in [0, 1]."
-                )
-                old_shape = x.shape
-                x = np.reshape(x, (-1, old_shape[-1]))
-                a = np.min(x, axis=0)
-                b = np.max(x, axis=0)
-                x = (x - a) / (b - a)
-                x = np.reshape(x, old_shape)
+                if x.dtype == np.uint8:
+                    pass
+                else:
+                    warnings.warn(
+                        "the data is not in the [0, 1] range. Plotting the result of an affine transformation to "
+                        "make the data in [0, 1]. This is likely to cause different coloring if you are plotting a "
+                        "subset of the data, as the colors are determined to the local values stracted to [0, 1]"
+                    )
+                    old_shape = x.shape
+                    x = np.reshape(x, (-1, old_shape[-1]))
+                    a = np.min(x, axis=0)
+                    b = np.max(x, axis=0)
+                    x = (x - a) / (b - a)
+                    x = np.reshape(x, old_shape)
             im = _imshow(x=x, alpha=alpha)
         else:
             for idx, channel in enumerate(channels_to_plot):
                 a = 1 / (max(len(channels_to_plot) - 1, 2)) if idx > 0 else 1
                 channel_index = get_channel_index_from_channel_name(self.var, channel)
                 crop = get_crop(self.X.shape)
+                if crop[0] is None or crop[1] is None:
+                    return None
                 data_to_plot = self.X[crop[0], crop[1], channel_index]
 
                 x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
@@ -378,6 +403,8 @@ class Raster(FieldOfView):
         regions_raster_plot(
             self,
             channels=channels,
+            fill_color=None,
+            outline_color=None,
             grid_size=grid_size,
             preprocessing=preprocessing,
             method=method,
@@ -394,10 +421,75 @@ class Raster(FieldOfView):
 
     def __repr__(self):
         s = self.X.shape
-        x, y = s[:2]
+        y, x = s[:2]
         c = s[-1]
         repr_str = f"(Raster) {x}x{y} pixels image with {c} channels"
         return repr_str
 
-    def accumulate_features(self, masks: "Masks"):
-        return masks.accumulate_features(self)
+    def accumulate_features(self, masks: Masks) -> Regions:
+        from spatialmuon.processing.accumulator import accumulate_features
+
+        return accumulate_features(masks=masks, fov=self)
+
+    def extract_tiles(
+        self,
+        masks: Masks,
+        tile_dim_in_units: Optional[float] = None,
+        tile_dim_in_pixels: Optional[float] = None,
+    ):
+        from spatialmuon.processing.tiler import Tiles
+
+        return Tiles(
+            masks=masks,
+            raster=self,
+            tile_dim_in_units=tile_dim_in_units,
+            tile_dim_in_pixels=tile_dim_in_pixels,
+        )
+
+    def scale_raster(
+        self,
+        factor: Optional[float] = None,
+        target_w: Optional[int] = None,
+        target_h: Optional[int] = None,
+    ):
+        b = np.array([factor is None, target_w is None, target_h is None])
+        if not np.sum(b) == 2:
+            raise ValueError(
+                "one parameter is enough to determine the shape of the up/down-scaling"
+            )
+        h, w, _ = self.X.shape
+        if target_w is not None:
+            factor = target_w / w
+        elif target_h is not None:
+            factor = target_h / h
+
+        x = self.X[...]
+        s = np.array(x.shape)[:-1].astype(np.float)
+        s *= factor
+        s = np.floor(s).astype(int)
+        channels = []
+        for i in range(x.shape[-1]):
+            c = cv2.resize(x[:, :, i], dsize=s.tolist()[::-1], interpolation=cv2.INTER_CUBIC)
+            channels.append(c)
+        new_X = np.stack(channels, axis=-1)
+
+        self.X = new_X
+        self.anchor.scale_vector(factor)
+        self.commit_changes_on_disk()
+
+    def crop(self, bounding_box: BoundingBox):
+        ##
+        real_bb = self.anchor.inverse_transform_bounding_box(bounding_box)
+        x0 = int(max(real_bb.x0, 0))
+        x1 = int(min(real_bb.x1, self.X.shape[1]))
+        y0 = int(max(real_bb.y0, 0))
+        y1 = int(min(real_bb.y1, self.X.shape[0]))
+
+        new_X = self.X[y0:y1, x0:x1, :]
+        untransformed_translation = np.array([x0, y0])
+        transformed_translation = self.anchor.transform_coordinates(untransformed_translation)
+        # to support for the legacy format in which .origin and .vector were of dtype in64
+        self.anchor.origin = transformed_translation
+
+        self.X = new_X
+        self.commit_changes_on_disk()

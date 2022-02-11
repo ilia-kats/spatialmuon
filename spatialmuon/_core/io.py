@@ -1,15 +1,20 @@
 from __future__ import annotations
 from os import PathLike
-from typing import Union, Literal, Optional
+from typing import Union, Literal, Optional, TYPE_CHECKING
 from codecs import decode
 import os
+import shutil
 import warnings
 import tempfile
 import subprocess
+import copy
 
 import h5py
 
 import spatialmuon
+
+if TYPE_CHECKING:
+    from spatialmuon import SpatialMuData
 from .spatialmodality import SpatialModality
 from .fieldofview import FieldOfView, UnknownEncodingException
 from ..utils import _read_hdf5_attribute, _get_hdf5_attribute, is_h5smu
@@ -58,7 +63,7 @@ def read_h5smu(filename: PathLike, backed: Union[Literal["r", "r+"], bool, None]
     return smudata
 
 
-def write_h5smu(filename: PathLike, smudata: "SpatialMuData"):
+def write_h5smu(filename: PathLike, smudata: SpatialMuData):
     from .. import __version__, __spatialmudataversion__
 
     with h5py.File(filename, "w", userblock_size=512, libver="latest") as f:
@@ -86,3 +91,9 @@ def repack_h5smu(filename: PathLike, compression_level: Optional[int] = None):
         subprocess.check_output(cmd)
         assert os.path.isfile(des)
         os.rename(des, filename)
+
+
+def clone_h5smu(from_file: str, to_file: str, smudata: SpatialMuData):
+    shutil.copy2(from_file, to_file)
+    new_s = spatialmuon.SpatialMuData(backing=to_file)
+    return new_s

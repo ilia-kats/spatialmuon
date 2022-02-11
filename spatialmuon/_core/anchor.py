@@ -59,12 +59,12 @@ class Anchor(BackableObject):
                     assert len(origin) == len(vector)
 
             if origin is None:
-                self.origin = np.array([0] * self.ndim)
+                self.origin = np.array([0.0] * self.ndim)
             else:
                 self.origin = origin
 
             if vector is None:
-                self.vector = np.array([1] + ([0] * (self.ndim - 1)))
+                self.vector = np.array([1.0] + ([0.0] * (self.ndim - 1)))
             else:
                 self.vector = vector
 
@@ -264,7 +264,7 @@ class Anchor(BackableObject):
             theta_sin = np.sin(theta)
             x = current_vector[0] * theta_cos - current_vector[1] * theta_sin
             y = current_vector[0] * theta_sin + current_vector[1] * theta_cos
-            self._vector = np.array([x, y])
+            self.vector = np.array([x, y])
         elif self.ndim >= 3:
             raise NotImplementedError("Not yet implemented.")
 
@@ -289,7 +289,7 @@ class Anchor(BackableObject):
             except ValueError:
                 raise ValueError("Please specify a float for 'factor'.")
 
-        self._vector = np.array([i * factor for i in self.vector])
+        self.vector = np.array([i * factor for i in self.vector])
 
     @property
     def _rotation_matrix(self):
@@ -364,12 +364,22 @@ class Anchor(BackableObject):
 
         return bb_out
 
+    # for the future: in some methods, like when plotting, you may actually need to transform a square, not a bounding
+    # box;
+    # in that
+    # case, use something like this
+    # x0, y0 = self.anchor.inverse_transform_coordinates(
+    #     np.array([bounding_box.x0, bounding_box.y0])
+    # )
+    # x1, y1 = self.anchor.inverse_transform_coordinates(
+    #     np.array([bounding_box.x1, bounding_box.y1])
+    # )
     def inverse_transform_bounding_box(self, bb: BoundingBox):
         origin = self.origin[...]
         k = self.scale_factor
         normalized = self.normalized_vector
         bb.validate()
-        bb_out = bb.copy()
+        bb_out = bb.clone()
 
         # translation
         bb_out.x0 -= origin[0]
@@ -397,6 +407,14 @@ class Anchor(BackableObject):
         bb_out.validate()
 
         return bb_out
+
+    def transform_length(self, length: float):
+        k = self.scale_factor
+        return length / k
+
+    def inverse_transform_length(self, length: float):
+        k = self.scale_factor
+        return length * k
 
     # currently not supporting mirroring
     @staticmethod

@@ -13,7 +13,7 @@ from spatialmuon._core.anchor import Anchor
 from tests.testing_utils import initialize_testing
 import pandas as pd
 
-PLOT = True
+PLOT = False
 test_data_dir, DEBUGGING = initialize_testing()
 fpath_imc = test_data_dir / "small_imc.h5smu"
 fpath_visium = test_data_dir / "small_visium.h5smu"
@@ -43,7 +43,7 @@ def get_small_imc_aligned():
         assert x.shape == (40, 60, 10)
         bigger_x = np.zeros((100, 200, 10))
         bigger_x[60:, 140:, :] = x
-        new_raster = spatialmuon.Raster(X=bigger_x)
+        new_raster = spatialmuon.Raster(X=bigger_x, coordinate_unit=d["imc"]["ome"].coordinate_unit)
         del d["imc"]["ome"]
         d["imc"]["ome"] = new_raster
         del d["imc"]["masks"]["anchor"]
@@ -57,11 +57,11 @@ def get_small_imc_aligned():
         assert data.shape == (20, 30)
         d["imc"]["masks"].masks.X = data
         d["imc"]["masks"].masks.obs = pd.DataFrame()
-        print(d["imc"]["masks"].masks.obs)
+        # print(d["imc"]["masks"].masks.obs)
         d["imc"]["masks"].masks.update_obs_from_masks()
-        print(d["imc"]["masks"].masks.obs)
+        # print(d["imc"]["masks"].masks.obs)
         d.commit_changes_on_disk()
-        print(d["imc"]["masks"].masks.obs)
+        # print(d["imc"]["masks"].masks.obs)
         ##
         d
         # new_regions = copy.copy(d["imc"]["masks"])
@@ -78,7 +78,12 @@ def get_small_imc_aligned():
 
 
 def get_small_visium():
-    pass
+    with tempfile.TemporaryDirectory() as td:
+        ##
+        des = os.path.join(td, "scaled_visium.h5smu")
+        shutil.copy(fpath_visium, des)
+        d = spatialmuon.SpatialMuData(backing=des)
+        return d
 
 
 def get_small_scaled_visium():

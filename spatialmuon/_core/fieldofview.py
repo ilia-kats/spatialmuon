@@ -234,7 +234,7 @@ class FieldOfView(BackableObject, BoundingBoxable):
         if self.has_obj_changed("coordinate_unit"):
             obj.attrs["coordinate_unit"] = self.coordinate_unit
 
-    def _adjust_plot_lims(self, ax = None, bounding_box: Optional[BoundingBox] = None):
+    def _adjust_plot_lims(self, ax=None, bounding_box: Optional[BoundingBox] = None):
         if ax is None:
             ax = plt.gca()
         if bounding_box is None:
@@ -256,13 +256,10 @@ class FieldOfView(BackableObject, BoundingBoxable):
         # print(f'new_xlim = {new_xlim}, new_ylim = {new_ylim}')
         # pass
 
-    def set_lims_to_bounding_box(self, bb: BoundingBox = None, ax = None):
-        if ax is None:
-            ax = plt.gca()
+    def set_lims_to_bounding_box(self, bb: BoundingBox = None, ax=None):
         if bb is None:
             bb = self.bounding_box
-        ax.set_xlim((bb.x0, bb.x1))
-        ax.set_ylim((bb.y0, bb.y1))
+        bb.set_lim_for_ax(ax)
 
     @abstractmethod
     def crop(self, bounding_box: BoundingBox):

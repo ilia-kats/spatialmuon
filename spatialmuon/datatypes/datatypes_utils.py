@@ -172,6 +172,9 @@ def regions_raster_plot(
             bounding_box=bounding_box,
             **kwargs
         )
+        if im is None:
+            warnings.warn('the plot has been skipped')
+            return
         if show_title:
             if method == "overlap":
                 title = "background: " if len(channels_to_plot) > 1 else ""

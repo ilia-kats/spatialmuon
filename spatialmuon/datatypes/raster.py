@@ -296,9 +296,9 @@ class Raster(FieldOfView):
             else:
                 # bounding_box
                 ubb = self._untransformed_bounding_box
-                bb = self.anchor.inverse_transform_bounding_box(bounding_box)
                 assert np.isclose(ubb.x0, 0.0)
                 assert np.isclose(ubb.y0, 0.0)
+                bb = self.anchor.inverse_transform_bounding_box(bounding_box)
                 x_size = ubb.x1 - ubb.x0
                 y_size = ubb.y1 - ubb.y0
                 x0_relative = bb.x0 / x_size
@@ -315,6 +315,9 @@ class Raster(FieldOfView):
                 x1_real = min(shape[1], x1_real)
                 y0_real = max(0, y0_real)
                 y1_real = min(shape[0], y1_real)
+                if x1_real <= 0 or y1_real <= 0 or x0_real >= shape[1] or y0_real >= shape[0]:
+                    warnings.warn('the selected bounding box does not contain any portion of the raster image')
+                    return None, None
 
                 bb_real = BoundingBox(x0=x0_real, x1=x1_real, y0=y0_real, y1=y1_real)
                 bb_real = self.anchor.transform_bounding_box(bb=bb_real)
@@ -341,6 +344,8 @@ class Raster(FieldOfView):
             indices = np.array(indices)
 
             crop = get_crop(self.X.shape)
+            if crop[0] is None or crop[1] is None:
+                return None
             data_to_plot = self.X[crop[0], crop[1], indices]
 
             x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
@@ -364,8 +369,10 @@ class Raster(FieldOfView):
             for idx, channel in enumerate(channels_to_plot):
                 a = 1 / (max(len(channels_to_plot) - 1, 2)) if idx > 0 else 1
                 channel_index = get_channel_index_from_channel_name(self.var, channel)
-                y_crop, x_crop = get_crop(self.X.shape)
-                data_to_plot = self.X[y_crop, x_crop, channel_index]
+                crop = get_crop(self.X.shape)
+                if crop[0] is None or crop[1] is None:
+                    return None
+                data_to_plot = self.X[crop[0], crop[1], channel_index]
 
                 x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
                 im = _imshow(x=x, alpha=a * alpha, cmap=cmap[idx])

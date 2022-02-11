@@ -4,6 +4,7 @@ from typing import Optional
 from operator import xor
 import copy
 import shapely
+import matplotlib.pyplot as plt
 
 
 class BoundingBox:
@@ -50,12 +51,7 @@ class BoundingBox:
         return copy.deepcopy(self)
 
     def to_polygon(self):
-        points = [
-            [self.x0, self.y0],
-            [self.x1, self.y0],
-            [self.x1, self.y1],
-            [self.x0, self.y1]
-        ]
+        points = [[self.x0, self.y0], [self.x1, self.y0], [self.x1, self.y1], [self.x0, self.y1]]
         p = shapely.geometry.Polygon(points)
         return p
 
@@ -64,6 +60,12 @@ class BoundingBox:
 
     def __repr__(self):
         return str(self)
+
+    def set_lim_for_ax(self, ax=None):
+        if ax is None:
+            ax = plt.gca()
+        ax.set_xlim((self.x0, self.x1))
+        ax.set_ylim((self.y0, self.y1))
 
 
 class BoundingBoxable(ABC):

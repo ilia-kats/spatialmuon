@@ -59,12 +59,12 @@ class Anchor(BackableObject):
                     assert len(origin) == len(vector)
 
             if origin is None:
-                self.origin = np.array([0.] * self.ndim)
+                self.origin = np.array([0.0] * self.ndim)
             else:
                 self.origin = origin
 
             if vector is None:
-                self.vector = np.array([1.] + ([0.] * (self.ndim - 1)))
+                self.vector = np.array([1.0] + ([0.0] * (self.ndim - 1)))
             else:
                 self.vector = vector
 

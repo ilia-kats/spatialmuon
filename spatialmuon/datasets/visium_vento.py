@@ -154,11 +154,11 @@ def make_tiles():
     s["visium"]["hires_image"].plot(ax=ax, alpha=0.3, bounding_box=bb)
     for i in indices:
         # there is a problem with this tile
-        if i == 606:
-            print("ooo")
-            print("ooo")
+        # if i == 606:
+        #     print("ooo")
+        #     print("ooo")
         t = tiles.tile_to_raster(i)
-        t.plot(ax=ax, bounding_box=bb)
+        t.plot(ax=ax, bounding_box=bb, show_scalebar=False)
     s["visium"]["expression"].set_lims_to_bounding_box(bb=bb, ax=ax)
     plt.show()
     ##
@@ -167,7 +167,7 @@ def make_tiles():
         t = tiles.tiles[i]
         ax.imshow(t)
     plt.show()
-    #l
+    # l
 
 
 if __name__ == "__main__":

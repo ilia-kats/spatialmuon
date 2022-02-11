@@ -289,10 +289,7 @@ class Raster(FieldOfView):
                 raise ValueError("only the 2d case (H x W x C) is currently supported")
             nonlocal bounding_box
             if bounding_box is None:
-                return (
-                    slice(None),
-                    slice(None)
-                )
+                return (slice(None), slice(None))
             else:
                 # bounding_box
                 ubb = self._untransformed_bounding_box
@@ -316,7 +313,9 @@ class Raster(FieldOfView):
                 y0_real = max(0, y0_real)
                 y1_real = min(shape[0], y1_real)
                 if x1_real <= 0 or y1_real <= 0 or x0_real >= shape[1] or y0_real >= shape[0]:
-                    warnings.warn('the selected bounding box does not contain any portion of the raster image')
+                    warnings.warn(
+                        "the selected bounding box does not contain any portion of the raster image"
+                    )
                     return None, None
 
                 bb_real = BoundingBox(x0=x0_real, x1=x1_real, y0=y0_real, y1=y1_real)

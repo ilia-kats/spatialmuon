@@ -26,7 +26,12 @@ from functools import cached_property
 from enum import Enum, auto
 
 from spatialmuon._core.backing import BackableObject
-from spatialmuon.utils import _read_hdf5_attribute, UnknownEncodingException, _get_hdf5_attribute, ColorsType
+from spatialmuon.utils import (
+    _read_hdf5_attribute,
+    UnknownEncodingException,
+    _get_hdf5_attribute,
+    ColorsType,
+)
 from spatialmuon._core.bounding_box import BoundingBoxable, BoundingBox
 
 if TYPE_CHECKING:

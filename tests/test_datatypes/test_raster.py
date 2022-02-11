@@ -29,7 +29,7 @@ class Raster_TestClass(unittest.TestCase):
 
     def test_can_crop_raster(self):
         d0 = get_small_imc_aligned()
-        d0['imc']['ome'].anchor.origin += np.array([5., -5.])
+        d0["imc"]["ome"].anchor.origin += np.array([5.0, -5.0])
         d0.commit_changes_on_disk()
         d1 = d0.clone()
         bb = spatialmuon.BoundingBox(x0=125, x1=200, y0=60, y1=110)
@@ -39,8 +39,8 @@ class Raster_TestClass(unittest.TestCase):
         d0["imc"]["ome"].plot(0, ax=ax)
 
         d1["imc"]["ome"].crop(bounding_box=bb)
-        assert np.allclose(d1['imc']['ome'].anchor.origin, np.array([125., 60.]))
-        assert d1['imc']['ome'].X.shape[:2] == (35, 75)
+        assert np.allclose(d1["imc"]["ome"].anchor.origin, np.array([125.0, 60.0]))
+        assert d1["imc"]["ome"].X.shape[:2] == (35, 75)
 
         ax = plt.subplot(1, 3, 2)
         d0["imc"]["ome"].plot(0, ax=ax)
@@ -48,9 +48,9 @@ class Raster_TestClass(unittest.TestCase):
         # here we have a "visual test", the plot should match the lines
         ax = plt.subplot(1, 3, 3)
         d1["imc"]["ome"].plot(0, ax=ax, bounding_box=d0["imc"]["ome"].bounding_box)
-        d0['imc']['ome'].set_lims_to_bounding_box(bb=bb, ax=ax)
-        ax.vlines(x=145, ymin=60, ymax=95, colors=['r'], lw=4)
-        ax.axhline(y=95, c='r', lw=4)
+        d0["imc"]["ome"].set_lims_to_bounding_box(bb=bb, ax=ax)
+        ax.vlines(x=145, ymin=60, ymax=95, colors=["r"], lw=4)
+        ax.axhline(y=95, c="r", lw=4)
 
         plt.show()
 

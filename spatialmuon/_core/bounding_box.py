@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 from operator import xor
 import copy
+import shapely
 
 
 class BoundingBox:
@@ -45,8 +46,18 @@ class BoundingBox:
             equal = equal and np.isclose(self.z1, other.z1)
         return equal
 
-    def copy(self):
+    def clone(self):
         return copy.deepcopy(self)
+
+    def to_polygon(self):
+        points = [
+            [self.x0, self.y0],
+            [self.x1, self.y0],
+            [self.x1, self.y1],
+            [self.x0, self.y1]
+        ]
+        p = shapely.geometry.Polygon(points)
+        return p
 
     def __str__(self):
         return f"(x0: {self.x0}, x1: {self.x1}, y0: {self.y0}, y1: {self.y1})"

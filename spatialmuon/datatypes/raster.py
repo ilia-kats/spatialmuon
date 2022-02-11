@@ -287,14 +287,15 @@ class Raster(FieldOfView):
         def get_crop(shape):
             if len(shape) != 3:
                 raise ValueError("only the 2d case (H x W x C) is currently supported")
+            nonlocal bounding_box
             if bounding_box is None:
-                return slice(None), slice(None)
+                return (
+                    slice(None),
+                    slice(None)
+                )
             else:
                 # bounding_box
                 ubb = self._untransformed_bounding_box
-                a = self.anchor.inverse_transform_bounding_box(self.bounding_box)
-                b = self._untransformed_bounding_box
-                # assert a == b, (a, b)
                 bb = self.anchor.inverse_transform_bounding_box(bounding_box)
                 assert np.isclose(ubb.x0, 0.0)
                 assert np.isclose(ubb.y0, 0.0)
@@ -310,6 +311,15 @@ class Raster(FieldOfView):
                 y0_real = round(shape[0] * y0_relative)
                 y1_real = round(shape[0] * y1_relative)
 
+                x0_real = max(0, x0_real)
+                x1_real = min(shape[1], x1_real)
+                y0_real = max(0, y0_real)
+                y1_real = min(shape[0], y1_real)
+
+                bb_real = BoundingBox(x0=x0_real, x1=x1_real, y0=y0_real, y1=y1_real)
+                bb_real = self.anchor.transform_bounding_box(bb=bb_real)
+                bounding_box = bb_real
+
                 return slice(y0_real, y1_real), slice(x0_real, x1_real)
 
         def _imshow(x, alpha, cmap=None):
@@ -317,9 +327,7 @@ class Raster(FieldOfView):
                 bb = self.bounding_box
             else:
                 bb = bounding_box
-            extent = [bb.x0, bb.x1, bb.y0, bb.y1]
-            # assert np.isclose(bb["x1"] - bb["x0"], self.X.shape[1])
-            # assert np.isclose(bb["y1"] - bb["y0"], self.X.shape[0])
+            extent = np.array([bb.x0, bb.x1, bb.y0, bb.y1])
             im = ax.imshow(
                 x, cmap=cmap, extent=extent, origin="lower", interpolation="none", alpha=alpha
             )
@@ -356,8 +364,8 @@ class Raster(FieldOfView):
             for idx, channel in enumerate(channels_to_plot):
                 a = 1 / (max(len(channels_to_plot) - 1, 2)) if idx > 0 else 1
                 channel_index = get_channel_index_from_channel_name(self.var, channel)
-                crop = get_crop(self.X.shape)
-                data_to_plot = self.X[crop[0], crop[1], channel_index]
+                y_crop, x_crop = get_crop(self.X.shape)
+                data_to_plot = self.X[y_crop, x_crop, channel_index]
 
                 x = data_to_plot if preprocessing is None else preprocessing(data_to_plot)
                 im = _imshow(x=x, alpha=a * alpha, cmap=cmap[idx])
@@ -389,6 +397,8 @@ class Raster(FieldOfView):
         regions_raster_plot(
             self,
             channels=channels,
+            fill_color=None,
+            outline_color=None,
             grid_size=grid_size,
             preprocessing=preprocessing,
             method=method,
@@ -405,7 +415,7 @@ class Raster(FieldOfView):
 
     def __repr__(self):
         s = self.X.shape
-        x, y = s[:2]
+        y, x = s[:2]
         c = s[-1]
         repr_str = f"(Raster) {x}x{y} pixels image with {c} channels"
         return repr_str
@@ -458,34 +468,22 @@ class Raster(FieldOfView):
         new_X = np.stack(channels, axis=-1)
 
         self.X = new_X
-        new_vector = self.anchor.vector * factor
-        self.anchor.vector = new_vector
+        self.anchor.scale_vector(factor)
         self.commit_changes_on_disk()
 
     def crop(self, bounding_box: BoundingBox):
         ##
-        x0, x1 = self.anchor.inverse_transform_coordinates(
-            np.array([bounding_box.x0, bounding_box.x1])
-        )
-        y0, y1 = self.anchor.inverse_transform_coordinates(
-            np.array([bounding_box.y0, bounding_box.y1])
-        )
-        ##
-        real_x0 = 0
-        real_x1 = self.X.shape[1]
-        real_y0 = 0
-        real_y1 = self.X.shape[0]
-
-        x0 = int(max(x0, math.floor(real_x0)))
-        x1 = int(min(x1, math.ceil(real_x1)))
-        y0 = int(max(y0, math.floor(real_y0)))
-        y1 = int(min(y1, math.ceil(real_y1)))
+        real_bb = self.anchor.inverse_transform_bounding_box(bounding_box)
+        x0 = int(max(real_bb.x0, 0))
+        x1 = int(min(real_bb.x1, self.X.shape[1]))
+        y0 = int(max(real_bb.y0, 0))
+        y1 = int(min(real_bb.y1, self.X.shape[0]))
 
         new_X = self.X[y0:y1, x0:x1, :]
-        new_anchor = Anchor(origin=np.array([x0, y0]), vector=self.anchor.vector)
+        untransformed_translation = np.array([x0, y0])
+        transformed_translation = self.anchor.transform_coordinates(untransformed_translation)
+        # to support for the legacy format in which .origin and .vector were of dtype in64
+        self.anchor.origin = transformed_translation
 
         self.X = new_X
         self.commit_changes_on_disk()
-
-        del self["anchor"]
-        self.anchor = new_anchor

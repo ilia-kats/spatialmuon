@@ -234,10 +234,13 @@ class FieldOfView(BackableObject, BoundingBoxable):
         if self.has_obj_changed("coordinate_unit"):
             obj.attrs["coordinate_unit"] = self.coordinate_unit
 
-    def _adjust_plot_lims(self, ax=None):
+    def _adjust_plot_lims(self, ax = None, bounding_box: Optional[BoundingBox] = None):
         if ax is None:
             ax = plt.gca()
-        bb = self.bounding_box
+        if bounding_box is None:
+            bb = self.bounding_box
+        else:
+            bb = bounding_box
         xlim = ax.get_xlim()
         ylim = ax.get_ylim()
         # hack to check if this is a newly created empty plot
@@ -253,7 +256,7 @@ class FieldOfView(BackableObject, BoundingBoxable):
         # print(f'new_xlim = {new_xlim}, new_ylim = {new_ylim}')
         # pass
 
-    def set_lims_to_bounding_box(self, bb: BoundingBox = None, ax=None):
+    def set_lims_to_bounding_box(self, bb: BoundingBox = None, ax = None):
         if ax is None:
             ax = plt.gca()
         if bb is None:

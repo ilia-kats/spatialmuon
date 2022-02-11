@@ -45,7 +45,7 @@ class Tiles:
             self.tiles, self.origins = self._isolate_masks_into_tiles(
                 self.masks, tile_dim_in_units=self.tile_dim_in_units
             )
-        if True:
+        if False:
             self._example_plot()
 
     def _example_plot(self):
@@ -170,7 +170,7 @@ class Tiles:
             r, y.shape[0], int(y_center[1])
         )
 
-        tile = np.zeros((t, t, x.shape[2]))
+        tile = np.zeros((t, t, x.shape[2]), dtype=tensor.dtype)
         tile[des1_a:des1_b, des0_a:des0_b, :] = y[src1_a:src1_b, src0_a:src0_b, :]
 
         if DEBUG_WITH_PLOTS:

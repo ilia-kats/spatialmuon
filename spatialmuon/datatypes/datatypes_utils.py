@@ -14,6 +14,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import itertools
 
 import spatialmuon
+from spatialmuon.utils import ColorType
 
 PlottingMethod = Literal["auto", "panels", "overlap", "rgba"]
 
@@ -27,6 +28,8 @@ def get_channel_index_from_channel_name(var, channel_name):
 def regions_raster_plot(
     instance,
     channels: Optional[Union[str, list[str], int, list[int]]] = "all",
+    fill_color: Optional[Union[Literal['channel'], ColorType]] = 'channel',
+    outline_color: Optional[Union[Literal['channel'], ColorType]] = None,
     grid_size: Union[int, list[int]] = 1,
     preprocessing: Optional[Callable] = None,
     method: PlottingMethod = "auto",
@@ -155,6 +158,10 @@ def regions_raster_plot(
         else:
             axs = ax
         # ######### going back to the calling class ########## #
+        if isinstance(instance, spatialmuon.Regions):
+            kwargs = {'fill_color': fill_color, 'outline_color': outline_color}
+        else:
+            kwargs = {}
         im = instance._plot_in_canvas(
             channels_to_plot=channels_to_plot,
             rgba=method == "rgba",
@@ -163,6 +170,7 @@ def regions_raster_plot(
             ax=axs,
             alpha=alpha,
             bounding_box=bounding_box,
+            **kwargs
         )
         if show_title:
             if method == "overlap":
@@ -246,7 +254,9 @@ def regions_raster_plot(
                         raise e
                 axs.add_artist(scalebar)
 
-        instance._adjust_plot_lims(axs)
+
+        instance._adjust_plot_lims(axs, bounding_box=bounding_box)
+
         # axs[idx].text(0, -10, channel, size=12)
         if suptitle is not None:
             plt.suptitle(suptitle)

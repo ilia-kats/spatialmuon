@@ -13,6 +13,8 @@ import matplotlib.collections
 import numpy as np
 import h5py
 import copy
+
+import shapely.geometry
 from shapely.geometry import Polygon
 from trimesh import Trimesh
 from skimage.measure import find_contours
@@ -24,25 +26,11 @@ from functools import cached_property
 from enum import Enum, auto
 
 from spatialmuon._core.backing import BackableObject
-from spatialmuon.utils import _read_hdf5_attribute, UnknownEncodingException, _get_hdf5_attribute
+from spatialmuon.utils import _read_hdf5_attribute, UnknownEncodingException, _get_hdf5_attribute, ColorsType
 from spatialmuon._core.bounding_box import BoundingBoxable, BoundingBox
 
 if TYPE_CHECKING:
     from spatialmuon import Raster, Regions
-
-# either a color or a list of colors
-ColorsType = Optional[
-    Union[
-        str,
-        list[str],
-        np.ndarray,
-        list[np.ndarray],
-        list[int],
-        list[float],
-        list[list[int]],
-        list[list[float]],
-    ]
-]
 
 
 class SpotShape(Enum):
@@ -162,6 +150,14 @@ class Masks(BackableObject, BoundingBoxable):
         repr_str = "│   └──".join(repr_str.rsplit("│   ├──", 1))
         return repr_str
 
+    @abstractmethod
+    def crop(self, bounding_box: BoundingBox):
+        pass
+
+    @abstractmethod
+    def subset_obs(self, indices: np.array):
+        pass
+
     @staticmethod
     def normalize_color(x):
         if type(x) == tuple:
@@ -201,9 +197,31 @@ class Masks(BackableObject, BoundingBoxable):
         alpha: float = 1.0,
         show_title: bool = True,
         show_legend: bool = True,
+        bounding_box: Optional[BoundingBox] = None,
     ):
+        if bounding_box is not None:
+            # a copy that simplifies the code but is not really necessary, we could make crop work inplace
+            masks_subset = self.clone()
+            masks_subset = masks_subset.crop(bounding_box=bounding_box)
+            ii = masks_subset.obs.index.to_numpy()
+            if fill_colors is not None:
+                fill_colors = fill_colors[ii]
+            if outline_colors is not None:
+                outline_colors = outline_colors[ii]
+            masks_subset.plot(
+                fill_colors=fill_colors,
+                outline_colors=outline_colors,
+                background_color=background_color,
+                ax=ax,
+                alpha=alpha,
+                show_title=show_title,
+                show_legend=show_legend,
+                bounding_box=None,
+            )
+            return
+
         # adding the background
-        n = len(self._obs) + 1
+        n = len(self.obs) + 1
         plotting_a_category = False
         title = None
         _legend = None
@@ -445,6 +463,12 @@ class ShapeMasks(Masks, MutableMapping):
         self.obj_has_changed("masks_radii")
 
     @property
+    def transformed_masks_radii(self):
+        radii = self.untransformed_masks_radii
+        transformed = [self.anchor.transform_length(r) for r in radii]
+        return transformed
+
+    @property
     def masks_labels(self):
         return self._masks_labels
 
@@ -470,6 +494,34 @@ class ShapeMasks(Masks, MutableMapping):
     #     #     return iter(self.backing)
     #     # else:
     #     #     return iter(self._data)
+
+    def crop(self, bounding_box: BoundingBox):
+        polygon = bounding_box.to_polygon()
+        if self.masks_shape == SpotShape.rectangle:
+            raise NotImplementedError()
+        else:
+            assert self.masks_shape == SpotShape.circle
+            to_keep = []
+            for i, (xy, r) in enumerate(
+                zip(self.transformed_masks_centers, self.transformed_masks_radii)
+            ):
+                # shapely does not support ellipses
+                max_r = np.max(r)
+                p = shapely.geometry.Point(xy).buffer(max_r)
+                if polygon.intersects(p):
+                    to_keep.append(i)
+            b = np.array(to_keep)
+            o = self.subset_obs(indices=to_keep)
+            return o
+
+    def subset_obs(self, indices: np.array):
+        o = self.clone()
+        new_obs = o.obs.iloc[indices]
+        o.obs = new_obs
+        o.untransformed_masks_centers = o.untransformed_masks_centers[indices, :]
+        o.untransformed_masks_radii = o.untransformed_masks_radii[indices, :]
+        o.masks_labels = o.masks_labels[indices]
+        return o
 
     @property
     def _untransformed_bounding_box(self) -> BoundingBox:
@@ -649,6 +701,12 @@ class PolygonMasks(Masks, MutableMapping):
     def centers(self):
         raise NotImplementedError()
 
+    def crop(self, bounding_box: BoundingBox):
+        raise NotImplementedError()
+
+    def subset_obs(self, indices: np.array):
+        raise NotImplementedError()
+
     @property
     def _untransformed_bounding_box(self) -> BoundingBox:
         raise NotImplementedError()
@@ -767,6 +825,12 @@ class MeshMasks(Masks, MutableMapping):
 
     @property
     def centers(self):
+        raise NotImplementedError()
+
+    def crop(self, bounding_box: BoundingBox):
+        raise NotImplementedError()
+
+    def subset_obs(self, indices: np.array):
         raise NotImplementedError()
 
     @property
@@ -944,6 +1008,12 @@ class RasterMasks(Masks):
     #             faces[:, d] += boundaries[d].start
     #         return Trimesh(vertices=vertices, faces=faces, vertex_normals=normals)
     #         # TODO: scale by px_size and px_distance from parentdataset
+
+    def crop(self, bounding_box: BoundingBox):
+        raise NotImplementedError()
+
+    def subset_obs(self, indices: np.array):
+        raise NotImplementedError()
 
     @staticmethod
     def _encodingtype():

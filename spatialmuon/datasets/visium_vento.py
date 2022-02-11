@@ -1,4 +1,6 @@
 ##
+import tempfile
+
 import spatialmuon
 import os
 from PIL import Image
@@ -77,47 +79,71 @@ def create_smu_files(hires_images=False):
             gc.collect()
             # print(f'collecting garbage: {time.time() - start}')
 
-
 def show():
     f = os.path.join(root, "smu/152807.h5smu")
     s = spatialmuon.SpatialMuData(f)
     ##
-    _, (ax0, ax1) = plt.subplots(1, 2, figsize=(20, 20))
+    _, (ax0, ax1) = plt.subplots(1, 2, figsize=(10, 10))
     bb = spatialmuon.BoundingBox(x0=2000, x1=2200, y0=4000, y1=4200)
     s["visium"]["image"].plot(ax=ax0, bounding_box=bb)
-    s["visium"]["expression"].plot(0, ax=ax0, bounding_box=bb)
+    s["visium"]["expression"].plot(0, fill_color=None, outline_color='channel', ax=ax0, bounding_box=bb)
     s["visium"]["expression"].set_lims_to_bounding_box(bb, ax=ax0)
-    # ##
-    # s["visium"]["image"].plot(ax=ax1)
-    # s["visium"]["expression"].plot(0, ax=ax1)
-    # ax1.set(xlim=(2000, 2200), ylim=(4000, 4200))
     ##
     bb = spatialmuon.BoundingBox(x0=2000, x1=2200, y0=4000, y1=4200)
     start = time.time()
     s["visium"]["hires_image"].plot(ax=ax1, bounding_box=bb)
     print(f"plotting the hires image: {time.time() - start}")
     start = time.time()
-    s["visium"]["expression"].plot(0, ax=ax1, bounding_box=bb)
+    s["visium"]["expression"].plot(0, fill_color=None, outline_color='channel', ax=ax1, bounding_box=bb)
     print(f"plotting all the spots: {time.time() - start}")
     s["visium"]["expression"].set_lims_to_bounding_box(bb, ax=ax1)
     plt.show()
-    # ##
-    # fov = s['visium']['hires_image']
-    # # fov._anchor = anchor
-    # # fov.plot()
-    # crop = fov.X[:20000, :5000, :]
-    # if 'crop' in s['visium']:
-    #     del s['visium']['crop']
-    # s['visium']['crop'] = spatialmuon.Raster(X=crop, anchor=anchor, coordinate_unit='um')
-    # s_crop = s['visium']['crop']
-    # _, ax = plt.subplots(1)
-    # s['visium']['image'].plot(ax=ax)
-    # s_crop.plot(ax=ax)
-    # plt.show()
     ##
     pass
 
+def downscale():
+    f = os.path.join(root, "smu/152807.h5smu")
+    s = spatialmuon.SpatialMuData(f)
+    start = time.time()
+    f = s['visium']['hires_image'].clone()
+    print(f'cloning the large image: {time.time() - start}')
+    bb = spatialmuon.BoundingBox(x0=2000, x1=2200, y0=4000, y1=4200)
+
+    axes = plt.subplots(1, 2, figsize=(15, 5))[1].flatten()
+    f.plot(bounding_box=bb, ax=axes[0])
+    f.scale_raster(target_w=5000)
+    f.plot(bounding_box=bb, ax=axes[1])
+    plt.show()
+
+    # with tempfile.TemporaryDirectory() as td:
+    #     f1 = os.path.join(td, 'a.h5smu')
+    #     s1 = spatialmuon.SpatialMuData(f1)
+    #     m = spatialmuon.SpatialModality()
+    #     s1['a'] = m
+    #     m['a'] = f
+    #     print('ooo')
+    #     print('ooo')
+    s['visium']['w5000'] = f
+
+def make_tiles():
+    f = os.path.join(root, "smu/152807.h5smu")
+    s = spatialmuon.SpatialMuData(f)
+    # tiles = s['visium']['w5000'].extract_tiles(masks=s['visium']['expression'].masks, tile_dim_in_pixels=50)
+    start = time.time()
+    tiles = s['visium']['hires_image'].extract_tiles(masks=s['visium']['expression'].masks, tile_dim_in_units=55)
+    print(f'extracting large tiles: {time.time() - start}')
+    len(tiles.tiles)
+
+    axes = plt.subplots(5, 5, figsize=(15, 15))[1].flatten()
+    for i, ax in enumerate(axes):
+        t = tiles.tiles[i]
+        ax.imshow(t)
+    plt.show()
+    print('ooo')
+    print('ooo')
 
 if __name__ == "__main__":
     # create_smu_files(hires_images=True)
-    show()
+    # show()
+    # downscale()
+    make_tiles()

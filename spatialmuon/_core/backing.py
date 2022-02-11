@@ -29,6 +29,7 @@ class BackableObject(ABC, UserDict):
             items = kwargs
 
         self.validatefun = validatefun
+        self.all_has_changed = False
 
         for k, v in items.items():
             self.__setitem__(k, v)
@@ -42,11 +43,18 @@ class BackableObject(ABC, UserDict):
         self._requires_update.add(obj_name)
 
     def has_obj_changed(self, obj_name) -> bool:
+        if self.all_has_changed:
+            return True
         if obj_name in self._requires_update:
             self._requires_update.remove(obj_name)
             return True
         else:
             return False
+
+    def set_all_has_changed(self, new_value: bool):
+        self.all_has_changed = new_value
+        for v in self.values():
+            v.set_all_has_changed(new_value)
 
     def _commit_changes_on_disk_recursively(self):
         osd(f"_commit_changes_on_disk_recursively, called on {type(self)}")
@@ -119,6 +127,7 @@ class BackableObject(ABC, UserDict):
         self.load_in_memory()
         s = self._clone_recursively()
         s._reset_backing_storage()
+        s.set_all_has_changed(new_value=True)
         return s
 
     @staticmethod
@@ -269,6 +278,7 @@ class BackableObject(ABC, UserDict):
             # in which this object (or a parent object invoking the backing downstream) is assigned to a
             # parent object that is backed
             pass
+        value.set_all_has_changed(new_value=False)
         super().__setitem__(key, value_in_memory)
 
     def __delitem__(self, key: str):

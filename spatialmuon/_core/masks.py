@@ -31,6 +31,10 @@ from spatialmuon.utils import (
     UnknownEncodingException,
     _get_hdf5_attribute,
     ColorsType,
+    normalize_color,
+    apply_alpha,
+    handle_categorical_plot,
+    get_color_array_rgba,
 )
 from spatialmuon._core.bounding_box import BoundingBoxable, BoundingBox
 
@@ -71,6 +75,8 @@ class Masks(BackableObject, BoundingBoxable):
         super().__init__(backing)
         self._parentdataset = None
         if backing is not None:
+            if obs is not None:
+                raise ValueError("attempting to specify masks for a non-empty backing store")
             self._obs = read_attribute(backing["obs"])
         else:
             if obs is not None:
@@ -163,31 +169,11 @@ class Masks(BackableObject, BoundingBoxable):
     def subset_obs(self, indices: np.array):
         pass
 
-    @staticmethod
-    def normalize_color(x):
-        if type(x) == tuple:
-            x = np.array(x)
-        assert len(x.shape) in [0, 1]
-        x = x.flatten()
-        assert len(x) in [3, 4]
-        if len(x) == 3:
-            x = np.array(x.tolist() + [1.0])
-        # else:
-        #     x[3] = 1.0
-        x = x.reshape(1, -1)
-        return x
-
-    @staticmethod
-    def apply_alpha(x, alpha):
-        assert len(x.shape) == 2
-        assert x.shape[1] == 4
-        x[:, 3] *= alpha
-
     @abstractmethod
     def _plot(
         self,
         fill_color_array: np.ndarray,
-        outline_colors_array: Optional[np.ndarray],
+        outline_color_array: Optional[np.ndarray],
         ax: matplotlib.axes.Axes,
     ):
         pass
@@ -227,74 +213,24 @@ class Masks(BackableObject, BoundingBoxable):
 
         # adding the background
         n = len(self.obs) + 1
-        plotting_a_category = False
-        title = None
-        _legend = None
 
-        # return a tensor of length n, then the first element (the background color), will be replaced with
-        # background_color
-        def get_color_array_rgba(color):
-            if color is None:
-                return np.zeros((n, 4))
-            elif type(color) == str and color in self.obs.columns:
-                nonlocal plotting_a_category
-                nonlocal title
-                nonlocal _legend
-                plotting_a_category = True
-                title = color
-                cmap = matplotlib.cm.get_cmap("tab10")
-                categories = self.obs[color].cat.categories.values.tolist()
-                cycled_colors = list(cmap.colors) * (len(categories) // len(cmap.colors) + 1)
-                d = dict(zip(categories, cycled_colors))
-                levels = self.obs[color].tolist()
-                # it will be replaced with the background color
-                colors = [Masks.normalize_color((0.0, 0.0, 0.0, 0.0))]
-                colors += [Masks.normalize_color(d[ll]) for ll in levels]
-                c = np.concatenate(colors, axis=0)
-                _legend = []
-                for cat, col in zip(categories, cmap.colors):
-                    _legend.append(
-                        matplotlib.patches.Patch(facecolor=col, edgecolor=col, label=cat)
-                    )
-                return c
-            elif type(color) == str and color == "random":
-                a = np.random.rand(n, 3)
-                b = np.ones(len(a)).reshape(-1, 1) * 1.0
-                c = np.concatenate((a, b), axis=1)
-                return c
-            elif type(color) == str:
-                a = matplotlib.colors.to_rgba(color)
-                a = Masks.normalize_color(a)
-                b = np.tile(a, (n, 1))
-                return b
-            elif type(color) == list or type(color) == np.ndarray:
-                try:
-                    a = matplotlib.colors.to_rgba(color)
-                    b = [Masks.normalize_color(a)] * n
-                    c = np.concatenate(b, axis=0)
-                    return c
-                except ValueError:
-                    # it will be replaced with the background color
-                    b = [Masks.normalize_color((0.0, 0.0, 0.0, 0.0))]
-                    for c in color:
-                        d = matplotlib.colors.to_rgba(c)
-                        b.append(Masks.normalize_color(d))
-                    e = np.concatenate(b, axis=0)
-                    if len(e) != n:
-                        raise ValueError(
-                            "number of colors must match the number of elements in obs"
-                        )
-                    return e
-            else:
-                raise ValueError(f"invalid way of specifying the color: {color}")
+        fill_color_array, plotting_a_category, title, _legend = handle_categorical_plot(
+            fill_colors, obs=self.obs
+        )
+        if not plotting_a_category:
+            fill_color_array = get_color_array_rgba(fill_colors, n)
 
-        fill_color_array = get_color_array_rgba(fill_colors)
-        outline_colors_array = get_color_array_rgba(outline_colors)
-        background_color = Masks.normalize_color(matplotlib.colors.to_rgba(background_color))
+        outline_color_array, plotting_a_category, title, _legend = handle_categorical_plot(
+            outline_colors, obs=self.obs
+        )
+        if not plotting_a_category:
+            outline_color_array = get_color_array_rgba(outline_colors, n)
+
+        background_color = normalize_color(matplotlib.colors.to_rgba(background_color))
         fill_color_array[0] = background_color
-        outline_colors_array[0] = background_color
-        for a in [fill_color_array, outline_colors_array]:
-            Masks.apply_alpha(a, alpha=alpha)
+        outline_color_array[0] = background_color
+        for a in [fill_color_array, outline_color_array]:
+            apply_alpha(a, alpha=alpha)
 
         if ax is None:
             plt.figure()
@@ -304,7 +240,7 @@ class Masks(BackableObject, BoundingBoxable):
         # ############ calling back the plotting function
         self._plot(
             fill_color_array=fill_color_array,
-            outline_colors_array=None if outline_colors is None else outline_colors_array,
+            outline_color_array=None if outline_colors is None else outline_color_array,
             ax=axs,
         )
 
@@ -572,7 +508,7 @@ class ShapeMasks(Masks, MutableMapping):
     def _plot(
         self,
         fill_color_array: np.ndarray,
-        outline_colors_array: Optional[np.ndarray],
+        outline_color_array: Optional[np.ndarray],
         ax: matplotlib.axes.Axes,
     ):
         if self.masks_shape != SpotShape.circle:
@@ -588,11 +524,11 @@ class ShapeMasks(Masks, MutableMapping):
         collection = matplotlib.collections.PatchCollection(patches)
         # TODO: ignoring the background color for the moment, implement it
         collection.set_facecolor(fill_color_array[1:, :])
-        if outline_colors_array is None:
+        if outline_color_array is None:
             # need to plot always something otherwise the spot size is smaller
             collection.set_edgecolor(fill_color_array[1:, :])
         else:
-            collection.set_edgecolor(outline_colors_array[1:, :])
+            collection.set_edgecolor(outline_color_array[1:, :])
 
         ax.set_aspect("equal")
         # autolim is set to False because it's our job to compute the lims considering the bounding
@@ -1063,7 +999,7 @@ class RasterMasks(Masks):
     def _plot(
         self,
         fill_color_array: np.ndarray,
-        outline_colors_array: Optional[np.ndarray],
+        outline_color_array: Optional[np.ndarray],
         ax: matplotlib.axes.Axes,
     ):
         original_labels = self.obs["original_labels"].to_numpy()
@@ -1080,9 +1016,9 @@ class RasterMasks(Masks):
         extent = [bb.x0, bb.x1, bb.y0, bb.y1]
         ax.imshow(fill_color_array[x], interpolation="none", extent=extent, origin="lower")
 
-        if outline_colors_array is not None:
+        if outline_color_array is not None:
             for i, c in enumerate(contiguous_labels):
-                outline_color = outline_colors_array[i]
+                outline_color = outline_color_array[i]
                 boolean_mask = x == c
                 contours = skimage.measure.find_contours(boolean_mask, 0.7)
                 for contour in contours:

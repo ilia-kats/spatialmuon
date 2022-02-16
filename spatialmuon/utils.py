@@ -2,6 +2,10 @@ from typing import Literal, Optional, Union
 from codecs import decode
 import warnings
 import colorama
+import matplotlib
+import matplotlib.cm
+import matplotlib.patches
+import matplotlib.colors
 
 import numpy as np
 import pandas as pd
@@ -142,3 +146,84 @@ ColorsType = Optional[
 ]
 
 ColorType = Union[str, np.ndarray, list[int], list[float]]
+
+
+def normalize_color(x):
+    if type(x) == tuple:
+        x = np.array(x)
+    assert len(x.shape) in [0, 1]
+    x = x.flatten()
+    assert len(x) in [3, 4]
+    if len(x) == 3:
+        x = np.array(x.tolist() + [1.0])
+    # else:
+    #     x[3] = 1.0
+    x = x.reshape(1, -1)
+    return x
+
+
+def apply_alpha(x, alpha):
+    assert len(x.shape) == 2
+    assert x.shape[1] == 4
+    x[:, 3] *= alpha
+
+
+def handle_categorical_plot(category, obs):
+    if type(category) == str and category in obs.columns:
+        cmap = matplotlib.cm.get_cmap("tab10")
+        categories = obs[category].cat.categories.values.tolist()
+        cycled_colors = list(cmap.colors) * (len(categories) // len(cmap.colors) + 1)
+        d = dict(zip(categories, cycled_colors))
+        levels = obs[category].tolist()
+        # it will be replaced with the background color
+        colors = [normalize_color((0.0, 0.0, 0.0, 0.0))]
+        colors += [normalize_color(d[ll]) for ll in levels]
+        c = np.concatenate(colors, axis=0)
+
+        colors = c
+        plotting_a_category = True
+        title = category
+        _legend = []
+        for cat, col in zip(categories, cmap.colors):
+            _legend.append(matplotlib.patches.Patch(facecolor=col, edgecolor=col, label=cat))
+    else:
+        colors = None
+        plotting_a_category = False
+        title = None
+        _legend = None
+    return colors, plotting_a_category, title, _legend
+
+
+# return a tensor of length n, then the first element (the background color), will be replaced with
+# background_color
+def get_color_array_rgba(color, n):
+    if color is None:
+        return np.zeros((n, 4))
+    elif type(color) == str and color == "random":
+        a = np.random.rand(n, 3)
+        b = np.ones(len(a)).reshape(-1, 1) * 1.0
+        c = np.concatenate((a, b), axis=1)
+        return c
+    elif type(color) == str:
+        a = matplotlib.colors.to_rgba(color)
+        a = normalize_color(a)
+        b = np.tile(a, (n, 1))
+        return b
+    elif type(color) == list or type(color) == np.ndarray:
+        try:
+            a = matplotlib.colors.to_rgba(color)
+            b = [normalize_color(a)] * n
+            c = np.concatenate(b, axis=0)
+            return c
+        except ValueError:
+            # it will be replaced with the background color
+            b = [normalize_color((0.0, 0.0, 0.0, 0.0))]
+            for c in color:
+                d = matplotlib.colors.to_rgba(c)
+                b.append(normalize_color(d))
+            e = np.concatenate(b, axis=0)
+            if len(e) != n:
+                raise ValueError("number of colors must match the number of elements in obs")
+            return e
+    else:
+        raise ValueError(f"invalid way of specifying the color: {color}")

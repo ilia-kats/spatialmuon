@@ -25,6 +25,7 @@ from anndata._io.utils import read_attribute, write_attribute
 from anndata._core.sparse_dataset import SparseDataset
 import spatialmuon
 from spatialmuon._core.masks import Masks
+from spatialmuon._core.graph import Graph
 from spatialmuon._core.anchor import Anchor
 from spatialmuon._core.bounding_box import BoundingBox
 from spatialmuon.datatypes.datatypes_utils import (
@@ -46,45 +47,45 @@ class Regions(FieldOfView):
         *,
         X: Optional[Union[np.ndarray, spmatrix]] = None,
         masks: Optional[Masks] = None,
+        graph: Optional[Graph] = None,
         **kwargs,
     ):
-        ndim_x = None
-        ndim_masks = None
-        self._X = None
-        if X is not None:
-            ndim_x = len(X.shape)
-        if masks is not None:
-            ndim_masks = masks.ndim
-        if ndim_x is not None and ndim_masks is not None:
-            assert ndim_x == ndim_masks
-        if ndim_x is not None:
-            ndim = ndim_x
-        elif ndim_masks is not None:
-            ndim = ndim_masks
-        else:
-            ndim = None
+        ndim = self.compute_ndim(X=X, masks=masks, graph=graph)
         kwargs["anchor"] = self.update_n_dim_in_anchor(ndim=ndim, backing=backing, **kwargs)
         super().__init__(backing, **kwargs)
         if backing is not None:
-            if X is not None or masks is not None:
+            if X is not None or masks is not None or graph is not None:
                 raise ValueError("attempting to specify properties for a non-empty backing store")
             # self._index = SpatialIndex(
             #     backing=backing["index"], dimension=backing["coordinates"].shape[1], **index_kwargs
             # )
-            masks = Masks(backing=backing["masks"])
-            masks._parentdataset = self
-            self._set_kv("masks", masks)
+            assert 'masks' in backing or 'graph' in backing
+            if 'masks' in backing:
+                masks = Masks(backing=backing["masks"])
+                masks._parentdataset = self
+                self._set_kv("masks", masks)
+            if 'graph' in backing:
+                graph = Graph(backing=backing["graph"])
+                graph._parentdataset = self
+                self._set_kv('graph', graph)
 
             self._X = backing["X"]
         else:
-            if masks is None:
-                raise ValueError("masks need to be specify")
-            self.masks = masks
+            if masks is None and graph is None:
+                raise ValueError('at least one between "masks" and "graph" need to be specify')
+            if masks is not None:
+                self.masks = masks
+            if graph is not None:
+                self.graph = graph
 
             if X is not None:
                 self.X = X
             else:
-                self.X = np.zeros((0, len(masks)))
+                if masks is not None:
+                    self.X = np.zeros((0, len(masks)))
+                else:
+                    assert graph is not None
+                    self.X = np.zeros((0, len(graph)))
 
             # self._index = SpatialIndex(coordinates=self._coordinates, **index_kwargs)
 
@@ -98,10 +99,35 @@ class Regions(FieldOfView):
     #         return f"mask with {mask.ndim} dimensions is being added to field of view with {fov.ndim} dimensions"
     #     mask._parentdataset = fov
     #     return None
+    @staticmethod
+    def compute_ndim(X, masks, graph):
+        ndim_x = None
+        ndim_masks = None
+        ndim_graph = None
+        # self._X = None
+        if X is not None:
+            ndim_x = len(X.shape)
+        if masks is not None:
+            ndim_masks = masks.ndim
+        if graph is not None:
+            ndim_graph = graph.ndim
+        ndims = {ndim_x, ndim_masks, ndim_graph}
+        if None in ndims:
+            ndims.remove(None)
+        if len(ndims) == 0:
+            return None
+        elif len(ndims) == 1:
+            return ndims.__iter__().__next__()
+        else:
+            raise ValueError("multiple values for ndim found")
 
     @property
     def _untransformed_bounding_box(self) -> BoundingBox:
-        return self.masks._untransformed_bounding_box
+        if self.masks is not None:
+            return self.masks._untransformed_bounding_box
+        else:
+            assert self.graph is not None
+            return self.graph._untransformed_bounding_box
 
     @property
     def X(self) -> Union[np.ndarray, spmatrix, h5py.Dataset, SparseDataset]:
@@ -120,7 +146,10 @@ class Regions(FieldOfView):
 
     @property
     def masks(self):
-        return self["masks"]
+        if 'masks' in self:
+            return self["masks"]
+        else:
+            return None
 
     @masks.setter
     def masks(self, new_masks):
@@ -128,12 +157,32 @@ class Regions(FieldOfView):
         self["masks"] = new_masks
 
     @property
+    def graph(self):
+        if 'graph' in self:
+            return self["graph"]
+        else:
+            return None
+
+    @graph.setter
+    def graph(self, new_graph):
+        new_graph._parentdataset = self
+        self["graph"] = new_graph
+
+    @property
     def obs(self) -> pd.DataFrame:
-        return self.masks.obs
+        if self.masks is not None:
+            return self.masks.obs
+        else:
+            assert self.graph is not None
+            return self.graph.obs
 
     @obs.setter
     def obs(self, new_obs):
-        self.masks.obs = new_obs
+        if self.masks is not None:
+            self.masks.obs = new_obs
+        else:
+            assert self.graph is not None
+            self.graph.obs = new_obs
 
     # def _getitem(
     #     self,
@@ -335,13 +384,18 @@ class Regions(FieldOfView):
                 colors = cmap(z)
         fill_colors = colors if fill_color == "channel" else fill_color
         outline_colors = colors if outline_color == "channel" else outline_color
-        self.masks.plot(
-            fill_colors=fill_colors,
-            outline_colors=outline_colors,
-            ax=ax,
-            alpha=a * alpha,
-            bounding_box=bounding_box,
-        )
+        if self.masks is not None:
+            self.masks.plot(
+                fill_colors=fill_colors,
+                outline_colors=outline_colors,
+                ax=ax,
+                alpha=a * alpha,
+                bounding_box=bounding_box,
+            )
+        else:
+            assert self.graph is not None
+            print('plot somthing')
+            raise NotImplementedError()
         # im = ax.imshow(x, cmap=cmap[idx], alpha=a)
         # code explained in raster.py
         if len(channels_to_plot) == 1:
@@ -370,10 +424,18 @@ class Regions(FieldOfView):
         bounding_box: Optional[BoundingBox] = None,
     ):
         if self.var is None or len(self.var.columns) == 0:
-            warnings.warn(
-                "No quantities to plot, plotting the masks with random colors instead. For more options in plotting masks use .masks.plot()"
-            )
-            self.masks.plot(ax=ax)
+            if self.masks is not None:
+                warnings.warn(
+                    "No quantities to plot, plotting the masks with random colors instead. For more options in plotting masks use .masks.plot()"
+                )
+                self.masks.plot(ax=ax)
+            else:
+                assert self.graph is not None
+                warnings.warn(
+                    "No quantities to plot, plotting the graph. For more options in "
+                    "plotting the graph use .graph.plot()"
+                )
+                self.graph.plot(ax=ax)
         else:
             regions_raster_plot(
                 self,
@@ -409,7 +471,10 @@ class Regions(FieldOfView):
 
     def __repr__(self):
         repr_str = f"(Regions) with {self.n_var} var\n"
-        repr_str += str(self.masks)
+        if self.masks is not None:
+            repr_str += str(self.masks)
+        if self.graph is not None:
+            repr_str += str(self.graph)
         return repr_str
 
     def crop(self, bounding_box: BoundingBox):

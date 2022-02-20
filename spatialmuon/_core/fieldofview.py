@@ -264,3 +264,7 @@ class FieldOfView(BackableObject, BoundingBoxable):
     @abstractmethod
     def crop(self, bounding_box: BoundingBox):
         pass
+
+    @abstractmethod
+    def subset_var(self, indices: np.array, inplace: bool = False):
+        pass

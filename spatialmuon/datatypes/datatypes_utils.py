@@ -1,4 +1,8 @@
-from typing import Optional, Union, Callable, Literal
+from __future__ import annotations
+from typing import Optional, Union, Callable, Literal, TYPE_CHECKING, Tuple
+
+if TYPE_CHECKING:
+    from spatialmuon import Regions, Raster
 
 import matplotlib
 import matplotlib.cm
@@ -26,7 +30,7 @@ def get_channel_index_from_channel_name(var, channel_name):
 
 # flake8: noqa: C901
 def regions_raster_plot(
-    instance,
+    instance: Union[Regions, Raster],
     channels: Optional[Union[str, list[str], int, list[int]]] = "all",
     fill_color: Optional[Union[Literal["channel"], ColorType]] = "channel",
     outline_color: Optional[Union[Literal["channel"], ColorType]] = None,
@@ -44,6 +48,7 @@ def regions_raster_plot(
     suptitle: Optional[str] = None,
     alpha: float = 1.0,
     bounding_box: Optional[dict] = None,
+    figsize: Optional[Tuple[int]] = None,
 ):
     if not (isinstance(channels, list) or isinstance(channels, str) or isinstance(channels, int)):
         raise ValueError(
@@ -114,6 +119,10 @@ def regions_raster_plot(
             method = "rgba"
         else:
             method = "panels"
+    if method == "panels" and figsize is not None:
+        warnings.warn('ignoring the figsize for method == "panels"')
+    if ax is not None and figsize is not None:
+        raise ValueError("ax and figsize cannot be both non-None")
 
     if method in ["overlap", "rgba"]:
         DEFAULT_CMAPS = [
@@ -154,7 +163,7 @@ def regions_raster_plot(
             show_colorbar = False and show_colorbar
 
         if ax is None:
-            fig, axs = plt.subplots(1, 1)
+            fig, axs = plt.subplots(1, 1, figsize=figsize)
         else:
             axs = ax
         # ######### going back to the calling class ########## #
@@ -320,3 +329,22 @@ def regions_raster_plot(
             suptitle=suptitle,
             alpha=alpha,
         )
+
+
+def regions_raster_subset_var(
+    instance: Union[Regions, Raster], indices: np.array, inplace: bool = False
+):
+    def subset(instance: Raster):
+        instance.X = instance.X[..., indices]
+        instance.var = instance.var[indices]
+        instance.var.reset_index(inplace=True)
+        instance.commit_changes_on_disk()
+
+    if inplace:
+        subset(instance)
+        # we may want to repack the hdf5 storage at this point; maybe it makes sense to add a parameter to this
+        # function call to trigger the repacking
+    else:
+        o = instance.clone()
+        subset(o)
+        return o

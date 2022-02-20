@@ -325,11 +325,24 @@ def create_muon_spatial_object(f_ome, f_masks, outfile):
         if chld.tag.endswith("Pixels"):
             metadata = chld
             break
-    channel_names = []
+    probe_names = []
     for channel in metadata:
         if channel.tag.endswith("Channel"):
-            channel_names.append(channel.attrib["Fluor"])
-    var = pd.DataFrame({"channel_name": channel_names})
+            probe_names.append(channel.attrib["Fluor"])
+
+    # fmt: off
+    CHANNEL_NAMES = ["H3tot", "H3met", "CK5", "Fibronectin", "CK19", "CK8/18", "TWIST1", "CD68", "CK14", "SMA",
+                     "Vimentin", "Myc", "HER2", "CD3", "H3phospho", "ERK1/2", "SLUG", "ER", "PR", "p53", "CD44",
+                     "EpCAM", "CD45", "GATA3", "CD20", "betaCatenin", "CAIX", "Ecadherin", "Ki67", "EGFR", "S6",
+                     "Sox9", "vWf_CD31", "mTOR", "CK7", "panCK", "cPARP_cCasp3", "DNA1", "DNA2", ]
+    INDICES = [8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+               35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, ]
+    # fmt: on
+    channel_names = ['NA' for _ in probe_names]
+    for i, s in zip(INDICES, CHANNEL_NAMES):
+        channel_names[i] = s
+
+    var = pd.DataFrame({"channel_name": channel_names, "probe_names": probe_names})
     masks = np.asarray(tifffile.imread(f_masks))
 
     if os.path.isfile(outfile):
@@ -348,8 +361,8 @@ def create_muon_spatial_object(f_ome, f_masks, outfile):
     pass
 
 
-DEBUG = True
 # DEBUG = True
+DEBUG = False
 
 DOWNLOAD = False
 UNZIP = False
@@ -361,11 +374,11 @@ if DEBUG:
 def debug_create_spatial_muon_object():
     # edit your paths here
     f_ome = (
-        "/data/spatialmuon/datasets/imc/raw/OMEnMasks/ome/ZTMA208_slide_28.23kx22"
+        "/data/spatialmuon/datasets/imc/raw/unzipped/OMEnMasks/ome/ZTMA208_slide_28.23kx22"
         ".4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full.tiff"
     )  # noqa: E501
     f_masks = (
-        "/data/spatialmuon/datasets/imc/raw/OMEnMasks/Basel_Zuri_masks/ZTMA208_slide_28.23kx22"
+        "/data/spatialmuon/datasets/imc/raw/unzipped/OMEnMasks/Basel_Zuri_masks/ZTMA208_slide_28.23kx22"
         ".4ky_7000x7000_5_20171115_108_67_Ay14x4_364_a0_full_maks.tiff"
     )  # noqa: E501
     outfile = "debug.h5smu"
@@ -387,7 +400,7 @@ if __name__ == "__main__":
                 debug_create_spatial_muon_object()
                 os._exit(0)
 
-        outfdir = "/data/spatialmion/datasets/imc/smu/"
+        outfdir = "/data/spatialmuon/datasets/imc/smu/"
         imgfile = os.path.join(download_dir, "images.zip")
         metadatafile = os.path.join(download_dir, "metadata.zip")
         if DOWNLOAD:
@@ -449,10 +462,10 @@ if __name__ == "__main__":
 
         for index, row in tqdm(df.iterrows(), total=len(df), desc="creating .h5smu objects"):
             ome_filename = row[0]
-            f_ome = os.path.join(tmpdir, "ome", ome_filename)
+            f_ome = os.path.join(tmpdir, "OMEnMasks/ome", ome_filename)
 
             masks_filename = ome_filename.replace("_full.tiff", "_full_maks.tiff")
-            f_masks = os.path.join(tmpdir, "Basel_Zuri_masks", masks_filename)
+            f_masks = os.path.join(tmpdir, "OMEnMasks/Basel_Zuri_masks", masks_filename)
 
             os.makedirs(outfdir, exist_ok=True)
             outfile = ome_filename.replace(".tiff", ".h5smu")

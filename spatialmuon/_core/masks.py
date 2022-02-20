@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import MutableMapping
 from abc import abstractmethod
-from typing import Optional, Union, Literal, TYPE_CHECKING
+from typing import Optional, Union, Literal, TYPE_CHECKING, Tuple, Dict
 
 import matplotlib.pyplot as plt
 import matplotlib.colors
@@ -31,6 +31,7 @@ from spatialmuon.utils import (
     UnknownEncodingException,
     _get_hdf5_attribute,
     ColorsType,
+    ColorType,
     normalize_color,
     apply_alpha,
     handle_categorical_plot,
@@ -166,7 +167,7 @@ class Masks(BackableObject, BoundingBoxable):
         pass
 
     @abstractmethod
-    def subset_obs(self, indices: np.array):
+    def subset_obs(self, indices: np.array, inplace: bool = False):
         pass
 
     @abstractmethod
@@ -189,6 +190,8 @@ class Masks(BackableObject, BoundingBoxable):
         show_title: bool = True,
         show_legend: bool = True,
         bounding_box: Optional[BoundingBox] = None,
+        figsize: Optional[Tuple[int]] = None,
+        categories_colors: Optional[Dict[str, ColorType]] = None
     ):
         if bounding_box is not None:
             # a copy that simplifies the code but is not really necessary, we could make crop work inplace
@@ -215,13 +218,13 @@ class Masks(BackableObject, BoundingBoxable):
         n = len(self.obs) + 1
 
         fill_color_array, plotting_a_category, title, _legend = handle_categorical_plot(
-            fill_colors, obs=self.obs
+            fill_colors, obs=self.obs, categories_colors=categories_colors
         )
         if not plotting_a_category:
             fill_color_array = get_color_array_rgba(fill_colors, n)
 
         outline_color_array, plotting_a_category, title, _legend = handle_categorical_plot(
-            outline_colors, obs=self.obs
+            outline_colors, obs=self.obs, categories_colors=categories_colors
         )
         if not plotting_a_category:
             outline_color_array = get_color_array_rgba(outline_colors, n)
@@ -232,8 +235,11 @@ class Masks(BackableObject, BoundingBoxable):
         for a in [fill_color_array, outline_color_array]:
             apply_alpha(a, alpha=alpha)
 
+        if ax is not None and figsize is not None:
+            raise ValueError("ax and figsize cannot be both non-None")
+
         if ax is None:
-            plt.figure()
+            plt.figure(figsize=figsize)
             axs = plt.gca()
         else:
             axs = ax
@@ -455,14 +461,17 @@ class ShapeMasks(Masks, MutableMapping):
             o = self.subset_obs(indices=to_keep)
             return o
 
-    def subset_obs(self, indices: np.array):
-        o = self.clone()
-        new_obs = o.obs.iloc[indices]
-        o.obs = new_obs
-        o.untransformed_masks_centers = o.untransformed_masks_centers[indices, :]
-        o.untransformed_masks_radii = o.untransformed_masks_radii[indices, :]
-        o.masks_labels = o.masks_labels[indices]
-        return o
+    def subset_obs(self, indices: np.array, inplace: bool = False):
+        if inplace:
+            raise NotImplementedError()
+        else:
+            o = self.clone()
+            new_obs = o.obs.iloc[indices]
+            o.obs = new_obs
+            o.untransformed_masks_centers = o.untransformed_masks_centers[indices, :]
+            o.untransformed_masks_radii = o.untransformed_masks_radii[indices, :]
+            o.masks_labels = o.masks_labels[indices]
+            return o
 
     @property
     def _untransformed_bounding_box(self) -> BoundingBox:
@@ -645,7 +654,7 @@ class PolygonMasks(Masks, MutableMapping):
     def crop(self, bounding_box: BoundingBox):
         raise NotImplementedError()
 
-    def subset_obs(self, indices: np.array):
+    def subset_obs(self, indices: np.array, inplace: bool = False):
         raise NotImplementedError()
 
     @property
@@ -771,7 +780,7 @@ class MeshMasks(Masks, MutableMapping):
     def crop(self, bounding_box: BoundingBox):
         raise NotImplementedError()
 
-    def subset_obs(self, indices: np.array):
+    def subset_obs(self, indices: np.array, inplace: bool = False):
         raise NotImplementedError()
 
     @property
@@ -953,7 +962,7 @@ class RasterMasks(Masks):
     def crop(self, bounding_box: BoundingBox):
         raise NotImplementedError()
 
-    def subset_obs(self, indices: np.array):
+    def subset_obs(self, indices: np.array, inplace: bool = False):
         raise NotImplementedError()
 
     @staticmethod

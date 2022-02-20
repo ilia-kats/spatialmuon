@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union, Literal, Callable, List, Dict, TYPE_CHECKING
+from typing import Optional, Union, Literal, Callable, List, Dict, TYPE_CHECKING, Tuple
 import warnings
 
 import math
@@ -24,6 +24,7 @@ from spatialmuon.datatypes.datatypes_utils import (
     regions_raster_plot,
     get_channel_index_from_channel_name,
     PlottingMethod,
+    regions_raster_subset_var
 )
 from spatialmuon._core.masks import Masks
 from spatialmuon._core.anchor import Anchor
@@ -399,6 +400,7 @@ class Raster(FieldOfView):
         suptitle: Optional[str] = None,
         alpha: float = 1.0,
         bounding_box: Optional[BoundingBox] = None,
+        figsize: Optional[Tuple[int]] = None
     ):
         regions_raster_plot(
             self,
@@ -417,6 +419,7 @@ class Raster(FieldOfView):
             suptitle=suptitle,
             alpha=alpha,
             bounding_box=bounding_box,
+            figsize=figsize
         )
 
     def __repr__(self):
@@ -493,3 +496,6 @@ class Raster(FieldOfView):
 
         self.X = new_X
         self.commit_changes_on_disk()
+
+    def subset_var(self, indices: np.array, inplace: bool = False):
+        regions_raster_subset_var(instance=self, indices=indices, inplace=inplace)

@@ -1,4 +1,4 @@
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, Union, Dict
 from codecs import decode
 import warnings
 import colorama
@@ -168,24 +168,34 @@ def apply_alpha(x, alpha):
     x[:, 3] *= alpha
 
 
-def handle_categorical_plot(category, obs):
+def handle_categorical_plot(category, obs, categories_colors: Optional[Dict[str, ColorType]] = None):
     if type(category) == str and category in obs.columns:
-        cmap = matplotlib.cm.get_cmap("tab10")
-        categories = obs[category].cat.categories.values.tolist()
-        cycled_colors = list(cmap.colors) * (len(categories) // len(cmap.colors) + 1)
-        d = dict(zip(categories, cycled_colors))
-        levels = obs[category].tolist()
-        # it will be replaced with the background color
-        colors = [normalize_color((0.0, 0.0, 0.0, 0.0))]
-        colors += [normalize_color(d[ll]) for ll in levels]
-        c = np.concatenate(colors, axis=0)
-
-        colors = c
         plotting_a_category = True
         title = category
         _legend = []
-        for cat, col in zip(categories, cmap.colors):
-            _legend.append(matplotlib.patches.Patch(facecolor=col, edgecolor=col, label=cat))
+        if categories_colors is None:
+            cmap = matplotlib.cm.get_cmap("tab10")
+            categories = obs[category].cat.categories.values.tolist()
+            cycled_colors = list(cmap.colors) * (len(categories) // len(cmap.colors) + 1)
+            d = dict(zip(categories, cycled_colors))
+            levels = obs[category].tolist()
+            # it will be replaced with the background color
+            colors = [normalize_color((0.0, 0.0, 0.0, 0.0))]
+            colors += [normalize_color(d[ll]) for ll in levels]
+            colors = np.concatenate(colors, axis=0)
+            for cat, col in zip(categories, cmap.colors):
+                _legend.append(matplotlib.patches.Patch(facecolor=col, edgecolor=col, label=cat))
+        else:
+            colors = [normalize_color((0.0, 0.0, 0.0, 0.0))]
+            levels = obs[category].tolist()
+            for level in levels:
+                color = categories_colors[level]
+                color = normalize_color(color)
+                colors.append(color)
+            colors = np.concatenate(colors, axis=0)
+            for cat, col in categories_colors.items():
+                _legend.append(matplotlib.patches.Patch(facecolor=col, edgecolor=col, label=cat))
+
     else:
         colors = None
         plotting_a_category = False

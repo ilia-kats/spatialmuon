@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union, Literal, Callable, List, Dict
+from typing import Optional, Union, Literal, Callable, List, Dict, Tuple
 from enum import Enum, auto
 import warnings
 
@@ -32,7 +32,9 @@ from spatialmuon.datatypes.datatypes_utils import (
     regions_raster_plot,
     get_channel_index_from_channel_name,
     PlottingMethod,
+    regions_raster_subset_var,
 )
+from tqdm.auto import tqdm
 import warnings
 import anndata
 
@@ -59,15 +61,15 @@ class Regions(FieldOfView):
             # self._index = SpatialIndex(
             #     backing=backing["index"], dimension=backing["coordinates"].shape[1], **index_kwargs
             # )
-            assert 'masks' in backing or 'graph' in backing
-            if 'masks' in backing:
+            assert "masks" in backing or "graph" in backing
+            if "masks" in backing:
                 masks = Masks(backing=backing["masks"])
                 masks._parentdataset = self
                 self._set_kv("masks", masks)
-            if 'graph' in backing:
+            if "graph" in backing:
                 graph = Graph(backing=backing["graph"])
                 graph._parentdataset = self
-                self._set_kv('graph', graph)
+                self._set_kv("graph", graph)
 
             self._X = backing["X"]
         else:
@@ -146,7 +148,7 @@ class Regions(FieldOfView):
 
     @property
     def masks(self):
-        if 'masks' in self:
+        if "masks" in self:
             return self["masks"]
         else:
             return None
@@ -158,7 +160,7 @@ class Regions(FieldOfView):
 
     @property
     def graph(self):
-        if 'graph' in self:
+        if "graph" in self:
             return self["graph"]
         else:
             return None
@@ -300,7 +302,7 @@ class Regions(FieldOfView):
         if len(channels_to_plot) > 1:
             axs = axs.flatten()
 
-        for idx, channel in enumerate(channels_to_plot):
+        for idx, channel in enumerate(tqdm(channels_to_plot, disable=len(channels_to_plot) < 20)):
             self.plot(
                 channels=channel,
                 preprocessing=preprocessing,
@@ -394,7 +396,7 @@ class Regions(FieldOfView):
             )
         else:
             assert self.graph is not None
-            print('plot somthing')
+            print("plot somthing")
             raise NotImplementedError()
         # im = ax.imshow(x, cmap=cmap[idx], alpha=a)
         # code explained in raster.py
@@ -422,20 +424,21 @@ class Regions(FieldOfView):
         suptitle: Optional[str] = None,
         alpha: float = 1,
         bounding_box: Optional[BoundingBox] = None,
+        figsize: Optional[Tuple[int]] = None
     ):
         if self.var is None or len(self.var.columns) == 0:
             if self.masks is not None:
                 warnings.warn(
                     "No quantities to plot, plotting the masks with random colors instead. For more options in plotting masks use .masks.plot()"
                 )
-                self.masks.plot(ax=ax)
+                self.masks.plot(ax=ax, figsize=figsize)
             else:
                 assert self.graph is not None
                 warnings.warn(
                     "No quantities to plot, plotting the graph. For more options in "
                     "plotting the graph use .graph.plot()"
                 )
-                self.graph.plot(ax=ax)
+                self.graph.plot(ax=ax, figsize=figsize)
         else:
             regions_raster_plot(
                 self,
@@ -454,6 +457,7 @@ class Regions(FieldOfView):
                 suptitle=suptitle,
                 alpha=alpha,
                 bounding_box=bounding_box,
+                figsize=figsize
             )
         # the approach described below is quite convoluted, it is not needed now, but be aware that if it is needed
         # this is a way to proceed
@@ -479,3 +483,67 @@ class Regions(FieldOfView):
 
     def crop(self, bounding_box: BoundingBox):
         raise NotImplementedError()
+
+    @property
+    def untransformed_centers(self):
+        assert self.masks is not None or self.graph is not None
+        if self.masks is not None:
+            return self.masks.untransformed_masks_centers
+        else:
+            return self.graph.untransformed_node_positions
+
+    @property
+    def transformed_centers(self):
+        assert self.masks is not None or self.graph is not None
+        if self.masks is not None:
+            return self.masks.transformed_masks_centers
+        else:
+            return self.graph.transformed_node_positions
+
+    def compute_knn_graph(self, k: int = 10, max_distance_in_units: Optional[float] = None):
+        if max_distance_in_units is not None:
+            max_distance = self.anchor.inverse_transform_length(max_distance_in_units)
+        else:
+            max_distance = max_distance_in_units
+        g = Graph.disconnected_graph(untransformed_node_positions=self.untransformed_centers)
+        g.compute_knn_edges(k=k, max_distance=max_distance)
+        g._parentdataset = self
+        return g
+
+    def compute_rbfk_graph(
+        self, length_scale_in_units: float, max_distance_in_units: Optional[float] = None
+    ):
+        length_scale = self.anchor.inverse_transform_length(length_scale_in_units)
+        if max_distance_in_units is not None:
+            max_distance = self.anchor.inverse_transform_length(max_distance_in_units)
+        else:
+            max_distance = max_distance_in_units
+        g = Graph.disconnected_graph(untransformed_node_positions=self.untransformed_centers)
+        g.compute_rbfk_edges(length_scale=length_scale, max_distance=max_distance)
+        g._parentdataset = self
+        return g
+
+    def compute_proximity_graph(self, max_distance_in_units: float):
+        max_distance = self.anchor.inverse_transform_length(max_distance_in_units)
+        g = Graph.disconnected_graph(untransformed_node_positions=self.untransformed_centers)
+        g.compute_proximity_edges(max_distance=max_distance)
+        g._parentdataset = self
+        return g
+
+    def subset_obs(self, indices: np.array, inplace: bool = False):
+        def subset(instance: Regions):
+            instance.X = instance.X[indices, ...]
+            if self.masks is not None:
+                self.masks.subset_obs(indices=indices, inplace=True)
+            if self.graph is not None:
+                self.graph.subset_obs(indices=indices, inplace=True)
+            instance.commit_changes_on_disk()
+        if inplace:
+            subset(self)
+        else:
+            o = self.clone()
+            subset(o)
+            return o
+
+    def subset_var(self, indices: np.array, inplace: bool = False):
+        regions_raster_subset_var(instance=self, indices=indices, inplace=inplace)

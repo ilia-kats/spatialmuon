@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import MutableMapping
-from typing import Optional, Union, Literal, TYPE_CHECKING
+from typing import Optional, Union, Literal, TYPE_CHECKING, Tuple, Dict
 
 import matplotlib.pyplot as plt
 import matplotlib.colors
@@ -10,9 +10,12 @@ import matplotlib.cm
 import matplotlib.patches
 import matplotlib.collections
 import numpy as np
+import math
 import h5py
 import networkx as nx
 import copy
+from sklearn.neighbors import NearestNeighbors
+from scipy.spatial import cKDTree
 
 import shapely.geometry
 from shapely.geometry import Polygon
@@ -31,10 +34,11 @@ from spatialmuon.utils import (
     UnknownEncodingException,
     _get_hdf5_attribute,
     ColorsType,
+    ColorType,
     handle_categorical_plot,
     get_color_array_rgba,
     normalize_color,
-apply_alpha
+    apply_alpha,
 )
 from spatialmuon._core.bounding_box import BoundingBoxable, BoundingBox
 
@@ -78,19 +82,18 @@ class Graph(BackableObject, BoundingBoxable):
             self._undirected = a
             self._obs = read_attribute(backing["obs"])
         else:
-            assert (
-                untransformed_node_positions is not None
-                and edge_indices is not None
-                and undirected is not None
-            )
+            assert untransformed_node_positions is not None and undirected is not None
             self.untransformed_node_positions = untransformed_node_positions
-            self.edge_indices = edge_indices
             self.undirected = undirected
+            if edge_indices is not None:
+                self.edge_indices = edge_indices
+            else:
+                self.edge_indices = np.array([[]])
 
             if edge_features is not None:
                 self.edge_features = edge_features
             else:
-                self.edge_features = np.zeros([[]])
+                self.edge_features = np.array([[]])
 
             if obs is not None:
                 self.obs = obs
@@ -106,6 +109,10 @@ class Graph(BackableObject, BoundingBoxable):
     def untransformed_node_positions(self, o):
         self._untransformed_node_positions = o
         self.obj_has_changed("untransformed_node_positions")
+
+    @property
+    def transformed_node_positions(self):
+        return self._parentdataset.anchor.transform_coordinates(self.untransformed_node_positions)
 
     @property
     def edge_indices(self):
@@ -242,12 +249,16 @@ class Graph(BackableObject, BoundingBoxable):
     def crop(self, bounding_box: BoundingBox):
         NotImplementedError()
 
-    def subset_obs(self, indices: np.array):
-        NotImplementedError()
+    def subset_obs(self, indices: np.array, inplace: bool = False):
+        raise NotImplementedError()
 
     # partially inspired by https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/utils/convert
     # .html
     def to_networkx(self):
+        """
+        warning: as a limitaiton of networkx, the order of edges is not guaranteed to be the same of the one of self.edge_indices
+        :return:
+        """
         if self.undirected:
             g = nx.Graph()
         else:
@@ -255,11 +266,13 @@ class Graph(BackableObject, BoundingBoxable):
 
         g.add_nodes_from(range(self.__len__()))
 
-        for i, (u, v) in enumerate(self.edge_indices):
-            g.add_edge(u, v)
+        edges = [(u, v, w) for ((u, v), w) in zip(self.edge_indices, self.edge_features)]
+        g.add_weighted_edges_from(edges)
 
-        print("TODO: convert also attributes")
-        positions = {i: pos for i, pos in enumerate(self.transformed_node_positions)}
+        if self._parentdataset is not None:
+            positions = {i: pos for i, pos in enumerate(self.transformed_node_positions)}
+        else:
+            positions = {i: pos for i, pos in enumerate(self.untransformed_node_positions)}
         return g, positions
 
     # flake8: noqa: C901
@@ -268,25 +281,35 @@ class Graph(BackableObject, BoundingBoxable):
         node_colors: ColorsType = "black",
         outline_colors: ColorsType = None,
         edge_colors: ColorsType = "black",
-        edge_values: Optional[np.array] = None,
+        edge_feature_index: Optional[int] = None,
         edge_cmap=None,
-        edge_vmin: Optional[float] = None,
-        edge_vmax: Optional[float] = None,
         node_size: int = 5,
         edge_size: int = 1,
         ax: matplotlib.axes.Axes = None,
         alpha: float = 1.0,
         show_title: bool = True,
         show_legend: bool = True,
+        show_colorbar: bool = True,
         bounding_box: Optional[BoundingBox] = None,
+        figsize: Optional[Tuple[int]] = None,
+        categories_colors: Optional[Dict[str, ColorType]] = None,
     ):
+        if edge_cmap is not None:
+            edge_colors = None
+
         if edge_colors is not None:
-            assert edge_values is None
-            assert edge_cmap is None
-            assert edge_vmin is None
-            assert edge_vmax is None
+            assert edge_feature_index is None
         else:
-            assert edge_values is not None
+            if (
+                len(self.edge_features.shape) == 1
+                or len(self.edge_features.shape) == 2
+                and self.edge_features.shape[1] == 1
+            ):
+                assert edge_feature_index is None or edge_feature_index == 0
+            else:
+                assert len(self.edge_features.shape) == 2
+                assert edge_feature_index is not None and isinstance(edge_feature_index, int)
+                assert edge_feature_index >= 0 and edge_feature_index < self.edge_features.shape[1]
             assert edge_cmap is not None
         if bounding_box is not None:
             raise NotImplementedError()
@@ -296,41 +319,68 @@ class Graph(BackableObject, BoundingBoxable):
         n = len(self.obs)
 
         fill_color_array, plotting_a_category, title, _legend = handle_categorical_plot(
-            node_colors, obs=self.obs
+            node_colors, obs=self.obs, categories_colors=categories_colors
         )
         if not plotting_a_category:
             fill_color_array = get_color_array_rgba(node_colors, n)
 
         outline_color_array, plotting_a_category, title, _legend = handle_categorical_plot(
-            outline_colors, obs=self.obs
+            outline_colors, obs=self.obs, categories_colors=categories_colors
         )
         if not plotting_a_category:
             outline_color_array = get_color_array_rgba(outline_colors, n)
 
+        g, pos = self.to_networkx()
+        colorbar_scalar_mappable = None
         if edge_colors is not None:
             edge_color_array = get_color_array_rgba(edge_colors, len(self.edge_indices))
         else:
+            assert edge_cmap is not None
+            ll = list(g.edges.values())
+            ll = [x['weight'].reshape(1, -1) for x in ll]
+            edge_features = np.concatenate(ll, axis=0)
+            assert len(edge_features.shape) == 2
+            if edge_features[1] == 1:
+                edge_values = edge_features.flatten()
+            else:
+                edge_values = edge_features[:, edge_feature_index].flatten()
             assert len(edge_values.shape) == 1
-            if edge_vmax is None:
-                edge_vmax = np.max(edge_values)
-            if edge_vmin is None:
-                edge_vmin = np.min(edge_values)
-            normalized = (edge_values - edge_vmin) / (edge_vmax - edge_vmin) * 255.
+            edge_vmax = np.max(edge_values)
+            edge_vmin = np.min(edge_values)
+            normalized = (edge_values - edge_vmin) / (edge_vmax - edge_vmin)
             edge_color_array = np.array([edge_cmap(c) for c in normalized])
+            if show_colorbar:
+                cnorm = matplotlib.colors.Normalize(vmin=edge_vmin, vmax=edge_vmax)
+                colorbar_scalar_mappable = matplotlib.cm.ScalarMappable(norm=cnorm, cmap=edge_cmap)
 
         for a in [fill_color_array, outline_color_array, edge_color_array]:
             apply_alpha(a, alpha=alpha)
 
-
         ##
-        print('ehi')
+        if ax is not None and figsize is not None:
+            raise ValueError("ax and figsize cannot be both non-None")
+
         if ax is None:
-            plt.figure()
+            plt.figure(figsize=figsize)
             axs = plt.gca()
         else:
             axs = ax
 
-        g, pos = self.to_networkx()
+        if colorbar_scalar_mappable is not None:
+            plt.colorbar(
+                colorbar_scalar_mappable,
+                orientation="horizontal",
+                location="bottom",
+                ax=axs,
+                shrink=0.6,
+                pad=0.1,
+            )
+
+        # kwargs = {}
+        # if edge_values is not None:
+        #     kwargs["edge_vmin"] = np.min(edge_values)
+        #     kwargs["edge_vmax"] = np.max(edge_values)
+
         nx.drawing.nx_pylab.draw_networkx(
             g,
             pos=pos,
@@ -343,6 +393,20 @@ class Graph(BackableObject, BoundingBoxable):
             node_color=fill_color_array,
             edge_color=edge_color_array,
             ax=axs,
+            # **kwargs,
+        )
+        # restore proper margins and ticks that are modified by draw_networkx
+        # NOTE:
+        # actually this functions creates some tiny margings that are larger than what we would get by plotting just,
+        # sy, a visium regions object, but it is just a small graphical difference that we accept
+        axs.margins(0)
+        axs.tick_params(
+            axis="both",
+            which="both",
+            bottom=True,
+            left=True,
+            labelbottom=True,
+            labelleft=True,
         )
 
         if plotting_a_category:
@@ -364,3 +428,96 @@ class Graph(BackableObject, BoundingBoxable):
         if ax is None:
             plt.show()
         ##
+
+    @classmethod
+    def disconnected_graph(cls, untransformed_node_positions: np.ndarray, undirected: bool = True):
+        g = Graph(
+            untransformed_node_positions=untransformed_node_positions,
+            undirected=undirected,
+        )
+        return g
+
+    def clear_edges(self):
+        self.edge_indices = np.array([[]])
+        self.edge_features = np.array([[]])
+        self.commit_changes_on_disk()
+
+    def compute_knn_edges(self, k: int = 10, max_distance: Optional[float] = None):
+        if self.edge_indices.size > 0 or self.edge_features.size > 0:
+            raise RuntimeError(
+                "the graph already contains edges, call .clear_edges() to remove them and then call "
+                "this function again"
+            )
+        if k <= 1:
+            raise ValueError("expected k >= 2 (not considering self-loops)")
+        kk = min(k, len(self))
+        centers = self.untransformed_node_positions[...]
+        neighbors = NearestNeighbors(n_neighbors=kk, algorithm="ball_tree").fit(centers)
+        distances, indices = neighbors.kneighbors(centers)
+        assert np.all(np.diff(distances, axis=1) >= 0)
+        # check that every element is a knn of itself, and this is the first neighbor
+        assert all(indices[:, 0] == np.array(range(len(self))))
+        edges = []
+        weights = []
+        # extra_data = []
+        # extra_data.append(indices[:, :GRAPH_KNN_K])
+        added = set()
+        for i in range(indices.shape[0]):
+            for j in range(1, indices.shape[1]):
+                edge = (i, indices[i, j])
+                if edge not in added:
+                    added.add(edge)
+                    added.add((edge[1], edge[0]))
+                    d = distances[i, j]
+                    weight = d
+                    if max_distance is None or d < max_distance:
+                        edges.append(edge)
+                        weights.append(weight)
+        self.edge_indices = np.array(edges)
+        self.edge_features = np.array(weights).reshape((len(self.edge_indices), -1))
+        self.commit_changes_on_disk()
+
+    def compute_rbfk_edges(self, length_scale: float, max_distance: Optional[float] = None):
+        edges = []
+        weights = []
+        centers = self.untransformed_node_positions[...]
+        tree = cKDTree(centers)
+        d = 2 * length_scale ** 2
+        for i in range(len(self)):
+            a = np.array(centers[i])
+            weight_threshold = np.exp(-(max_distance ** 2) / d)
+            distance_threshold = math.sqrt(0 - math.log(weight_threshold) * d)
+            neighbors = tree.query_ball_point(a, distance_threshold, p=2)
+            for j in neighbors:
+                if i >= j:
+                    continue
+                b = np.array(centers[j])
+                c = a - b
+                weight = np.exp(-np.dot(c, c) / d)
+                assert weight >= weight_threshold, (weight, weight_threshold)
+                edges.append([i, j])
+                weights.append(weight)
+        self.edge_indices = np.array(edges)
+        self.edge_features = np.array(weights).reshape((len(self.edge_indices), -1))
+        self.commit_changes_on_disk()
+
+    def compute_proximity_edges(self, max_distance: float):
+        edges = []
+        weights = []
+        centers = self.untransformed_node_positions[...]
+        tree = cKDTree(centers)
+        for i in range(len(self)):
+            a = np.array(centers[i])
+            neighbors = tree.query_ball_point(a, max_distance, p=2)
+            for j in neighbors:
+                if i >= j:
+                    continue
+                b = np.array(centers[j])
+                c = a - b
+                distance = np.sqrt(np.dot(c, c))
+                assert distance <= max_distance, (distance, max_distance)
+                edges.append([i, j])
+                weights.append(distance)
+        self.edge_indices = np.array(edges)
+        self.edge_features = np.array(weights).reshape((len(self.edge_indices), -1))
+        self.commit_changes_on_disk()

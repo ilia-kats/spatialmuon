@@ -25,13 +25,13 @@ jobs:
     - name: Test with pytest
       continue-on-error: true
       run: |
-        $CONDA/bin/pytest --cov=spatialmuon tests/ --cov-report=xml:/coverage.xml
+        $CONDA/bin/pytest --cov=spatialmuon tests/ --cov-report=xml:/home/runner/work/spatialmuon/spatialmuon/coverage.xml
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        directory: /
+        directory: /home/runner/work/spatialmuon/spatialmuon
         env_vars: OS,PYTHON
         fail_ci_if_error: true
         files: ./coverage.xml

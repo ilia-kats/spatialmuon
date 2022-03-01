@@ -25,6 +25,7 @@ dependencies:
   - matplotlib-scalebar=0.7.2
   - conda-build=3.21.7
   - pytest=6.2.5
+  - pytest-cov
   - louvain=0.7.1
   - colorama=0.4.4
   - opencv=4.5.3

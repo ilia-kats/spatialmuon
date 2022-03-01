@@ -34,7 +34,7 @@ jobs:
         $CONDA/bin/conda install -c conda-forge mamba
         $CONDA/bin/mamba env update --file pytest_env.yml --name base
         $CONDA/bin/mamba develop .
-        $CONDA/bin/pytest --verbose --color=yes --cov=./ --cov-report=xml        
+        $CONDA/bin/pytest --verbose --color=yes 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
       with:

@@ -2,11 +2,12 @@
 
 `spatialmuon` is a framework to handle spatial data in a technology-agnostic manner.
 
-[Documentation](https://spatialmuon.readthedocs.io/) | [Discord](https://discord.com/invite/MMsgDhnSwQ) | [![codecov](https://codecov.io/gh/ilia-kats/spatialmuon/branch/master/graph/badge.svg?token=NE7FEDB388)](https://codecov.io/gh/ilia-kats/spatialmuon)
+[Documentation](https://spatialmuon.readthedocs.io/) | [Discord](https://discord.com/invite/MMsgDhnSwQ)
 
 
 [![Documentation Status](https://readthedocs.org/projects/spatialmuon/badge/?version=latest)](http://spatialmuon.readthedocs.io/?badge=latest)
 [![PyPi version](https://img.shields.io/pypi/v/spatialmuon)](https://pypi.org/project/spatialmuon)
+[![codecov](https://codecov.io/gh/ilia-kats/spatialmuon/branch/master/graph/badge.svg?token=NE7FEDB388)](https://codecov.io/gh/ilia-kats/spatialmuon)
 
 ## Datasets
 We provide ready-to-use SpatialMuon objects (`.h5smu` files) for several datasets, and for each for them we include the script that we used to convert the data into the new format.

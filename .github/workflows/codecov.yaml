@@ -1,27 +1,31 @@
-name: Example workflow for Codecov
+name: CodeCov
 on: [push]
+ 
 jobs:
-  run:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-    env:
-      OS: ${{ matrix.os }}
-      PYTHON: '3.9'
+  build:
+    name: Run Python Tests
+    runs-on: ubuntu-latest
+ 
     steps:
+ 
     - uses: actions/checkout@v2
-    - name: Setup Python
-      uses: actions/setup-python@master
+ 
+    - name: Set up Python
+      uses: actions/setup-python@v2
       with:
         python-version: 3.9
-    - name: Test with pytest
+ 
+    - name: Install Python dependencies
       run: |
         sudo apt install -y hdf5-tools
         $CONDA/bin/conda install -c conda-forge mamba
         $CONDA/bin/mamba env update --file pytest_env.yml --name base
         $CONDA/bin/mamba develop .
-        $CONDA/bin/pytest --cov # --cov-report=xml
+ 
+    - name: Test with pytest
+      run: |
+        $CONDA/bin/pytest --cov=. --cov-report xml
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
       with:

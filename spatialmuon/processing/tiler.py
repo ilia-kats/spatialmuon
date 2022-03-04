@@ -18,7 +18,7 @@ class Tiles:
     def __init__(
         self,
         masks: Masks,
-        raster: Optional[Raster],
+        raster: Optional[Raster] = None,
         tile_dim_in_units: Optional[float] = None,
         tile_dim_in_pixels: Optional[float] = None,
     ):
@@ -50,6 +50,7 @@ class Tiles:
 
     def _example_plot(self):
         ##
+        plt.style.use('dark_background')
         n = 0
         _, ax = plt.subplots(1)
         s = self.tile_to_raster(index=n)

@@ -5,6 +5,7 @@ from .fieldofview import FieldOfView
 from .anchor import Anchor
 from .bounding_box import BoundingBox
 from .graph import Graph
+from ..processing.tiler import Tiles
 
 # from .image import Image
 from .masks import ShapeMasks, PolygonMasks, MeshMasks, RasterMasks

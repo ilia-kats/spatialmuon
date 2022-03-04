@@ -91,14 +91,38 @@ class Graphs_TestClass(unittest.TestCase):
         g.compute_knn_edges(k=10)
         g.to_networkx()
 
+    def test_subgraph_of_neighbors(self):
+        s = get_small_imc()
+        g = s["imc"]["masks"].compute_knn_graph(k=20, max_distance_in_units=20)
+        max_distance = 20
+        sub_g0, center_index0 = g.subgraph_of_neighbors(node_index=10, max_distance=max_distance)
+        sub_g1, center_index1 = g.subgraph_of_neighbors(node_index=3, k=None, subset_method='knn')
+
+        ##
+        _, ax = plt.subplots()
+        g.plot(ax=ax, node_colors='w', edge_colors='w', edge_size=0.5)
+
+        sub_g0.plot(ax=ax, node_colors='r', edge_colors='r')
+        ax.scatter(*sub_g0.untransformed_node_positions[center_index0].tolist(), c='g', s=100)
+        circle = plt.Circle(sub_g0.untransformed_node_positions[center_index0].tolist(), max_distance, edgecolor='r',
+                            facecolor=(0., 0., 0., 0.))
+        ax.add_patch(circle)
+
+        sub_g1.plot(ax=ax, node_colors='r', edge_colors='r')
+        ax.scatter(*sub_g1.untransformed_node_positions[center_index1].tolist(), c='g', s=100)
+        ax.set_aspect('equal')
+        plt.show()
+        ##
+
 
 if __name__ == "__main__":
     if not DEBUGGING:
         unittest.main(failfast=True)
     else:
-        Graphs_TestClass().test_plot()
-        Graphs_TestClass().test_knn_graph()
-        Graphs_TestClass().test_rbfk_graph()
-        Graphs_TestClass().test_proximity_graph()
-        Graphs_TestClass().test_graph_plot_with_cmap()
-        Graphs_TestClass().test_to_networkx_on_large_graphs()
+        # Graphs_TestClass().test_plot()
+        # Graphs_TestClass().test_knn_graph()
+        # Graphs_TestClass().test_rbfk_graph()
+        # Graphs_TestClass().test_proximity_graph()
+        # Graphs_TestClass().test_graph_plot_with_cmap()
+        # Graphs_TestClass().test_to_networkx_on_large_graphs()
+        Graphs_TestClass().test_subgraph_of_neighbors()

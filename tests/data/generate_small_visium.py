@@ -12,8 +12,7 @@ from spatialmuon._core.anchor import Anchor
 # this file is cumbersome because at the moment subsetting and copy constructors are not yet implemented
 
 this_dir = Path(__file__).parent
-fpath = this_dir / "small_visium.h5smu"
-outfile = fpath
+outfile = this_dir / "small_visium.h5smu"
 # outfile = 'tests/data/small_imc.h5smu'
 # outfile = os.path.join(os.getcwd(), outfile)
 
@@ -28,7 +27,8 @@ if os.path.isfile(outfile):
     os.unlink(outfile)
 new_smu = smu.SpatialMuData(outfile)
 new_smu["visium"] = modality = smu.SpatialModality()
-modality["expression"] = a0
+# TODO: without .clone() there is a bug, to be fixed
+modality["expression"] = a0.clone()
 
 d0 = modality["expression"]
 # x_cutoff = 0
@@ -62,9 +62,9 @@ os.system(f'ls -lh {outfile} | cut -d " " -f 5')
 new_smu.backing.close()
 
 print("\nnew smu repacked")
-d = smu.SpatialMuData(backing=fpath)
+d = smu.SpatialMuData(backing=outfile)
 d.repack(compression_level=9)
-d = smu.SpatialMuData(backing=fpath)
+d = smu.SpatialMuData(backing=outfile)
 print(d)
 print("filesize: ", end="")
 os.system(f'ls -lh {outfile} | cut -d " " -f 5')

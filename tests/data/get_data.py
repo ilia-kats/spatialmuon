@@ -13,7 +13,7 @@ from spatialmuon._core.anchor import Anchor
 from tests.testing_utils import initialize_testing
 import pandas as pd
 
-PLOT = False
+PLOT = True
 test_data_dir, DEBUGGING = initialize_testing()
 fpath_imc = test_data_dir / "small_imc.h5smu"
 fpath_visium = test_data_dir / "small_visium.h5smu"

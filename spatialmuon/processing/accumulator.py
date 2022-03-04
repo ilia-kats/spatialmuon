@@ -60,6 +60,7 @@ def _(masks: RasterMasks, raster: Raster) -> Regions:
         masks_with_obs.obs["region_center_y"] = features["RegionCenter"][original_labels, 0]
     if "count" not in masks_with_obs.obs:
         masks_with_obs.obs["count"] = features["Count"][original_labels]
+    # masks_with_obs.obj_has_changed('obs')
     d = {}
     for key in ["Maximum", "Mean", "Sum", "Variance"]:
         regions = Regions(

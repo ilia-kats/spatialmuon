@@ -43,7 +43,7 @@ class BackableObject(ABC, UserDict):
         self._requires_update.add(obj_name)
 
     def has_obj_changed(self, obj_name) -> bool:
-        if self.all_has_changed:
+        if self.all_has_changed or not self.is_backed:
             return True
         if obj_name in self._requires_update:
             self._requires_update.remove(obj_name)
@@ -101,6 +101,7 @@ class BackableObject(ABC, UserDict):
                 type(v) != h5py.File
                 and type(v) != h5py.Group
                 and type(v) != h5py.Dataset
+                # and type(v) != h5py.h5r.Reference
                 and not (k == "data" and type(v) == dict)
                 and not (k == "_parentdataset" and isinstance(self, spatialmuon._core.masks.Masks))
             ):

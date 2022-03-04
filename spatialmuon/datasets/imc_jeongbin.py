@@ -30,6 +30,8 @@ raster = smu.Raster(X=x, var=var)
 raster.plot(preprocessing=np.arcsinh)
 raster.plot(preprocessing=np.arcsinh, channels="beta-Actin")
 
-s = smu.SpatialMuData("/data/spatialmuon/datasets/imc_jeongbin/smu/imc.h5smu")
+s = smu.SpatialMuData("/data/spatialmuon/datasets/imc_jeongbin/smu/imc.h5smu", backingmode='w')
 s["imc"] = smu.SpatialModality()
 s["imc"]["ome"] = raster
+s.backing.close()
+print('done')

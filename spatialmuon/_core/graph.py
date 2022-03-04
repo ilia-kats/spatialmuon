@@ -250,11 +250,35 @@ class Graph(BackableObject, BoundingBoxable):
         NotImplementedError()
 
     def subset_obs(self, indices: np.array, inplace: bool = False):
-        raise NotImplementedError()
+        if not inplace:
+            untransformed_node_positions = self.untransformed_node_positions
+            untransformed_node_positions = untransformed_node_positions[indices, :]
+
+            obs = self.obs.iloc[indices, :].copy()
+
+            node_mask = np.zeros(len(self), dtype=bool)
+            node_mask[indices] = True
+            edge_mask = node_mask[self.edge_indices[:, 0]] & node_mask[self.edge_indices[:, 1]]
+            edge_indices = self.edge_indices[edge_mask]
+            edge_features = self.edge_features[edge_mask]
+            # relabel
+            assert np.alltrue(np.cumsum(node_mask)[indices] - 1 == np.arange(len(indices)))
+            edge_indices = np.cumsum(node_mask)[edge_indices] - 1
+
+            g = Graph(
+                untransformed_node_positions=untransformed_node_positions,
+                edge_indices=edge_indices,
+                edge_features=edge_features,
+                undirected=self.undirected,
+                obs=obs,
+            )
+            return g
+        else:
+            raise NotImplementedError()
 
     # partially inspired by https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/utils/convert
     # .html
-    def to_networkx(self):
+    def to_networkx(self) -> Tuple[Union[nx.Graph, nx.DiGraph], Dict[int, np.array]]:
         """
         warning: as a limitaiton of networkx, the order of edges is not guaranteed to be the same of the one of self.edge_indices
         :return:
@@ -337,7 +361,7 @@ class Graph(BackableObject, BoundingBoxable):
         else:
             assert edge_cmap is not None
             ll = list(g.edges.values())
-            ll = [x['weight'].reshape(1, -1) for x in ll]
+            ll = [x["weight"].reshape(1, -1) for x in ll]
             edge_features = np.concatenate(ll, axis=0)
             assert len(edge_features.shape) == 2
             if edge_features[1] == 1:
@@ -521,3 +545,54 @@ class Graph(BackableObject, BoundingBoxable):
         self.edge_indices = np.array(edges)
         self.edge_features = np.array(weights).reshape((len(self.edge_indices), -1))
         self.commit_changes_on_disk()
+
+    def subgraph_of_neighbors(
+        self,
+        node_index,
+        subset_method: Literal["proximity", "knn"] = "proximity",
+        max_distance: Optional[float] = None,
+        k: Optional[int] = None
+    ):
+        centers = self.untransformed_node_positions
+        center = centers[node_index, :]
+        if subset_method == "proximity":
+            assert max_distance is not None
+            assert k is None
+            is_near = np.linalg.norm(centers - center, axis=1) < max_distance
+        elif subset_method == "knn":
+            assert max_distance is None
+            # raise NotImplementedError()
+            g, positions = self.to_networkx()
+            neighbors = list(g.neighbors(node_index))
+            l = []
+            for node in neighbors:
+                w = g.get_edge_data(node_index, node)["weight"]
+                l.append((node, w))
+            l = sorted(l, key=lambda x: x[1])
+            if k is None:
+                nearest = [l[i][0] for i in range(len(l))]
+            else:
+                k = min(k, len(l))
+                nearest = [l[i][0] for i in range(k - 1)]
+            nearest.append(node_index)
+            is_near = np.zeros(len(centers), dtype=np.bool)
+            is_near[np.array(nearest, dtype=np.long)] = True
+            ##
+            if False:
+                plt.figure()
+                ax = plt.gca()
+                ax.scatter(self.untransformed_node_positions[:, 0], self.untransformed_node_positions[:, 1], c='w', s=1)
+                for i in range(len(self)):
+                    x, y = self.untransformed_node_positions[i, :]
+                    c = 'w' if i not in nearest else 'r'
+                    ax.annotate(str(i), (x, y), color=c)
+                plt.show()
+            ##
+        else:
+            raise ValueError()
+
+        nodes_to_keep = np.where(is_near)[0]
+
+        subgraph = self.subset_obs(indices=nodes_to_keep, inplace=False)
+        center_index = (np.cumsum(is_near) - 1)[node_index]
+        return subgraph, center_index

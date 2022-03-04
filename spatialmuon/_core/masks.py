@@ -36,6 +36,7 @@ from spatialmuon.utils import (
     apply_alpha,
     handle_categorical_plot,
     get_color_array_rgba,
+    subset_of_color_specification
 )
 from spatialmuon._core.bounding_box import BoundingBoxable, BoundingBox
 
@@ -198,10 +199,8 @@ class Masks(BackableObject, BoundingBoxable):
             masks_subset = self.clone()
             masks_subset = masks_subset.crop(bounding_box=bounding_box)
             ii = masks_subset.obs.index.to_numpy()
-            if fill_colors is not None:
-                fill_colors = fill_colors[ii]
-            if outline_colors is not None:
-                outline_colors = outline_colors[ii]
+            fill_colors = subset_of_color_specification(color=fill_colors, obs=self.obs, ii=ii)
+            outline_colors = subset_of_color_specification(color=outline_colors, obs=self.obs, ii=ii)
             masks_subset.plot(
                 fill_colors=fill_colors,
                 outline_colors=outline_colors,
@@ -526,7 +525,7 @@ class ShapeMasks(Masks, MutableMapping):
         for i in range(len(self)):
             xy = self.untransformed_masks_centers[i]
             xy = self.anchor.transform_coordinates(xy)
-            radius = self.untransformed_masks_radii[i]
+            radius = self.untransformed_masks_radii[i].copy()
             radius /= self.anchor.scale_factor
             patch = matplotlib.patches.Ellipse(xy, width=2 * radius[0], height=2 * radius[1])
             patches.append(patch)

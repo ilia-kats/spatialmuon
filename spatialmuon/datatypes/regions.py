@@ -84,10 +84,10 @@ class Regions(FieldOfView):
                 self.X = X
             else:
                 if masks is not None:
-                    self.X = np.zeros((0, len(masks)))
+                    self.X = np.zeros((len(masks), 0))
                 else:
                     assert graph is not None
-                    self.X = np.zeros((0, len(graph)))
+                    self.X = np.zeros((len(graph), 0))
 
             # self._index = SpatialIndex(coordinates=self._coordinates, **index_kwargs)
 

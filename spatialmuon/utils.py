@@ -168,7 +168,9 @@ def apply_alpha(x, alpha):
     x[:, 3] *= alpha
 
 
-def handle_categorical_plot(category, obs, categories_colors: Optional[Dict[str, ColorType]] = None):
+def handle_categorical_plot(
+    category, obs, categories_colors: Optional[Dict[str, ColorType]] = None
+):
     if type(category) == str and category in obs.columns:
         plotting_a_category = True
         title = category
@@ -237,3 +239,19 @@ def get_color_array_rgba(color, n):
             return e
     else:
         raise ValueError(f"invalid way of specifying the color: {color}")
+
+
+def subset_of_color_specification(color, obs, ii):
+    if color is None:
+        return None
+    elif type(color) == str and color in obs.columns:
+        return color
+    elif type(color) == str and color == "random":
+        return color
+    elif type(color) == str:
+        return color
+    elif type(color) == list or type(color) == np.ndarray:
+        assert len(color) == len(obs)
+        return color[ii]
+    else:
+        raise ValueError("color specification not handled")

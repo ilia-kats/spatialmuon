@@ -1,49 +1,36 @@
 from __future__ import annotations
 
-from collections.abc import MutableMapping
-from typing import Optional, Union, Literal, TYPE_CHECKING, Tuple, Dict
+import math
+from enum import Enum, auto
+from typing import Optional, Union, Literal, TYPE_CHECKING, Tuple, Dict, List
 
-import matplotlib.pyplot as plt
-import matplotlib.colors
+import h5py
 import matplotlib.axes
 import matplotlib.cm
-import matplotlib.patches
 import matplotlib.collections
-import numpy as np
-import math
-import h5py
+import matplotlib.colors
+import matplotlib.patches
+import matplotlib.pyplot as plt
 import networkx as nx
-import copy
-from sklearn.neighbors import NearestNeighbors
-from scipy.spatial import cKDTree
-
-import shapely.geometry
-from shapely.geometry import Polygon
-from trimesh import Trimesh
-from skimage.measure import find_contours
-from anndata._io.utils import read_attribute, write_attribute
+import numpy as np
 import pandas as pd
-import skimage.measure
-import vigra
-from functools import cached_property
-from enum import Enum, auto
+from anndata._io.utils import read_attribute, write_attribute
+from scipy.spatial import cKDTree
+from sklearn.neighbors import NearestNeighbors
 
 from spatialmuon._core.backing import BackableObject
+from spatialmuon._core.bounding_box import BoundingBoxable, BoundingBox
 from spatialmuon.utils import (
-    _read_hdf5_attribute,
-    UnknownEncodingException,
     _get_hdf5_attribute,
     ColorsType,
     ColorType,
     handle_categorical_plot,
     get_color_array_rgba,
-    normalize_color,
     apply_alpha,
 )
-from spatialmuon._core.bounding_box import BoundingBoxable, BoundingBox
 
 if TYPE_CHECKING:
-    from spatialmuon import Raster, Regions
+    pass
 
 
 class SpotShape(Enum):
@@ -79,6 +66,7 @@ class Graph(BackableObject, BoundingBoxable):
             self._edge_indices = backing["edge_indices"]
             self._edge_features = backing["edge_features"]
             a = _get_hdf5_attribute(backing.attrs, "undirected")
+            assert a is not None
             self._undirected = a
             self._obs = read_attribute(backing["obs"])
         else:
@@ -207,11 +195,7 @@ class Graph(BackableObject, BoundingBoxable):
     def _write_attributes_impl(self, obj: Union[h5py.Dataset, h5py.Group]):
         super()._write_attributes_impl(obj)
         if self.has_obj_changed("undirected"):
-            write_attribute(
-                obj,
-                "undirected",
-                self.undirected,
-            )
+            obj.attrs['undirected'] = self.undirected
         if self.has_obj_changed("obs"):
             write_attribute(
                 obj,
@@ -259,8 +243,8 @@ class Graph(BackableObject, BoundingBoxable):
             node_mask = np.zeros(len(self), dtype=bool)
             node_mask[indices] = True
             edge_mask = node_mask[self.edge_indices[:, 0]] & node_mask[self.edge_indices[:, 1]]
-            edge_indices = self.edge_indices[edge_mask]
-            edge_features = self.edge_features[edge_mask]
+            edge_indices = self.edge_indices[edge_mask, :]
+            edge_features = self.edge_features[edge_mask, :]
             # relabel
             assert np.alltrue(np.cumsum(node_mask)[indices] - 1 == np.arange(len(indices)))
             edge_indices = np.cumsum(node_mask)[edge_indices] - 1
@@ -498,6 +482,8 @@ class Graph(BackableObject, BoundingBoxable):
                         edges.append(edge)
                         weights.append(weight)
         self.edge_indices = np.array(edges)
+        if len(weights) == 0:
+            print('no edge added, consider increasing the value of max_distance')
         self.edge_features = np.array(weights).reshape((len(self.edge_indices), -1))
         self.commit_changes_on_disk()
 
@@ -548,51 +534,70 @@ class Graph(BackableObject, BoundingBoxable):
 
     def subgraph_of_neighbors(
         self,
-        node_index,
-        subset_method: Literal["proximity", "knn"] = "proximity",
+        node_indices: Union[List[int] | int],
+        subset_method: Literal["proximity", "knn"] = "knn",
         max_distance: Optional[float] = None,
         k: Optional[int] = None
     ):
-        centers = self.untransformed_node_positions
-        center = centers[node_index, :]
+        flatten_the_return = False
+        if isinstance(node_indices, int):
+            flatten_the_return = True
+            node_indices = [node_indices]
+        all_centers = self.untransformed_node_positions
+        centers = all_centers[node_indices, :]
+        is_nears = []
         if subset_method == "proximity":
             assert max_distance is not None
             assert k is None
-            is_near = np.linalg.norm(centers - center, axis=1) < max_distance
+            for center in centers:
+                is_near = np.linalg.norm(all_centers - center, axis=1) < max_distance
+                is_nears.append(is_near)
         elif subset_method == "knn":
             assert max_distance is None
             # raise NotImplementedError()
             g, positions = self.to_networkx()
-            neighbors = list(g.neighbors(node_index))
-            l = []
-            for node in neighbors:
-                w = g.get_edge_data(node_index, node)["weight"]
-                l.append((node, w))
-            l = sorted(l, key=lambda x: x[1])
-            if k is None:
-                nearest = [l[i][0] for i in range(len(l))]
-            else:
-                k = min(k, len(l))
-                nearest = [l[i][0] for i in range(k - 1)]
-            nearest.append(node_index)
-            is_near = np.zeros(len(centers), dtype=np.bool)
-            is_near[np.array(nearest, dtype=np.long)] = True
-            ##
-            if False:
-                plt.figure()
-                ax = plt.gca()
-                ax.scatter(self.untransformed_node_positions[:, 0], self.untransformed_node_positions[:, 1], c='w', s=1)
-                for i in range(len(self)):
-                    x, y = self.untransformed_node_positions[i, :]
-                    c = 'w' if i not in nearest else 'r'
-                    ax.annotate(str(i), (x, y), color=c)
-                plt.show()
-            ##
+            for node_index in node_indices:
+                neighbors = list(g.neighbors(node_index))
+                l = []
+                for node in neighbors:
+                    w = g.get_edge_data(node_index, node)["weight"]
+                    l.append((node, w))
+                l = sorted(l, key=lambda x: x[1])
+                if k is None:
+                    nearest = [l[i][0] for i in range(len(l))]
+                else:
+                    k = min(k, len(l))
+                    nearest = [l[i][0] for i in range(k - 1)]
+                nearest.append(node_index)
+                is_near = np.zeros(len(all_centers), dtype=np.bool)
+                is_near[np.array(nearest, dtype=np.long)] = True
+                ##
+                if False:
+                    plt.figure()
+                    ax = plt.gca()
+                    ax.scatter(self.untransformed_node_positions[:, 0], self.untransformed_node_positions[:, 1], c='w', s=1)
+                    for i in range(len(self)):
+                        x, y = self.untransformed_node_positions[i, :]
+                        c = 'w' if i not in nearest else 'r'
+                        ax.annotate(str(i), (x, y), color=c)
+                    plt.show()
+                ##
+                is_nears.append(is_near)
         else:
             raise ValueError()
 
-        nodes_to_keep = np.where(is_near)[0]
+        subgraphs = []
+        center_indices = []
+        nodes_to_keeps = []
+        for is_near, node_index in zip(is_nears, node_indices):
+            nodes_to_keep = np.where(is_near)[0]
+            subgraph = self.subset_obs(indices=nodes_to_keep, inplace=False)
+            center_index = (np.cumsum(is_near) - 1)[node_index]
 
-        subgraph = self.subset_obs(indices=nodes_to_keep, inplace=False)
-        center_index = (np.cumsum(is_near) - 1)[node_index]
-        return subgraph, center_index
+            subgraphs.append(subgraph)
+            center_indices.append(center_index)
+            nodes_to_keeps.append(nodes_to_keep)
+        if flatten_the_return:
+            return subgraphs[0], center_indices[0], nodes_to_keeps[0]
+        else:
+            return subgraphs, center_indices, nodes_to_keeps

@@ -30,6 +30,9 @@ class SpatialMuData(BackableObject):
                             str(e)
                             == "Unable to open file (file is already open for write/SWMR write (may use <h5clear "
                             "file> to clear file consistency flags))"
+                            or str(e)
+                            == "Unable to open file (file is already open for write (may use <h5clear "
+                            "file> to clear file consistency flags))"
                         ):
                             cmd = f"h5clear -s {backing}"
                             system(cmd)
@@ -39,7 +42,7 @@ class SpatialMuData(BackableObject):
                 else:
                     raise FileExistsError("file already exists and is not a valid SpatialMuon file")
             else:
-                if backingmode != 'w':
+                if backingmode != "w":
                     raise FileNotFoundError(f'the file "{backing}" does not exist')
                 # print("creating a new file for the backed storage")
                 f = h5py.File(
@@ -47,8 +50,9 @@ class SpatialMuData(BackableObject):
                     "w",
                     userblock_size=4096,
                     libver="latest",
-                    fs_strategy="page",
-                    fs_persist=True,
+                    # commented out since it was giving me a problem wiht a particular h5py version
+                    # fs_strategy="page",
+                    # fs_persist=True,
                 )
                 f.close()
                 with open(backing, "br+") as outfile:

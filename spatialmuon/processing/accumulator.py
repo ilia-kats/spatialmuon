@@ -1,6 +1,5 @@
 from functools import singledispatch
 import numpy as np
-import vigra
 import copy
 
 from spatialmuon._core.masks import Masks, RasterMasks
@@ -40,6 +39,7 @@ def _(masks: RasterMasks, raster: Raster) -> Regions:
     if len(x.shape) != 3:
         raise NotImplementedError("3D case")
     ome = np.require(x, requirements=["C"])
+    import vigra
     vigra_ome = vigra.taggedView(ome, "xyc")
     masks_array = masks.X[...]
     masks_array = masks_array.astype(np.uint32)

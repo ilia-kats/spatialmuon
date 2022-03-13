@@ -1,4 +1,4 @@
-from typing import Optional, Union, Callable, Dict
+from typing import Optional, Union, Callable, Dict, List
 import warnings
 import matplotlib
 import matplotlib.cm
@@ -45,12 +45,12 @@ class SpatialModality(BackableObject):
     # flake8: noqa: C901
     def plot(
         self,
-        channels: Optional[Union[str, list[str]]] = "all",
-        grid_size: Union[int, list[int]] = 1,
+        channels: Optional[Union[str, List[str]]] = "all",
+        grid_size: Union[int, List[int]] = 1,
         preprocessing: Optional[Callable] = None,
         overlap: bool = False,
         cmap: Union[
-            matplotlib.colors.Colormap, list[matplotlib.colors.Colormap]
+            matplotlib.colors.Colormap, List[matplotlib.colors.Colormap]
         ] = matplotlib.cm.viridis,
     ):
 

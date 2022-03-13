@@ -21,7 +21,6 @@ from skimage.measure import find_contours
 from anndata._io.utils import read_attribute, write_attribute
 import pandas as pd
 import skimage.measure
-import vigra
 from functools import cached_property
 from enum import Enum, auto
 
@@ -1047,6 +1046,7 @@ class RasterMasks(Masks):
         ome = np.require(
             np.zeros_like(masks, dtype=np.float32)[..., np.newaxis], requirements=["C"]
         )
+        import vigra
         vigra_ome = vigra.taggedView(ome, "xyc")
         ##
         features = vigra.analysis.extractRegionFeatures(

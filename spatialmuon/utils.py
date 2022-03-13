@@ -1,4 +1,4 @@
-from typing import Literal, Optional, Union, Dict
+from typing import Literal, Optional, Union, Dict, List
 from codecs import decode
 import warnings
 import colorama
@@ -135,17 +135,17 @@ def old_school_debugging(debug: bool):
 ColorsType = Optional[
     Union[
         str,
-        list[str],
+        List[str],
         np.ndarray,
-        list[np.ndarray],
-        list[int],
-        list[float],
-        list[list[int]],
-        list[list[float]],
+        List[np.ndarray],
+        List[int],
+        List[float],
+        List[List[int]],
+        List[List[float]],
     ]
 ]
 
-ColorType = Union[str, np.ndarray, list[int], list[float]]
+ColorType = Union[str, np.ndarray, List[int], List[float]]
 
 
 def normalize_color(x):

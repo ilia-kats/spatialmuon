@@ -13,7 +13,7 @@ from spatialmuon._core.anchor import Anchor
 from tests.testing_utils import initialize_testing
 import pandas as pd
 
-PLOT = True
+PLOT = False
 test_data_dir, DEBUGGING = initialize_testing()
 fpath_imc = test_data_dir / "small_imc.h5smu"
 fpath_visium = test_data_dir / "small_visium.h5smu"
@@ -26,7 +26,7 @@ def get_small_imc():
         shutil.copy(fpath_imc, des)
         d = spatialmuon.SpatialMuData(backing=des)
         if DEBUGGING and PLOT:
-            _, ax = plt.subplots()
+            _, ax = plt.subplots(1)
             d["imc"]["ome"].plot(0, ax=ax)
             d["imc"]["masks"].masks.plot(fill_colors=None, outline_colors="k", ax=ax)
             plt.show()

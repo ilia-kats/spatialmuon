@@ -382,6 +382,10 @@ class Regions(FieldOfView):
                     z = x.todense()
                 else:
                     z = x
+                if type(z) == np.ndarray:
+                    z = z.flatten()
+                elif type(z) == np.matrix:
+                    z = z.A1
                 z = normalizer(z)
                 colors = cmap(z)
         fill_colors = colors if fill_color == "channel" else fill_color

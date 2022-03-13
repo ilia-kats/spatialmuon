@@ -238,7 +238,8 @@ def regions_raster_plot(
                 # divider = make_axes_locatable(axs)
                 # cax = divider.append_axes("bottom", size="5%", pad=0.05)
                 plt.colorbar(
-                    im, orientation="horizontal", location="bottom", ax=axs, shrink=0.6, pad=0.1
+                    # location="bottom",
+                    im, orientation="horizontal", ax=axs, shrink=0.6, pad=0.1
                 )
         if show_scalebar:
             unit = instance.coordinate_unit

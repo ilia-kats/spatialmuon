@@ -10,8 +10,6 @@ import sys
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix
-import geopandas as gpd
-from shapely.geometry import Point
 from PIL import Image
 from spatialmuon._core.masks import ShapeMasks
 

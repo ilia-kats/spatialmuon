@@ -4,7 +4,7 @@ from typing import Optional, Union, Literal, Dict
 
 import numpy as np
 import pandas as pd
-import geopandas as gpd
+# import geopandas as gpd
 from shapely.geometry import Point, Polygon
 
 # from ncls import NCLS

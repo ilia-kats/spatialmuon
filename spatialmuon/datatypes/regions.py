@@ -9,7 +9,6 @@ import numpy as np
 import scipy.sparse.csr
 from scipy.sparse import spmatrix
 import pandas as pd
-import geopandas as gpd
 from shapely.geometry import Point, Polygon
 from trimesh import Trimesh
 import h5py
@@ -76,8 +75,10 @@ class Regions(FieldOfView):
             if masks is None and graph is None:
                 raise ValueError('at least one between "masks" and "graph" need to be specify')
             if masks is not None:
+                masks._parentdataset = self
                 self.masks = masks
             if graph is not None:
+                graph._parentdataset = self
                 self.graph = graph
 
             if X is not None:

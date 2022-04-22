@@ -117,6 +117,7 @@ def get_small_scaled_visium():
         mod["image2x"] = smu.Raster(X=np.array(im2x), anchor=anchor2x)
         mod["image_crop"] = smu.Raster(X=np.array(im_crop), anchor=anchor_crop)
         mod["image2x_crop"] = smu.Raster(X=np.array(im2x_crop), anchor=anchor2x_crop)
+
         #
         # s_out['visium'] = new_mod
         # # plt.figure()

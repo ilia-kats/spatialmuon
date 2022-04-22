@@ -56,7 +56,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
         downloaded[k] = os.path.join(download_dir, v)
 
     if not DEBUG:
-        for k, v in downloaded.items():
+        for k, v in downloaded.items()
             dest = v
             url = urls[k]
             download(url, dest, desc=f"downloading {k}")

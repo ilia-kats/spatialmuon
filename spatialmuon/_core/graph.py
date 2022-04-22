@@ -243,8 +243,8 @@ class Graph(BackableObject, BoundingBoxable):
             node_mask = np.zeros(len(self), dtype=bool)
             node_mask[indices] = True
             edge_mask = node_mask[self.edge_indices[:, 0]] & node_mask[self.edge_indices[:, 1]]
-            edge_indices = self.edge_indices[edge_mask, :]
-            edge_features = self.edge_features[edge_mask, :]
+            edge_indices = self.edge_indices[np.where(edge_mask)[0], :]
+            edge_features = self.edge_features[np.where(edge_mask)[0], :]
             # relabel
             assert np.alltrue(np.cumsum(node_mask)[indices] - 1 == np.arange(len(indices)))
             edge_indices = np.cumsum(node_mask)[edge_indices] - 1

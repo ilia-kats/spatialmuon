@@ -25,7 +25,7 @@ a1 = d["Visium"]["ST8059049H&E"]
 print(outfile)
 if os.path.isfile(outfile):
     os.unlink(outfile)
-new_smu = smu.SpatialMuData(outfile)
+new_smu = smu.SpatialMuData(outfile, backingmode='w')
 new_smu["visium"] = modality = smu.SpatialModality()
 # TODO: without .clone() there is a bug, to be fixed
 modality["expression"] = a0.clone()
@@ -37,7 +37,7 @@ y_cutoff = 1500
 centers = d0.masks.untransformed_masks_centers
 obs_to_keep = (centers[:, 0] > x_cutoff) * (centers[:, 1] > y_cutoff)
 print(f"keeping {np.sum(obs_to_keep)} out of {len(centers)} obs")
-n_var_to_keep = 100
+n_var_to_keep = 50
 new_X = d0.X[obs_to_keep, :n_var_to_keep]
 d0.var = d0.var.iloc[:n_var_to_keep]
 d0.X = new_X

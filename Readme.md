@@ -2,6 +2,8 @@
 
 `spatialmuon` is a framework to handle spatial data in a technology-agnostic manner.
 
+**Note: this repository is not developed anymore, and it has been replaced by the more powerful [SpatialData framework](https://github.com/scverse/spatialdata/). Within this repository, the `202202_graphs` is the most up-to-date branch.**
+
 [Documentation](https://spatialmuon.readthedocs.io/) | [Discord](https://discord.com/invite/MMsgDhnSwQ)
 
 
